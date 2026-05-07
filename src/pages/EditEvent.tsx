@@ -10,6 +10,7 @@ import { TimePicker } from '../components/TimePicker';
 import { Event } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const EditEvent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,9 +81,15 @@ export const EditEvent: React.FC = () => {
       const newSlug = user?.role === 'admin' && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+
+      let finalImageUrl = rest.coverImage;
+      if (finalImageUrl && (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://'))) {
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+      }
         
       await updateDoc(doc(db, 'events', id), {
         ...rest,
+        coverImage: finalImageUrl,
         slug: newSlug,
         dateTime: `${date}T${time}`,
         updatedAt: new Date().toISOString(),

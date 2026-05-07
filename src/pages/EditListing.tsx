@@ -12,7 +12,7 @@ import { generateSlug } from '../utils/slugify';
 import { getListingUrl } from '../utils/url';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'sonner';
-import { uploadFile } from '../utils/storageUtils';
+import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
 
 export const EditListing: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -135,13 +135,22 @@ export const EditListing: React.FC = () => {
       const newSlug = user?.role === 'admin' && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.name);
+
+      const processedPhotos = await Promise.all(
+        formData.photos.filter(p => p.trim() !== '').map(async (photoUrl, idx) => {
+          if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+            return await uploadFromUrl(photoUrl, `${formData.name}-${idx}`);
+          }
+          return photoUrl;
+        })
+      );
         
       await updateDoc(docRef, {
         ...formData,
         types: formData.category.includes('Restaurants') ? formData.types : [],
         cuisine: formData.category.includes('Restaurants') ? formData.cuisine : [],
         slug: newSlug,
-        photos: formData.photos.filter(p => p.trim() !== ''),
+        photos: processedPhotos,
         updatedAt: new Date().toISOString(),
       });
       toast.success('Listing updated successfully!');
@@ -336,15 +345,49 @@ export const EditListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
-              <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="url"
-                placeholder="Photo URL"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                value={formData.photos[0] || ''}
-                onChange={(e) => setFormData({ ...formData, photos: [e.target.value] })}
-              />
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Photo URL"
+                    className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                    value={formData.photos[0] || ''}
+                    onChange={(e) => setFormData({ ...formData, photos: [e.target.value] })}
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setIsUploading(true);
+                      try {
+                        const url = await uploadFile(file, 'listings', formData.name);
+                        setFormData({ ...formData, photos: [url] });
+                        toast.success('Photo uploaded successfully');
+                      } catch (error: any) {
+                        toast.error(error.message || 'Failed to upload photo');
+                      } finally {
+                        setIsUploading(false);
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={isUploading}
+                  />
+                  <button
+                    type="button"
+                    disabled={isUploading}
+                    className="h-full px-6 bg-gray-100 text-gray-700 font-bold rounded-2xl border border-gray-200 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                    <span className="hidden sm:inline">{isUploading ? 'Uploading...' : 'Upload'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <textarea

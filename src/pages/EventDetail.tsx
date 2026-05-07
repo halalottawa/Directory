@@ -192,7 +192,7 @@ export const EventDetail: React.FC = () => {
 
       <div className="relative h-64">
         {event.coverImage && event.coverImage.trim() !== '' ? (
-          <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" />
+          <img src={(event.coverImage) || undefined} alt={event.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
             <span className="text-gray-400 font-medium">No Image Available</span>
@@ -333,7 +333,7 @@ export const EventDetail: React.FC = () => {
               >
                 <div className="relative h-32 shrink-0">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
-                    <img src={related.coverImage} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={(related.coverImage) || undefined} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>

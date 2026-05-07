@@ -400,7 +400,7 @@ export const ListingDetail: React.FC = () => {
         {listing.photos && listing.photos.length > 0 ? (
           <div className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
             {listing.photos.map((photo, idx) => (
-              <img key={idx} src={photo} alt={`${listing.name} - Photo ${idx + 1}`} className="w-full h-full object-cover shrink-0 snap-center" crossOrigin="anonymous" loading="lazy" />
+              <img key={idx} src={(photo) || undefined} alt={`${listing.name} - Photo ${idx + 1}`} className="w-full h-full object-cover shrink-0 snap-center" crossOrigin="anonymous" loading="lazy" />
             ))}
           </div>
         ) : (
@@ -839,7 +839,7 @@ export const ListingDetail: React.FC = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
-                          {review.userPhoto && review.userPhoto.trim() !== '' ? <img src={review.userPhoto} alt={review.userName} /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{review.userName[0]}</div>}
+                          {review.userPhoto && review.userPhoto.trim() !== '' ? <img src={(review.userPhoto) || undefined} alt={review.userName} /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{review.userName[0]}</div>}
                         </div>
                         <div>
                           <p className="font-bold text-sm">{review.userName}</p>
@@ -1064,7 +1064,7 @@ export const ListingDetail: React.FC = () => {
             >
               <div className="relative h-48 w-full shrink-0">
                 {related.photos && related.photos.length > 0 ? (
-                  <img src={related.photos[0]} alt={related.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
+                  <img src={(related.photos[0]) || undefined} alt={related.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                     <span className="text-gray-400 font-medium text-sm">No Image</span>

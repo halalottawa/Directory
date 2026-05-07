@@ -124,7 +124,7 @@ export const SavedItems: React.FC = () => {
               <Briefcase className="w-5 h-5 text-gray-400" />
             ) : (
               <img 
-                src={getImage()} 
+                src={(getImage()) || undefined} 
                 alt={getTitle()} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"

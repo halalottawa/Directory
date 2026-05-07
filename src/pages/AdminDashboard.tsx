@@ -862,7 +862,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
           )}
           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400">
             {getImage() ? (
-              <img src={getImage()} alt="Listing photo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={(getImage()) || undefined} alt="Listing photo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
               <span className="font-bold text-sm uppercase">{(getTitle() as string).charAt(0)}</span>
             )}
@@ -1375,7 +1375,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                     <div className="flex items-center gap-4 min-w-0">
                       <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
                         {ad.type === 'banner' && ad.imageUrl ? (
-                          <img src={ad.imageUrl} alt="Ad" className="w-full h-full object-cover" />
+                          <img src={(ad.imageUrl) || undefined} alt="Ad" className="w-full h-full object-cover" />
                         ) : (
                           <span className="text-xs font-bold text-gray-400">CODE</span>
                         )}
@@ -1532,7 +1532,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
                   {viewFeedbackItem.item.userPhoto ? (
-                    <img src={viewFeedbackItem.item.userPhoto} alt={viewFeedbackItem.item.userName} className="w-full h-full object-cover" />
+                    <img src={(viewFeedbackItem.item.userPhoto) || undefined} alt={viewFeedbackItem.item.userName} className="w-full h-full object-cover" />
                   ) : (
                     <Users className="w-5 h-5 text-gray-400" />
                   )}

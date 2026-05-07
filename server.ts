@@ -2,6 +2,9 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import multer from "multer";
+import fs from "fs";
+import sharp from "sharp";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,6 +12,78 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Set up upload dir
+  const uploadDir = path.join(process.cwd(), "public", "uploads");
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const storage = multer.memoryStorage();
+  const upload = multer({ storage: storage });
+
+  // Serve static files from public folder specifically for uploads in production too
+  app.use("/uploads", express.static(uploadDir));
+
+  // File upload endpoint
+  app.post("/api/upload", upload.single("file"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    
+    try {
+      const providedName = req.body.name ? req.body.name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
+      const filename = `${providedName}.webp`;
+      const outputPath = path.join(uploadDir, filename);
+
+      await sharp(req.file.buffer)
+        .webp({ quality: 80 })
+        .toFile(outputPath);
+
+      // Return the relative URL to access the file
+      const url = `/uploads/${filename}`;
+      res.json({ url });
+    } catch (error) {
+      console.error("Error processing image:", error);
+      res.status(500).json({ error: "Failed to process image" });
+    }
+  });
+
+  // File upload from URL endpoint
+  app.post("/api/upload-url", express.json(), async (req, res) => {
+    try {
+      const { url, name } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "No URL provided" });
+      }
+
+      // Check if it is already our local url
+      if (url.startsWith('/uploads/')) {
+        return res.json({ url });
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      const providedName = name ? name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
+      const filename = `${providedName}.webp`;
+      const outputPath = path.join(uploadDir, filename);
+
+      await sharp(buffer)
+        .webp({ quality: 80 })
+        .toFile(outputPath);
+
+      res.json({ url: `/uploads/${filename}` });
+    } catch (error) {
+      console.error("Error processing image from URL:", error);
+      res.status(500).json({ error: "Failed to process image from URL" });
+    }
+  });
 
   // API routes can be added here
   app.get("/api/health", (req, res) => {

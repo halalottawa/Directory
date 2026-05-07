@@ -175,7 +175,7 @@ export const JobDetail: React.FC = () => {
           <div className="grid grid-cols-[auto_1fr] gap-x-5 items-center">
             {job.companyLogo && job.companyLogo.trim() !== '' && (
               <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 row-span-2">
-                <img src={job.companyLogo} alt={job.company} className="w-full h-full object-cover" />
+                <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" />
               </div>
             )}
             <div className={job.companyLogo && job.companyLogo.trim() !== '' ? "col-start-2 min-w-0" : "col-span-2 min-w-0"}>
@@ -247,7 +247,7 @@ export const JobDetail: React.FC = () => {
                   <div className="flex gap-3 items-start">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                       {related.companyLogo && related.companyLogo.trim() !== '' ? (
-                        <img src={related.companyLogo} alt={related.company} className="w-full h-full object-cover" />
+                        <img src={(related.companyLogo) || undefined} alt={related.company} className="w-full h-full object-cover" />
                       ) : (
                         <Building2 className="w-6 h-6 text-gray-400" />
                       )}

@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const AddNews: React.FC = () => {
   const navigate = useNavigate();
@@ -32,11 +33,16 @@ export const AddNews: React.FC = () => {
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
 
+      let finalImageUrl = formData.coverImage || 'https://picsum.photos/seed/news/800/600';
+      if (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://')) {
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+      }
+
       await addDoc(collection(db, 'news'), {
         ...formData,
         slug: newSlug,
         author: 'Halal Ottawa',
-        coverImage: formData.coverImage || 'https://picsum.photos/seed/news/800/600',
+        coverImage: finalImageUrl,
         isFeatured: false,
         isApproved: isAdmin, // Admin posts directly
         submittedBy: user.uid,

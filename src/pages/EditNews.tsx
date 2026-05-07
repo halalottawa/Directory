@@ -9,6 +9,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { NewsArticle } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const EditNews: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -67,9 +68,15 @@ export const EditNews: React.FC = () => {
       const newSlug = user?.role === 'admin' && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+
+      let finalImageUrl = formData.coverImage;
+      if (finalImageUrl && (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://'))) {
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+      }
         
       await updateDoc(doc(db, 'news', id), {
         ...formData,
+        coverImage: finalImageUrl,
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });

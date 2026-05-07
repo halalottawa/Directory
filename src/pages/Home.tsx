@@ -242,7 +242,7 @@ export const Home: React.FC = () => {
             >
               <div className="relative h-32 md:h-48">
                 {listing.photos?.[0] ? (
-                  <img src={listing.photos[0]} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                  <img src={(listing.photos[0]) || undefined} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                     <span className="text-gray-400 text-xs font-medium">No Image</span>
@@ -281,7 +281,7 @@ export const Home: React.FC = () => {
             >
               <div className="relative w-24 h-24 md:w-full md:h-48 shrink-0">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
-                  <img src={news.coverImage} alt={news.title} className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                  <img src={(news.coverImage) || undefined} alt={news.title} className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" loading="lazy" />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
                     <span className="text-gray-400 text-[10px] md:text-xs font-medium">No Image</span>
@@ -320,7 +320,7 @@ export const Home: React.FC = () => {
               >
                 <div className="relative h-32">
                   {event.coverImage && event.coverImage.trim() !== '' ? (
-                    <img src={event.coverImage} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+                    <img src={(event.coverImage) || undefined} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>
@@ -359,7 +359,7 @@ export const Home: React.FC = () => {
               <div className="flex gap-3 items-start">
                 <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                   {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                    <img src={job.companyLogo} alt={job.company} className="w-full h-full object-cover" loading="lazy" />
+                    <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" loading="lazy" />
                   ) : (
                     <Building2 className="w-6 h-6 text-gray-400" />
                   )}

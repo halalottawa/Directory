@@ -30,7 +30,7 @@ export const AdDisplay: React.FC = () => {
     <div className="w-full my-6 flex justify-center">
       {ad.type === 'banner' ? (
         <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full max-w-4xl rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-          <img src={ad.imageUrl} alt="Advertisement" className="w-full h-auto object-cover max-h-[250px]" />
+          <img src={(ad.imageUrl) || undefined} alt="Advertisement" className="w-full h-auto object-cover max-h-[250px]" />
         </a>
       ) : (
         <div 

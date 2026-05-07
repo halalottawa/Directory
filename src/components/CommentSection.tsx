@@ -163,7 +163,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden flex items-center justify-center">
-                    {comment.userPhoto && comment.userPhoto.trim() !== '' ? <img src={comment.userPhoto} alt={comment.userName} /> : <User className="w-4 h-4 text-gray-400" />}
+                    {comment.userPhoto && comment.userPhoto.trim() !== '' ? <img src={(comment.userPhoto) || undefined} alt={comment.userName} /> : <User className="w-4 h-4 text-gray-400" />}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">

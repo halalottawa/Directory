@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { TimePicker } from '../components/TimePicker';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const AddEvent: React.FC = () => {
   const navigate = useNavigate();
@@ -40,11 +41,16 @@ export const AddEvent: React.FC = () => {
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
 
+      let finalImageUrl = formData.coverImage || 'https://picsum.photos/seed/newevent/800/600';
+      if (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://')) {
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+      }
+
       await addDoc(collection(db, 'events'), {
         ...rest,
         slug: newSlug,
         dateTime: `${date}T${time}`,
-        coverImage: formData.coverImage || 'https://picsum.photos/seed/newevent/800/600',
+        coverImage: finalImageUrl,
         lat: 45.4215,
         lng: -75.6972,
         isFeatured: false,

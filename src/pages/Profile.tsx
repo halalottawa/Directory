@@ -117,7 +117,7 @@ export const Profile: React.FC = () => {
               <Briefcase className="w-5 h-5 text-gray-400" />
             ) : (
               <img 
-                src={getImage()} 
+                src={(getImage()) || undefined} 
                 alt={getTitle()} 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
@@ -172,7 +172,7 @@ export const Profile: React.FC = () => {
             <div className="relative group">
               <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl shadow-gray-200 bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-4xl font-black">
                 {user.photoURL && user.photoURL.trim() !== '' ? (
-                  <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={(user.photoURL) || undefined} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{(user.firstName?.[0] || user.name?.[0] || '?').toUpperCase()}</span>
                 )}
@@ -342,7 +342,7 @@ export const Profile: React.FC = () => {
                         <div className="flex items-center gap-3 mb-4">
                           <div className="w-10 h-10 aspect-square rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
                             {listing.photos && listing.photos[0] ? (
-                              <img src={listing.photos[0]} alt={listing.name || "Listing photo"} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                              <img src={(listing.photos[0]) || undefined} alt={listing.name || "Listing photo"} className="w-full h-full object-cover" crossOrigin="anonymous" />
                             ) : (
                               <Activity className="w-5 h-5 text-gray-400" />
                             )}

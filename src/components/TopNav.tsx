@@ -99,7 +99,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                 className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] overflow-hidden border border-white shadow-sm flex items-center justify-center text-white text-[10px] font-black hover:scale-105 transition-transform"
               >
                 {user.photoURL && user.photoURL.trim() !== '' ? (
-                  <img src={user.photoURL} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={(user.photoURL) || undefined} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{(user.firstName?.[0] || user.name?.[0] || '?').toUpperCase()}</span>
                 )}

@@ -137,7 +137,7 @@ export const NewsDetail: React.FC = () => {
 
       <div className="relative h-64">
         {article.coverImage && article.coverImage.trim() !== '' ? (
-          <img src={article.coverImage} alt={article.title} className="w-full h-full object-cover" />
+          <img src={(article.coverImage) || undefined} alt={article.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
             <span className="text-gray-400 font-medium">No Image Available</span>
@@ -213,7 +213,7 @@ export const NewsDetail: React.FC = () => {
               >
                 <div className="relative w-full h-48 shrink-0">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
-                    <img src={related.coverImage} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={(related.coverImage) || undefined} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>

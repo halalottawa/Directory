@@ -9,6 +9,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Job, JobType } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const EditJob: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -77,9 +78,15 @@ export const EditJob: React.FC = () => {
       const newSlug = user?.role === 'admin' && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+
+      let finalLogoUrl = formData.companyLogo;
+      if (finalLogoUrl && (finalLogoUrl.startsWith('http://') || finalLogoUrl.startsWith('https://'))) {
+        finalLogoUrl = await uploadFromUrl(finalLogoUrl, `${formData.company}-logo`);
+      }
         
       await updateDoc(doc(db, 'jobs', id), {
         ...formData,
+        companyLogo: finalLogoUrl,
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });

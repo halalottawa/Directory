@@ -140,7 +140,7 @@ export const Jobs: React.FC = () => {
             <div className="flex gap-3 items-start">
               <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                 {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                  <img src={job.companyLogo} alt={job.company} className="w-full h-full object-cover" />
+                  <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" />
                 ) : (
                   <Building2 className="w-6 h-6 text-gray-400" />
                 )}

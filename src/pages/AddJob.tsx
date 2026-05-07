@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { JobType } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
+import { uploadFromUrl } from '../utils/storageUtils';
 
 export const AddJob: React.FC = () => {
   const navigate = useNavigate();
@@ -38,8 +39,14 @@ export const AddJob: React.FC = () => {
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
 
+      let finalLogoUrl = formData.companyLogo;
+      if (finalLogoUrl && (finalLogoUrl.startsWith('http://') || finalLogoUrl.startsWith('https://'))) {
+        finalLogoUrl = await uploadFromUrl(finalLogoUrl, `${formData.company}-logo`);
+      }
+
       await addDoc(collection(db, 'jobs'), {
         ...formData,
+        companyLogo: finalLogoUrl,
         slug: newSlug,
         isApproved: isAdmin, // Admin posts directly
         submittedBy: user.uid,

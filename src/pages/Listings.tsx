@@ -236,7 +236,7 @@ export const Listings: React.FC = () => {
             >
               <div className="relative h-48 sm:w-48 sm:h-auto shrink-0">
                 {listing.photos?.[0] ? (
-                  <img src={listing.photos[0]} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                  <img src={(listing.photos[0]) || undefined} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                     <span className="text-gray-400 text-xs font-medium">No Image</span>
