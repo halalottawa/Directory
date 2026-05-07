@@ -1,0 +1,11 @@
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import firebaseConfig from "./firebase-applet-config.json" assert { type: "json" };
+import { GoogleGenAI } from "@google/genai";
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// For script, fallback to Vite environment variable reading mechanism if process.env fails 
+// Usually if running TSX standalone, it doesn't get vite injected things, nor are secrets exposed easily to raw scripts.
+// The easiest fix is just do it client-side like I originally did inside AdminDashboard, where Vite provides it!

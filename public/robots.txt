@@ -1,0 +1,28 @@
+User-agent: *
+Allow: /
+
+# Block crawling of private and administrative areas
+Disallow: /admin
+Disallow: /login
+Disallow: /profile
+Disallow: /settings
+Disallow: /saved
+
+# Block crawling of forms and action routes
+Disallow: /add-*
+Disallow: /edit-*
+Disallow: /*/edit
+Disallow: /listings
+
+# Ensure public listings and content are explicitly allowed
+Allow: /jobs
+Allow: /events
+Allow: /news
+Allow: /restaurants
+Allow: /mosques
+Allow: /organizations
+Allow: /grocery
+Allow: /clothing
+
+# Sitemap
+Sitemap: https://halalottawa.com/sitemap.xml

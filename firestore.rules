@@ -1,0 +1,233 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, name, email, role, createdAt, consentToUpdates
+    //
+    // Collection: listings
+    // Fields: name, address, category, description, submittedBy, isApproved, isFeatured, ...
+    //
+    // Collection: news
+    // Fields: title, content, submittedBy, isApproved, ...
+    //
+    // Collection: events
+    // Fields: title, organizer, location, dateTime, submittedBy, isApproved, ...
+    //
+    // Collection: jobs
+    // Fields: title, company, location, description, submittedBy, isApproved, ...
+    //
+    // Collection: comments
+    // Fields: parentId, parentType, userId, userName, content, isApproved, ...
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((('email' in request.auth.token && (request.auth.token.email.lower() == "fibaliktn@gmail.com" || request.auth.token.email.lower() == "fibalik.tn@gmail.com" || request.auth.token.email.lower() == "abesabil00@gmail.com" || request.auth.token.email.lower() == "abersabil00@gmail.com"))) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?.*Z?$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             data.role in ['user', 'admin'] &&
+             isValidDateString(data.createdAt) &&
+             data.consentToUpdates is bool &&
+             data.pushNotifications is bool;
+    }
+
+    function isValidListing(data) {
+      return data.name is string &&
+             data.address is string &&
+             data.category is list &&
+             data.description is string &&
+             data.submittedBy == request.auth.uid;
+    }
+
+    function isValidReview(data) {
+      return data.listingId is string &&
+             data.userId == request.auth.uid &&
+             data.userName is string &&
+             (!('userPhoto' in data) || data.userPhoto is string) &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() > 0 && data.comment.size() < 1000 &&
+             data.isApproved is bool &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidNews(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.content is string && data.content.size() > 0 &&
+             data.submittedBy == request.auth.uid &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidEvent(data) {
+      return data.title is string && data.title.size() > 0 &&
+             data.organizer is string &&
+             data.location is string &&
+             isValidDateString(data.dateTime) &&
+             data.submittedBy == request.auth.uid &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidJob(data) {
+      return data.title is string &&
+             data.company is string &&
+             data.location is string &&
+             data.description is string &&
+             data.applyLink is string &&
+             data.submittedBy == request.auth.uid &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidComment(data) {
+      return data.parentId is string &&
+             data.parentType in ['news', 'event'] &&
+             data.userId == request.auth.uid &&
+             data.userName is string &&
+             (!('userPhoto' in data) || data.userPhoto is string) &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 500 &&
+             data.isApproved is bool &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidSavedItem(data) {
+      return data.userId == request.auth.uid &&
+             data.itemId is string &&
+             data.itemType in ['listing', 'news', 'event', 'job'] &&
+             isValidDateString(data.savedAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+function isValidPlanRequest(data) {
+      return data.keys().hasAll(['listingId', 'userId', 'listingName', 'plan', 'requestType', 'status', 'createdAt']) &&
+             data.listingId is string && data.userId is string && data.listingName is string &&
+             data.plan in ['basic', 'premium'] &&
+             data.requestType in ['new_listing', 'claim_listing'] &&
+             data.status in ['pending', 'resolved'] &&
+             data.createdAt is string &&
+             data.userId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidListing(request.resource.data);
+      allow update: if isAdmin() || 
+                    (isOwner(resource.data.submittedBy) && isValidListing(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved) ||
+                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'averageRating']) &&
+                     (!('reviewCount' in request.resource.data) || request.resource.data.reviewCount is number) &&
+                     (!('averageRating' in request.resource.data) || request.resource.data.averageRating is number));
+      allow delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidReview(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && isValidReview(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved);
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    match /news/{newsId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidNews(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if isAdmin() || (isOwner(resource.data.submittedBy) && isValidNews(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved);
+      allow delete: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidEvent(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if isAdmin() || (isOwner(resource.data.submittedBy) && isValidEvent(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved);
+      allow delete: if isAdmin();
+    }
+
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidJob(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if isAdmin() || (isOwner(resource.data.submittedBy) && isValidJob(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved);
+      allow delete: if isAdmin();
+    }
+
+    match /comments/{commentId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidComment(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if isAdmin() || (isOwner(resource.data.userId) && isValidComment(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved);
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    match /saved_items/{savedItemId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidSavedItem(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /plan_requests/{planRequestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidPlanRequest(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
+    }
+  }
+}

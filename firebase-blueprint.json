@@ -1,0 +1,234 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User account information and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phoneNumber": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "consentToUpdates": { "type": "boolean" },
+        "pushNotifications": { "type": "boolean" }
+      },
+      "required": ["uid", "name", "email", "role", "createdAt"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "A halal listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "address": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "phoneNumber": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "website": { "type": "string" },
+        "openingHours": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "averageRating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "isFeatured": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "submittedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "address", "category", "description", "submittedBy", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A review for a listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "listingId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "isApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listingId", "userId", "userName", "rating", "comment", "isApproved", "createdAt"]
+    },
+    "NewsArticle": {
+      "title": "News Article",
+      "description": "A news article or community update",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "author": { "type": "string" },
+        "publishDate": { "type": "string", "format": "date-time" },
+        "content": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "submittedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "submittedBy", "createdAt"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "A community event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "organizer": { "type": "string" },
+        "location": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "dateTime": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "registrationLink": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "submittedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "organizer", "location", "dateTime", "description", "submittedBy", "createdAt"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "A job posting",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "company": { "type": "string" },
+        "companyLogo": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "salary": { "type": "string" },
+        "applyLink": { "type": "string" },
+        "isFeatured": { "type": "boolean" },
+        "isApproved": { "type": "boolean" },
+        "submittedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "company", "location", "description", "applyLink", "submittedBy", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on news or events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "parentId": { "type": "string" },
+        "parentType": { "type": "string", "enum": ["news", "event"] },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "content": { "type": "string" },
+        "isApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "replyTo": { "type": "string" }
+      },
+      "required": ["parentId", "parentType", "userId", "userName", "content", "isApproved", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "An in-app notification for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "error"] },
+        "link": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message", "type", "isRead", "createdAt"]
+    },
+    "SavedItem": {
+      "title": "Saved Item",
+      "description": "A saved listing, news, event, or job for a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "itemId": { "type": "string" },
+        "itemType": { "type": "string", "enum": ["listing", "news", "event", "job"] },
+        "savedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "itemId", "itemType", "savedAt"]
+    },
+    "PlanRequest": {
+      "title": "Plan Request",
+      "description": "User requests for basic, premium, or featured listing plans",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "userId": { "type": "string" },
+        "listingName": { "type": "string" },
+        "plan": { "type": "string", "enum": ["basic", "premium"] },
+        "isFeatured": { "type": "boolean" },
+        "autoRenewPremium": { "type": "boolean" },
+        "autoRenewFeatured": { "type": "boolean" },
+        "contactName": { "type": "string" },
+        "contactPhone": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "requestType": { "type": "string", "enum": ["new_listing", "claim_listing"] },
+        "status": { "type": "string", "enum": ["pending", "resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "listingId", "plan", "requestType", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles"
+    },
+    "/listings/{listingId}": {
+      "schema": "Listing",
+      "description": "Listings"
+    },
+    "/listings/{listingId}/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Listing reviews"
+    },
+    "/news/{newsId}": {
+      "schema": "NewsArticle",
+      "description": "News articles"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Community events"
+    },
+    "/jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Job postings"
+    },
+    "/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments on news and events"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/saved_items/{savedItemId}": {
+      "schema": "SavedItem",
+      "description": "User saved items"
+    },
+    "/plan_requests/{planRequestId}": {
+      "schema": "PlanRequest",
+      "description": "User requests for listing plans"
+    }
+  }
+}
