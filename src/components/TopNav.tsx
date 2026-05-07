@@ -90,12 +90,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
 
         {/* Right Side: Profile & Admin */}
         <div className="flex justify-end items-center gap-3 relative">
-          {user?.role === 'admin' && (
-            <Link to="/admin" className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-red-50 text-[#e90b35] hover:bg-red-100 rounded-lg transition-colors text-xs font-bold">
-              <Shield className="w-4 h-4" />
-              <span>Admin</span>
-            </Link>
-          )}
+
 
           {user ? (
             <div className="relative">
@@ -174,9 +169,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
               )}
             </div>
           ) : (
-            <Link to="/login" className="w-8 h-8 md:w-auto md:h-auto md:px-5 md:py-2 rounded-full md:rounded-xl bg-gray-100 md:bg-[#e90b35] flex items-center justify-center border border-gray-200 md:border-transparent text-gray-400 md:text-white md:font-bold md:text-sm hover:bg-gray-200 md:hover:bg-[#d00a2f] transition-colors shadow-sm md:shadow-md md:shadow-red-200">
-              <User className="w-4 h-4 md:hidden" />
-              <span className="hidden md:inline">Log in</span>
+            <Link to="/login" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm">
+              <User className="w-4 h-4" />
             </Link>
           )}
         </div>
