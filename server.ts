@@ -33,7 +33,8 @@ async function startServer() {
     
     try {
       const providedName = req.body.name ? req.body.name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
-      const filename = `${providedName}.webp`;
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const filename = `${providedName}-${randomSuffix}.webp`;
       const outputPath = path.join(uploadDir, filename);
 
       await sharp(req.file.buffer)
