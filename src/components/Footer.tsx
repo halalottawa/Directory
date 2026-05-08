@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, Globe } from 'lucide-react';
+import { Mail, MapPin } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaRedditAlien } from 'react-icons/fa6';
 
 export const Footer: React.FC = () => {
@@ -72,10 +72,6 @@ export const Footer: React.FC = () => {
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-[#e90b35] shrink-0" />
                 <a href="mailto:info@halalottawa.ca" className="text-gray-400 hover:text-white text-sm transition-colors">info@halalottawa.ca</a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-[#e90b35] shrink-0" />
-                <a href="https://halalottawa.ca" className="text-gray-400 hover:text-white text-sm transition-colors">halalottawa.ca</a>
               </li>
             </ul>
           </div>
