@@ -96,7 +96,7 @@ async function startServer() {
       res.json({ url: `/uploads/${filename}` });
     } catch (error) {
       console.error("Error processing image from URL:", error);
-      res.json({ url });
+      res.status(500).json({ error: "Failed to process image from URL" });
     }
   });
 

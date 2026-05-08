@@ -1,17 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone, Globe, ExternalLink } from 'lucide-react';
-
-const TikTok: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-  >
-    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93v7.2c0 1.96-.5 3.94-1.6 5.56-1.25 1.83-3.23 3.03-5.38 3.25-2.43.25-4.99-.44-6.8-2.07C.92 20.35-.41 17.84.1 15.2c.42-2.18 1.91-4.06 3.9-5.02 1.93-.93 4.26-1.02 6.26-.34V14c-1.43-.37-3.08-.1-4.22.84-.96.79-1.48 2.06-1.34 3.29.17 1.51 1.48 2.8 2.97 3.03 1.58.24 3.26-.44 4.08-1.84.45-.77.68-1.7.67-2.61v-16.7h.1z"/>
-  </svg>
-);
+import { Mail, MapPin, Globe } from 'lucide-react';
+import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaRedditAlien } from 'react-icons/fa6';
 
 export const Footer: React.FC = () => {
   return (
@@ -32,16 +22,19 @@ export const Footer: React.FC = () => {
             </p>
             <div className="flex items-center gap-4">
               <a href="https://www.facebook.com/halalottawa.ca/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="Facebook">
-                <Facebook className="w-5 h-5" />
+                <FaFacebook className="w-5 h-5" />
               </a>
               <a href="https://www.instagram.com/halalottawa.ca/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="Instagram">
-                <Instagram className="w-5 h-5" />
+                <FaInstagram className="w-5 h-5" />
               </a>
               <a href="https://www.linkedin.com/company/halalottawa/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="LinkedIn">
-                <Linkedin className="w-5 h-5" />
+                <FaLinkedin className="w-5 h-5" />
               </a>
               <a href="https://www.tiktok.com/@halalottawa.ca" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="TikTok">
-                <TikTok className="w-5 h-5" />
+                <FaTiktok className="w-5 h-5" />
+              </a>
+              <a href="https://www.reddit.com/r/Ottawamuslims/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="Reddit">
+                <FaRedditAlien className="w-5 h-5" />
               </a>
             </div>
           </div>
