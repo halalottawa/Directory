@@ -57,22 +57,37 @@ async function startServer() {
         return res.status(400).json({ error: "No URL provided" });
       }
 
+      const cleanName = name ? name.toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
+      const filename = `${cleanName}.webp`;
+      const outputPath = path.join(uploadDir, filename);
+
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
+        const srcPath = path.join(process.cwd(), 'public', url);
+        if (fs.existsSync(srcPath)) {
+          if (srcPath !== outputPath) {
+            fs.copyFileSync(srcPath, outputPath);
+          }
+          return res.json({ url: `/uploads/${filename}` });
+        }
         return res.json({ url });
       }
 
-      const response = await fetch(url);
+      console.log(`Downloading image from URL: ${url}`);
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Referer': 'https://www.google.com/'
+        }
+      });
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.statusText}`);
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
 
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
-
-      const providedName = name ? name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
-      const filename = `${providedName}.webp`;
-      const outputPath = path.join(uploadDir, filename);
 
       await sharp(buffer)
         .webp({ quality: 80 })
@@ -81,7 +96,7 @@ async function startServer() {
       res.json({ url: `/uploads/${filename}` });
     } catch (error) {
       console.error("Error processing image from URL:", error);
-      res.status(500).json({ error: "Failed to process image from URL" });
+      res.json({ url });
     }
   });
 

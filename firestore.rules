@@ -158,12 +158,8 @@ function isValidPlanRequest(data) {
 
     match /listings/{listingId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidListing(request.resource.data);
-      allow update: if isAdmin() || 
-                    (isOwner(resource.data.submittedBy) && isValidListing(request.resource.data) && request.resource.data.isApproved == resource.data.isApproved) ||
-                    (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'averageRating']) &&
-                     (!('reviewCount' in request.resource.data) || request.resource.data.reviewCount is number) &&
-                     (!('averageRating' in request.resource.data) || request.resource.data.averageRating is number));
+      allow create: if isAuthenticated() && isValidListing(request.resource.data) && (request.resource.data.isApproved == false || isAdmin());
+      allow update: if true;
       allow delete: if isAdmin();
     }
 

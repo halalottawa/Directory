@@ -138,10 +138,8 @@ export const EditListing: React.FC = () => {
 
       const processedPhotos = await Promise.all(
         formData.photos.filter(p => p.trim() !== '').map(async (photoUrl, idx) => {
-          if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
-            return await uploadFromUrl(photoUrl, `${formData.name}-${idx}`);
-          }
-          return photoUrl;
+          const fileName = idx === 0 ? newSlug : `${newSlug}-${idx}`;
+          return await uploadFromUrl(photoUrl, fileName);
         })
       );
         

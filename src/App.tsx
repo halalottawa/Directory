@@ -34,7 +34,6 @@ import { QiblaDirection } from './pages/QiblaDirection';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { useAuth } from './context/AuthContext';
-
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'sonner';
 

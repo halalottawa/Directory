@@ -2,14 +2,31 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase';
 
 export async function uploadFromUrl(url: string, fileName?: string): Promise<string> {
-  if (url.startsWith('/uploads/')) return url;
+  let processedUrl = url;
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.pathname.startsWith('/uploads/')) {
+      processedUrl = urlObj.pathname;
+    }
+  } catch (e) {
+    // Not an absolute URL, keep it as is
+  }
+
+  // If we already have the EXACT right name and it's a local upload, return early
+  if (fileName && processedUrl === `/uploads/${fileName}.webp`) {
+    return processedUrl;
+  }
+  // If we don't have a new fileName and it's already a local upload, return early
+  if (!fileName && processedUrl.startsWith('/uploads/')) {
+    return processedUrl;
+  }
 
   const response = await fetch("/api/upload-url", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ url, name: fileName }),
+    body: JSON.stringify({ url: processedUrl, name: fileName }),
   });
 
   if (!response.ok) {
