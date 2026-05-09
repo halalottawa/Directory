@@ -1,4 +1,5 @@
 import { put } from '@vercel/blob';
+import sharp from 'sharp';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -25,23 +26,20 @@ export default async function handler(req: any, res: any) {
       throw new Error(`Failed to fetch image: ${fetchRes.status}`);
     }
 
-    const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
-    
-    let ext = 'jpg';
-    if (contentType.includes('image/png')) ext = 'png';
-    else if (contentType.includes('image/jpeg')) ext = 'jpg';
-    else if (contentType.includes('image/webp')) ext = 'webp';
-    else if (contentType.includes('image/gif')) ext = 'gif';
-    else if (contentType.includes('image/svg+xml')) ext = 'svg';
-
-    const filename = `${cleanName}-${Date.now()}.${ext}`;
+    const filename = `${cleanName}-${Date.now()}.webp`;
 
     const arrayBuffer = await fetchRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const blob = await put(filename, buffer, {
+    // Process image with sharp: convert to webp (lossless)
+    const procBuffer = await sharp(buffer)
+      .webp({ lossless: true })
+      .toBuffer();
+
+    const blob = await put(filename, procBuffer, {
       access: 'public',
-      contentType,
+      contentType: 'image/webp',
+      addRandomSuffix: false,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
@@ -51,3 +49,4 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: error.message || "Upload failed" });
   }
 }
+

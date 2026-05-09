@@ -45,18 +45,28 @@ async function startServer() {
       // If Vercel Blob is configured locally, upload there
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { put } = await import('@vercel/blob');
-        const blob = await put(filename, buffer, { 
+        const procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+          
+        const blob = await put(`${cleanName}-${Date.now()}.webp`, procBuffer, { 
           access: 'public',
+          contentType: 'image/webp',
+          addRandomSuffix: false
         });
         return res.json({ url: blob.url });
       }
 
       // Fallback: local disk upload
-      const outputPath = path.join(uploadDir, filename);
-      fs.writeFileSync(outputPath, buffer);
+      const procBuffer = await sharp(buffer)
+        .webp({ lossless: true })
+        .toBuffer();
+      const wFilename = `${cleanName}-${Date.now()}.webp`;
+      const outputPath = path.join(uploadDir, wFilename);
+      fs.writeFileSync(outputPath, procBuffer);
 
       // Return the relative URL to access the file
-      const url = `/uploads/${filename}`;
+      const url = `/uploads/${wFilename}`;
       res.json({ url });
     } catch (error) {
       console.error("Error processing image:", error);
@@ -121,18 +131,27 @@ async function startServer() {
       // If Vercel Blob is configured locally, upload there
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { put } = await import('@vercel/blob');
-        const blob = await put(filename, buffer, { 
+        const procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+          
+        const blob = await put(`${cleanName}-${Date.now()}.webp`, procBuffer, { 
           access: 'public',
-          contentType: contentType || 'image/jpeg' 
+          contentType: 'image/webp',
+          addRandomSuffix: false
         });
         return res.json({ url: blob.url });
       }
 
       // Fallback: local disk upload
-      const outputPath = path.join(uploadDir, filename);
-      fs.writeFileSync(outputPath, buffer);
+      const procBuffer = await sharp(buffer)
+        .webp({ lossless: true })
+        .toBuffer();
+      const wFilename = `${cleanName}-${Date.now()}.webp`;
+      const outputPath = path.join(uploadDir, wFilename);
+      fs.writeFileSync(outputPath, procBuffer);
 
-      res.json({ url: `/uploads/${filename}` });
+      res.json({ url: `/uploads/${wFilename}` });
     } catch (error) {
       console.error("Error processing image from URL:", error);
       res.status(500).json({ error: "Failed to process image from URL" });

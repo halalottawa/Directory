@@ -1,4 +1,5 @@
 import { put } from '@vercel/blob';
+import sharp from 'sharp';
 
 export const config = {
   api: {
@@ -12,10 +13,29 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const filename = req.query.filename || `upload-${Date.now()}.jpg`;
+    const filenameStr = req.query.filename || `upload-${Date.now()}`;
+    const cleanNameStr = filenameStr.replace(/\.[^/.]+$/, "");
+    const cleanName = cleanNameStr.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'upload';
+    const filename = `${cleanName}-${Date.now()}.webp`;
 
-    const blob = await put(filename, req, {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+    }
+    const buffer = Buffer.concat(chunks);
+
+    if (buffer.length === 0) {
+      return res.status(400).json({ error: "No file content received" });
+    }
+
+    const procBuffer = await sharp(buffer)
+      .webp({ lossless: true })
+      .toBuffer();
+
+    const blob = await put(filename, procBuffer, {
       access: 'public',
+      contentType: 'image/webp',
+      addRandomSuffix: false,
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
@@ -25,3 +45,4 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: error.message || "Upload failed" });
   }
 }
+
