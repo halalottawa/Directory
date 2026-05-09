@@ -46,7 +46,7 @@ async function startServer() {
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { put } = await import('@vercel/blob');
         const procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
+          .webp({ quality: 90, effort: 6 })
           .toBuffer();
           
         const blob = await put(`${cleanName}.webp`, procBuffer, { 
@@ -59,7 +59,7 @@ async function startServer() {
 
       // Fallback: local disk upload
       const procBuffer = await sharp(buffer)
-        .webp({ lossless: true })
+        .webp({ quality: 90, effort: 6 })
         .toBuffer();
       const wFilename = `${cleanName}.webp`;
       const outputPath = path.join(uploadDir, wFilename);
@@ -122,7 +122,7 @@ async function startServer() {
       if (process.env.BLOB_READ_WRITE_TOKEN) {
         const { put } = await import('@vercel/blob');
         const procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
+          .webp({ quality: 90, effort: 6 })
           .toBuffer();
           
         const blob = await put(`${cleanName}.webp`, procBuffer, { 
@@ -135,7 +135,7 @@ async function startServer() {
 
       // Fallback: local disk upload
       const procBuffer = await sharp(buffer)
-        .webp({ lossless: true })
+        .webp({ quality: 90, effort: 6 })
         .toBuffer();
       const wFilename = `${cleanName}.webp`;
       const outputPath = path.join(uploadDir, wFilename);

@@ -85,7 +85,7 @@ async function uploadFromUrl(url: string, name: string): Promise<string> {
   }
 
   await sharp(buffer)
-    .webp({ quality: 80 })
+    .webp({ quality: 90, effort: 6 })
     .toFile(outputPath);
 
   return `/uploads/${filename}`;

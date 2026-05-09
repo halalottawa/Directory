@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const procBuffer = await sharp(buffer)
-      .webp({ lossless: true })
+      .webp({ quality: 90, effort: 6 })
       .toBuffer();
 
     const blob = await put(filename, procBuffer, {
