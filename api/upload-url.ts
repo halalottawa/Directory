@@ -1,23 +1,19 @@
 import { put } from '@vercel/blob';
 
-export const config = {
-  runtime: 'edge',
-};
-
-export default async function handler(request: Request) {
-  if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { url, name } = await request.json();
+    const { url, name } = req.body || {};
     if (!url) {
-      return Response.json({ error: "No URL provided" }, { status: 400 });
+      return res.status(400).json({ error: "No URL provided" });
     }
 
-    const cleanName = name ? name.toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
+    const cleanName = name ? String(name).toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
     
-    console.log(`Downloading image from URL on Vercel Edge: ${url}`);
+    console.log(`Downloading image from URL on Vercel: ${url}`);
     const fetchRes = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -45,9 +41,9 @@ export default async function handler(request: Request) {
       contentType
     });
 
-    return Response.json({ url: blob.url });
+    return res.status(200).json({ url: blob.url });
   } catch (error: any) {
     console.error("Vercel Blob Upload URL Error:", error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return res.status(500).json({ error: error.message || "Upload failed" });
   }
 }

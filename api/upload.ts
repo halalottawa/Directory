@@ -1,26 +1,28 @@
 import { put } from '@vercel/blob';
 
-export const config = {
-  runtime: 'edge', // Edge runtime is required to use native Request/Response
-};
-
-export default async function handler(request: Request) {
-  if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
+export default async function handler(req: any, res: any) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    const { searchParams } = new URL(request.url);
-    const filename = searchParams.get('filename') || `upload-${Date.now()}.jpg`;
+    const filename = req.query.filename || `upload-${Date.now()}.jpg`;
 
-    // Upload directly to Vercel Blob from the request body stream
-    const blob = await put(filename, request.body as any, {
+    // Upload directly to Vercel Blob from the request stream
+    const blob = await put(filename, req, {
       access: 'public',
     });
 
-    return Response.json({ url: blob.url });
+    return res.status(200).json({ url: blob.url });
   } catch (error: any) {
     console.error("Vercel Blob Upload Error:", error);
-    return Response.json({ error: error.message }, { status: 500 });
+    return res.status(500).json({ error: error.message || "Upload failed" });
   }
 }
+
+// Disable the default body parser so we receive the raw stream
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
