@@ -33,12 +33,12 @@ async function startServer() {
     
     try {
       const providedName = req.body.name ? req.body.name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
-      const filename = `${providedName}.webp`;
+      const extMatch = req.file.originalname.match(/\.([a-z0-9]+)$/i);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+      const filename = `${providedName}.${ext}`;
       const outputPath = path.join(uploadDir, filename);
 
-      await sharp(req.file.buffer)
-        .webp({ quality: 80 })
-        .toFile(outputPath);
+      fs.writeFileSync(outputPath, req.file.buffer);
 
       // Return the relative URL to access the file
       const url = `/uploads/${filename}`;
@@ -58,8 +58,12 @@ async function startServer() {
       }
 
       const cleanName = name ? name.toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
-      const filename = `${cleanName}.webp`;
-      const outputPath = path.join(uploadDir, filename);
+      
+      const urlWithoutQuery = url.split('?')[0];
+      const extMatch = urlWithoutQuery.match(/\.([a-z0-9]+)$/i);
+      let initialExt = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+      let filename = `${cleanName}.${initialExt}`;
+      let outputPath = path.join(uploadDir, filename);
 
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
@@ -86,12 +90,22 @@ async function startServer() {
         throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
 
+      const contentType = response.headers.get('content-type');
+      if (contentType) {
+        if (contentType.includes('image/png')) initialExt = 'png';
+        else if (contentType.includes('image/jpeg')) initialExt = 'jpg';
+        else if (contentType.includes('image/webp')) initialExt = 'webp';
+        else if (contentType.includes('image/gif')) initialExt = 'gif';
+        else if (contentType.includes('image/svg+xml')) initialExt = 'svg';
+      }
+
+      filename = `${cleanName}.${initialExt}`;
+      outputPath = path.join(uploadDir, filename);
+
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      await sharp(buffer)
-        .webp({ quality: 80 })
-        .toFile(outputPath);
+      fs.writeFileSync(outputPath, buffer);
 
       res.json({ url: `/uploads/${filename}` });
     } catch (error) {
