@@ -26,19 +26,34 @@ async function startServer() {
   app.use("/uploads", express.static(uploadDir));
 
   // File upload endpoint
-  app.post("/api/upload", upload.single("file"), async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-    
+  app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
     try {
-      const providedName = req.body.name ? req.body.name.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'upload';
-      const extMatch = req.file.originalname.match(/\.([a-z0-9]+)$/i);
+      const filenameStr = typeof req.query.filename === 'string' ? req.query.filename : `upload-${Date.now()}.jpg`;
+      const providedName = filenameStr.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
+      
+      const extMatch = providedName.match(/\.([a-z0-9]+)$/i);
       const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-      const filename = `${providedName}.${ext}`;
-      const outputPath = path.join(uploadDir, filename);
+      const cleanName = providedName.replace(/\.[^/.]+$/, "");
+      const filename = `${cleanName}-${Date.now()}.${ext}`;
 
-      fs.writeFileSync(outputPath, req.file.buffer);
+      const buffer = req.body;
+      
+      if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+         return res.status(400).json({ error: "No file content received" });
+      }
+      
+      // If Vercel Blob is configured locally, upload there
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const { put } = await import('@vercel/blob');
+        const blob = await put(filename, buffer, { 
+          access: 'public',
+        });
+        return res.json({ url: blob.url });
+      }
+
+      // Fallback: local disk upload
+      const outputPath = path.join(uploadDir, filename);
+      fs.writeFileSync(outputPath, buffer);
 
       // Return the relative URL to access the file
       const url = `/uploads/${filename}`;
@@ -62,12 +77,12 @@ async function startServer() {
       const urlWithoutQuery = url.split('?')[0];
       const extMatch = urlWithoutQuery.match(/\.([a-z0-9]+)$/i);
       let initialExt = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-      let filename = `${cleanName}.${initialExt}`;
-      let outputPath = path.join(uploadDir, filename);
+      let filename = `${cleanName}-${Date.now()}.${initialExt}`;
 
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
         const srcPath = path.join(process.cwd(), 'public', url);
+        const outputPath = path.join(uploadDir, filename);
         if (fs.existsSync(srcPath)) {
           if (srcPath !== outputPath) {
             fs.copyFileSync(srcPath, outputPath);
@@ -99,12 +114,22 @@ async function startServer() {
         else if (contentType.includes('image/svg+xml')) initialExt = 'svg';
       }
 
-      filename = `${cleanName}.${initialExt}`;
-      outputPath = path.join(uploadDir, filename);
-
+      filename = `${cleanName}-${Date.now()}.${initialExt}`;
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
+      // If Vercel Blob is configured locally, upload there
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const { put } = await import('@vercel/blob');
+        const blob = await put(filename, buffer, { 
+          access: 'public',
+          contentType: contentType || 'image/jpeg' 
+        });
+        return res.json({ url: blob.url });
+      }
+
+      // Fallback: local disk upload
+      const outputPath = path.join(uploadDir, filename);
       fs.writeFileSync(outputPath, buffer);
 
       res.json({ url: `/uploads/${filename}` });
