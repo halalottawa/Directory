@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Instagram, Facebook, Twitter, Smartphone } from 'lucide-react';
+import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, Instagram, Facebook, Twitter, Smartphone, FileText } from 'lucide-react';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Review } from '../types';
@@ -570,7 +570,7 @@ export const ListingDetail: React.FC = () => {
             </button>
           )}
 
-          {listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) && !listing.name.toLowerCase().includes('jamia islamia') && (
+          {(listing.menuUrl || listing.menuPdfUrl) && !listing.name.toLowerCase().includes('jamia islamia') && (
             <button 
               onClick={() => handleInfoClick(
                 'Menu', 
@@ -753,7 +753,7 @@ export const ListingDetail: React.FC = () => {
             </div>
 
             {/* Menu Section */}
-            {listing.plan === 'premium' && (listing.menuPdfUrl || listing.menuUrl || (listing.menuItems && listing.menuItems.length > 0)) && !listing.name.toLowerCase().includes('jamia islamia') && (
+            {(listing.menuPdfUrl || listing.menuUrl || (listing.menuItems && listing.menuItems.length > 0)) && !listing.name.toLowerCase().includes('jamia islamia') && (
               <div className="space-y-4 pt-4 border-t border-gray-50">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-bold flex items-center gap-2">
@@ -1004,7 +1004,7 @@ export const ListingDetail: React.FC = () => {
                 </div>
               )}
 
-              {listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) && !listing.name.toLowerCase().includes('jamia islamia') && (
+              {(listing.menuUrl || listing.menuPdfUrl) && !listing.name.toLowerCase().includes('jamia islamia') && (
                 <div className="flex items-center gap-4 text-sm text-gray-600 break-all pt-2">
                   <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
                     <FileText className="w-4 h-4" />
