@@ -26,7 +26,7 @@ export default async function handler(req: any, res: any) {
       throw new Error(`Failed to fetch image: ${fetchRes.status}`);
     }
 
-    const filename = `${cleanName}-${Date.now()}.webp`;
+    const filename = `${cleanName}.webp`;
 
     const arrayBuffer = await fetchRes.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

@@ -34,7 +34,7 @@ async function startServer() {
       const extMatch = providedName.match(/\.([a-z0-9]+)$/i);
       const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
       const cleanName = providedName.replace(/\.[^/.]+$/, "");
-      const filename = `${cleanName}-${Date.now()}.${ext}`;
+      const filename = `${cleanName}.webp`;
 
       const buffer = req.body;
       
@@ -49,7 +49,7 @@ async function startServer() {
           .webp({ lossless: true })
           .toBuffer();
           
-        const blob = await put(`${cleanName}-${Date.now()}.webp`, procBuffer, { 
+        const blob = await put(`${cleanName}.webp`, procBuffer, { 
           access: 'public',
           contentType: 'image/webp',
           addRandomSuffix: false
@@ -61,7 +61,7 @@ async function startServer() {
       const procBuffer = await sharp(buffer)
         .webp({ lossless: true })
         .toBuffer();
-      const wFilename = `${cleanName}-${Date.now()}.webp`;
+      const wFilename = `${cleanName}.webp`;
       const outputPath = path.join(uploadDir, wFilename);
       fs.writeFileSync(outputPath, procBuffer);
 
@@ -87,7 +87,7 @@ async function startServer() {
       const urlWithoutQuery = url.split('?')[0];
       const extMatch = urlWithoutQuery.match(/\.([a-z0-9]+)$/i);
       let initialExt = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-      let filename = `${cleanName}-${Date.now()}.${initialExt}`;
+      let filename = `${cleanName}.${initialExt}`;
 
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
@@ -115,16 +115,6 @@ async function startServer() {
         throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (contentType) {
-        if (contentType.includes('image/png')) initialExt = 'png';
-        else if (contentType.includes('image/jpeg')) initialExt = 'jpg';
-        else if (contentType.includes('image/webp')) initialExt = 'webp';
-        else if (contentType.includes('image/gif')) initialExt = 'gif';
-        else if (contentType.includes('image/svg+xml')) initialExt = 'svg';
-      }
-
-      filename = `${cleanName}-${Date.now()}.${initialExt}`;
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
@@ -135,7 +125,7 @@ async function startServer() {
           .webp({ lossless: true })
           .toBuffer();
           
-        const blob = await put(`${cleanName}-${Date.now()}.webp`, procBuffer, { 
+        const blob = await put(`${cleanName}.webp`, procBuffer, { 
           access: 'public',
           contentType: 'image/webp',
           addRandomSuffix: false
@@ -147,7 +137,7 @@ async function startServer() {
       const procBuffer = await sharp(buffer)
         .webp({ lossless: true })
         .toBuffer();
-      const wFilename = `${cleanName}-${Date.now()}.webp`;
+      const wFilename = `${cleanName}.webp`;
       const outputPath = path.join(uploadDir, wFilename);
       fs.writeFileSync(outputPath, procBuffer);
 

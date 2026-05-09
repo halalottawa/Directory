@@ -16,7 +16,7 @@ export default async function handler(req: any, res: any) {
     const filenameStr = req.query.filename || `upload-${Date.now()}`;
     const cleanNameStr = filenameStr.replace(/\.[^/.]+$/, "");
     const cleanName = cleanNameStr.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'upload';
-    const filename = `${cleanName}-${Date.now()}.webp`;
+    const filename = `${cleanName}.webp`;
 
     const chunks = [];
     for await (const chunk of req) {
