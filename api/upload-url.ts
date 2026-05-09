@@ -36,9 +36,13 @@ export default async function handler(req: any, res: any) {
 
     const filename = `${cleanName}-${Date.now()}.${ext}`;
 
-    const blob = await put(filename, fetchRes.body as any, {
+    const arrayBuffer = await fetchRes.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const blob = await put(filename, buffer, {
       access: 'public',
-      contentType
+      contentType,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     });
 
     return res.status(200).json({ url: blob.url });
