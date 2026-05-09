@@ -386,7 +386,7 @@ export const AddListing: React.FC = () => {
                       setIsUploading(true);
                       try {
                         const url = await uploadFile(file, 'listings', formData.name);
-                        setFormData({ ...formData, photos: [...(formData.photos || []), url] });
+                        setFormData({ ...formData, photos: [url] });
                         toast.success('Photo uploaded successfully');
                       } catch (error: any) {
                         toast.error(error.message || 'Failed to upload photo');
