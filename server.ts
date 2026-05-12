@@ -153,6 +153,107 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.get("/sitemap.xml", async (req, res) => {
+    try {
+      const fs = await import("fs");
+      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      
+      let fbApp;
+      let db;
+      
+      if (fs.existsSync(configPath)) {
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        const { initializeApp, getApps } = await import("firebase/app");
+        const { getFirestore, collection, getDocs, query, where } = await import("firebase/firestore");
+        
+        fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
+        db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+      }
+
+      const BASE_URL = 'https://halalottawa.ca';
+      const staticUrls = [
+        "/", "/news", "/events", "/jobs", "/restaurants", "/mosques", 
+        "/organizations", "/grocery", "/clothing", "/schools", "/butchers",
+        "/faq", "/terms", "/privacy-policy", "/login", "/register", "/tools/qibla"
+      ];
+      
+      const urls: { loc: string; changefreq: string; priority: string }[] = [];
+
+      for (const url of staticUrls) {
+        let priority = "0.8";
+        if (url === "/") priority = "1.0";
+        else if (["/news", "/events", "/jobs"].includes(url)) priority = "0.9";
+        else if (["/faq", "/terms", "/privacy-policy", "/login", "/register"].includes(url)) priority = "0.3";
+
+        urls.push({
+          loc: `${BASE_URL}${url}`,
+          changefreq: priority === "0.3" ? "monthly" : "daily",
+          priority: priority,
+        });
+      }
+
+      if (db) {
+        const { collection, getDocs, query, where } = await import("firebase/firestore");
+        
+        const fetchUrls = async (collectionName: string, pathPrefix: string | null = null) => {
+          try {
+            const q = query(collection(db, collectionName), where('isApproved', '==', true));
+            const snap = await getDocs(q);
+            snap.forEach((doc) => {
+              const data = doc.data();
+              const idPath = data.slug || doc.id;
+              
+              let locPrefix = pathPrefix;
+              if (locPrefix === null) {
+                // For listings, infer category
+                locPrefix = 'listings';
+                if (Array.isArray(data.category) && data.category.length > 0) {
+                  locPrefix = encodeURIComponent(data.category[0].toLowerCase());
+                } else if (typeof data.category === 'string') {
+                  locPrefix = encodeURIComponent(data.category.toLowerCase());
+                }
+              }
+
+              urls.push({
+                loc: `${BASE_URL}/${locPrefix}/${idPath}`,
+                changefreq: "weekly",
+                priority: "0.7",
+              });
+            });
+          } catch (e) {
+            console.error(`Error fetching dynamic URLs for ${collectionName}:`, e);
+          }
+        };
+
+        await Promise.all([
+          fetchUrls('listings', null),
+          fetchUrls('news', 'news'),
+          fetchUrls('events', 'events'),
+          fetchUrls('jobs', 'jobs')
+        ]);
+      }
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+      
+      for (const url of urls) {
+        xml += `  <url>\n`;
+        xml += `    <loc>${url.loc}</loc>\n`;
+        xml += `    <changefreq>${url.changefreq}</changefreq>\n`;
+        xml += `    <priority>${url.priority}</priority>\n`;
+        xml += `  </url>\n`;
+      }
+      
+      xml += `</urlset>\n`;
+
+      res.header('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (e: any) {
+      console.error("Error generating dynamic sitemap:", e);
+      res.status(500).send('Error generating sitemap');
+    }
+  });
+
   app.get("/api/fix-descriptions", async (req, res) => {
     try {
       const { GoogleGenAI } = await import('@google/genai');

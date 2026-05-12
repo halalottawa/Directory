@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, Save, Trash2 } from 'lucide-react';
+import { ChevronLeft, Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, Save, Trash2, Send } from 'lucide-react';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -108,13 +108,13 @@ export const EditNews: React.FC = () => {
   if (loading) return <div className="p-8 text-center">Loading news details...</div>;
 
   return (
-    <main className="min-h-screen bg-white p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <main className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:mb-12">
       <Helmet>
         <title>Edit News | Halal Ottawa</title>
         <meta name="description" content="Update the community news article." />
       </Helmet>
 
-      <div className="max-w-md mx-auto space-y-8">
+      <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="flex items-center justify-end">
           <button onClick={handleDelete} className="p-2 text-red-500 hover:text-red-600">
             <Trash2 className="w-5 h-5" />
@@ -134,8 +134,8 @@ export const EditNews: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative md:col-span-2">
               <Newspaper className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -147,7 +147,7 @@ export const EditNews: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -158,7 +158,7 @@ export const EditNews: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -172,13 +172,13 @@ export const EditNews: React.FC = () => {
             <textarea
               placeholder="Article Content"
               required
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-48 resize-none"
+              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-48 resize-none md:col-span-2"
               value={formData.content}
               onChange={(e) => setFormData({ ...formData, content: e.target.value })}
             />
 
             {user?.role === 'admin' && (
-              <div className="relative">
+              <div className="relative md:col-span-2">
                 <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
@@ -191,14 +191,15 @@ export const EditNews: React.FC = () => {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <Save className="w-5 h-5" />
-            {saving ? 'Saving Changes...' : 'Save Changes'}
-          </button>
+          <div className="flex justify-start">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full md:w-auto md:px-12 py-4 md:py-3 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex md:inline-flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {saving ? 'Saving Changes...' : <>Save Changes <Save className="w-5 h-5" /></>}
+            </button>
+          </div>
         </form>
       </div>
 

@@ -99,7 +99,7 @@ export const News: React.FC = () => {
       <SEO 
         title="News" 
         description="Read the latest news, announcements, and updates from the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.com/news" 
+        canonicalUrl="https://halalottawa.ca/news" 
       />
 
       <AdDisplay />
@@ -109,20 +109,19 @@ export const News: React.FC = () => {
         {user?.role === 'admin' && (
           <Link 
             to="/news/add" 
-            className="bg-[#e90b35] text-white p-2 md:px-4 md:py-2 rounded-full md:rounded-xl shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center md:gap-2"
+            className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
           >
             <Plus className="w-6 h-6 md:w-5 md:h-5" />
-            <span className="hidden md:inline">Add News</span>
           </Link>
         )}
       </div>
 
-      <div className="relative max-w-3xl">
+      <div className="relative w-full">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
           placeholder="Search news articles..."
-          className="w-full pl-14 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
+          className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />

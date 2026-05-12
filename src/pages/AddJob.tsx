@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Image as ImageIcon, Send } from 'lucide-react';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -64,13 +64,13 @@ export const AddJob: React.FC = () => {
   };
 
   return (
-    <main className="min-h-screen bg-white p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <main className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:mb-12">
       <Helmet>
         <title>Post a Job | Halal Ottawa</title>
         <meta name="description" content="List a halal-friendly job opportunity." />
       </Helmet>
 
-      <div className="max-w-md mx-auto space-y-8">
+      <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Post a Job</h1>
           <p className="text-gray-500">List a halal-friendly job opportunity.</p>
@@ -88,8 +88,8 @@ export const AddJob: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative md:col-span-1">
               <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -101,7 +101,7 @@ export const AddJob: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -113,7 +113,7 @@ export const AddJob: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -124,7 +124,7 @@ export const AddJob: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -136,7 +136,7 @@ export const AddJob: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -147,7 +147,7 @@ export const AddJob: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
                 required
@@ -164,7 +164,7 @@ export const AddJob: React.FC = () => {
               </select>
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -179,13 +179,13 @@ export const AddJob: React.FC = () => {
             <textarea
               placeholder="Job Description"
               required
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-32 resize-none"
+              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-32 resize-none md:col-span-2"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
 
             {user?.role === 'admin' && (
-              <div className="space-y-4">
+              <div className="space-y-4 md:col-span-2">
                 <div className="relative">
                   <LinkIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
@@ -197,7 +197,7 @@ export const AddJob: React.FC = () => {
                   />
                 </div>
                 
-                <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl cursor-pointer active:scale-95 transition-all">
+                <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl cursor-pointer active:scale-95 transition-all w-fit">
                   <input
                     type="checkbox"
                     className="w-5 h-5 accent-[#e90b35]"
@@ -210,13 +210,15 @@ export const AddJob: React.FC = () => {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Submitting...' : 'Post Job'}
-          </button>
+          <div className="flex justify-start">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full md:w-auto md:px-12 py-4 md:py-3 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex md:inline-flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {loading ? 'Submitting...' : <>Post Job <Send className="w-5 h-5" /></>}
+            </button>
+          </div>
         </form>
       </div>
     </main>

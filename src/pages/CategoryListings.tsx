@@ -176,17 +176,16 @@ export const CategoryListings: React.FC = () => {
       <SEO 
         title={formattedCategory} 
         description={`Explore the best ${formattedCategory} in Ottawa. Find top-rated places in the local Muslim community directory.`} 
-        canonicalUrl={`https://halalottawa.com/${paramCategory}`} 
+        canonicalUrl={`https://halalottawa.ca/${paramCategory}`} 
       />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">{formattedCategory}</h1>
         <Link 
           to="/listings/add" 
-          className="bg-[#e90b35] text-white p-2 md:px-4 md:py-2 rounded-full md:rounded-xl shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center md:gap-2"
+          className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
         >
           <Plus className="w-6 h-6 md:w-5 md:h-5" />
-          <span className="hidden md:inline">Add Listing</span>
         </Link>
       </div>
 

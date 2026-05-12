@@ -125,7 +125,7 @@ export const JobDetail: React.FC = () => {
         <SEO
         title={`${job.title} at ${job.company}`}
         description={job.description.length > 150 ? job.description.substring(0, 150) + '...' : job.description}
-        canonicalUrl={`https://halalottawa.com/jobs/${slug}`}
+        canonicalUrl={`https://halalottawa.ca/jobs/${slug}`}
         ogImage={job.companyLogo || undefined}
         structuredData={{
           "@context": "https://schema.org/",
@@ -210,13 +210,13 @@ export const JobDetail: React.FC = () => {
             </div>
           </section>
 
-        <div className="space-y-4">
+        <div className="flex justify-start mt-8">
           <a 
             href={job.applyLink.startsWith('http') ? job.applyLink : `https://${job.applyLink}`} 
             target="_blank" 
             rel="noreferrer"
             onClick={handleApply}
-            className="w-full py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex items-center justify-center gap-2 active:scale-95 transition-all"
+            className="w-full md:w-auto md:px-12 py-4 md:py-3 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex md:inline-flex items-center justify-center gap-2 active:scale-95 transition-all"
           >
             Apply now <ExternalLink className="w-4 h-4" />
           </a>

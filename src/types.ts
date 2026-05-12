@@ -34,6 +34,7 @@ export interface Listing {
   address: string;
   lat: number;
   lng: number;
+  distance?: number;
   phoneNumber: string;
   email?: string;
   website?: string;

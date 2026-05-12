@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, Instagram, Facebook, Twitter, Smartphone, FileText } from 'lucide-react';
+import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Send } from 'lucide-react';
+import { FaFacebook, FaInstagram, FaTwitter, FaTiktok } from 'react-icons/fa6';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Review } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_LISTINGS } from '../constants';
+import L from 'leaflet';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
@@ -28,8 +30,8 @@ export const ListingDetail: React.FC = () => {
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [editingReview, setEditingReview] = useState<string | null>(null);
   const [editComment, setEditComment] = useState('');
-  const [relatedListings, setRelatedListings] = useState<Listing[]>([]);
-  
+  const [nearbyListings, setNearbyListings] = useState<Listing[]>([]);
+
   // Contact Info Modal state
   const [infoModal, setInfoModal] = useState<{
     isOpen: boolean;
@@ -112,44 +114,70 @@ export const ListingDetail: React.FC = () => {
   }, [slug, user]);
 
   useEffect(() => {
-    const fetchRelatedListings = async () => {
-      if (!listing) return;
+    const fetchNearbyListings = async () => {
+      if (!listing || !listing.lat || !listing.lng) return;
 
-      const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;
-      
+      const getDistance = (lat1: any, lon1: any, lat2: any, lon2: any) => {
+        const pLat1 = Number(lat1);
+        const pLon1 = Number(lon1);
+        const pLat2 = Number(lat2);
+        const pLon2 = Number(lon2);
+        
+        if (isNaN(pLat1) || isNaN(pLon1) || isNaN(pLat2) || isNaN(pLon2)) return Infinity;
+
+        try {
+          // Leaflet's distanceTo method returns distance in meters.
+          // Convert to kilometers to stay consistent with previous code.
+          return L.latLng(pLat1, pLon1).distanceTo(L.latLng(pLat2, pLon2)) / 1000;
+        } catch (e) {
+          console.error("Error calculating distance:", e);
+          return Infinity;
+        }
+      };
+
       try {
         const q = query(
           collection(db, 'listings'),
-          where('category', 'array-contains', mainCategory),
           where('isApproved', '==', true)
         );
         const querySnapshot = await getDocs(q);
-        const relatedFirestore = querySnapshot.docs
+        const nearbyFirestore = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Listing))
-          .filter(l => l.id !== listing.id);
+          .filter(l => l.id !== listing.id && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null);
 
-        const relatedDemo = DEMO_LISTINGS.filter(l => {
-          const lCats = Array.isArray(l.category) ? l.category : [l.category];
-          const isMatch = lCats.includes(mainCategory);
-          return isMatch && l.id !== listing.id && l.id !== slug;
-        });
+        const nearbyDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null);
 
-        // Combine and limit to 4
-        const allRelated = [...relatedFirestore, ...relatedDemo].slice(0, 4);
-        setRelatedListings(allRelated);
+        // Deduplicate, calculate distance, sort, and limit to 4
+        const allListings = [...nearbyFirestore, ...nearbyDemo];
+        const uniqueListings = Array.from(new Map(allListings.map(item => [item.id, item])).values());
+
+        const distancesMapped = uniqueListings.map(l => ({
+          ...l,
+          distance: getDistance(listing.lat, listing.lng, l.lat, l.lng)
+        }));
+        
+        console.log("Distances mapped:", distancesMapped.map(l => `${l.name}: ${l.distance}`));
+
+        const allNearby = distancesMapped.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)).slice(0, 4);
+        
+        console.log("Sorted nearby:", allNearby.map(l => `${l.name}: ${l.distance}`));
+
+        setNearbyListings(allNearby);
       } catch(err) {
-        // Fallback to DEMO_LISTINGS if query fails or index missing
-        const relatedDemo = DEMO_LISTINGS.filter(l => {
-          const lCats = Array.isArray(l.category) ? l.category : [l.category];
-          const isMatch = lCats.includes(mainCategory);
-          return isMatch && l.id !== listing.id && l.id !== slug;
-        }).slice(0, 4);
-        setRelatedListings(relatedDemo);
+        console.error("Error fetching nearby listings:", err);
+        // Fallback to DEMO_LISTINGS if query fails
+        const nearbyDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null)
+          .map(l => ({
+            ...l,
+            distance: getDistance(listing.lat, listing.lng, l.lat, l.lng)
+          })).sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)).slice(0, 4);
+        
+        setNearbyListings(nearbyDemo);
       }
     };
 
-    fetchRelatedListings();
-  }, [listing?.id, listing?.category, slug]);
+    fetchNearbyListings();
+  }, [listing?.id, listing?.lat, listing?.lng, slug]);
 
   const onClaim = () => {
     if (!user) {
@@ -219,8 +247,9 @@ export const ListingDetail: React.FC = () => {
   };
 
   const openInMaps = () => {
-    if (!listing) return;
-    const url = `https://www.openstreetmap.org/search?query=${encodeURIComponent(listing.address)}`;
+    if (!listing?.address) return;
+    const cleanAddress = listing.address.replace(/(?:Unit|Apt|Suite|#|Room)\s*[A-Za-z0-9\-]+/gi, '').replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim();
+    const url = `https://www.openstreetmap.org/search?query=${encodeURIComponent(cleanAddress)}`;
     window.open(url, '_blank');
   };
 
@@ -329,7 +358,7 @@ export const ListingDetail: React.FC = () => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;
     
     return (
-      <div className={`hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap scrollbar-hide ${position === 'top' ? 'py-4 px-6 border-b border-gray-100 bg-gray-50/50' : 'pt-4 pb-2'}`}>
+      <div className={`hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap scrollbar-hide ${position === 'top' ? 'py-4 px-6 border-b border-gray-100 bg-gray-50/50' : ''}`}>
         <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
         {mainCategory && (
           <>
@@ -343,19 +372,22 @@ export const ListingDetail: React.FC = () => {
     );
   };
 
+  const mainCategoryStr = Array.isArray(listing.category) && listing.category.length > 0 
+    ? listing.category[0] 
+    : (typeof listing.category === 'string' ? listing.category : 'listings');
+    
   return (
     <>
       <div className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
-        canonicalUrl={`https://halalottawa.com/listings/${slug}`}
+        canonicalUrl={`https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`}
         ogImage={listing.photos && listing.photos.length > 0 ? listing.photos[0] : undefined}
         structuredData={{
           "@context": "https://schema.org",
           "@type": (() => {
-            const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;
-            switch(mainCategory) {
+            switch(mainCategoryStr) {
               case 'Restaurants': return 'Restaurant';
               case 'Mosques': return 'Mosque';
               case 'Grocery': return 'GroceryStore';
@@ -368,8 +400,8 @@ export const ListingDetail: React.FC = () => {
           })(),
           "name": listing.name,
           "image": listing.photos?.length > 0 ? listing.photos : undefined,
-          "@id": `https://halalottawa.com/listings/${slug}`,
-          "url": listing.website || `https://halalottawa.com/listings/${slug}`,
+          "@id": `https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
+          "url": listing.website || `https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
           "telephone": listing.phoneNumber || undefined,
           "address": {
             "@type": "PostalAddress",
@@ -496,8 +528,8 @@ export const ListingDetail: React.FC = () => {
 
       <div className="p-6">
         {renderBreadcrumbs('content')}
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 lg:mt-8">
-          <div className="lg:col-span-7 flex flex-col gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-8 mt-6">
+          <div className="lg:col-span-7 flex flex-col h-full gap-8">
         {/* Info Buttons */}
         <div className="flex lg:hidden flex-wrap justify-center gap-8">
           <button 
@@ -589,26 +621,26 @@ export const ListingDetail: React.FC = () => {
           )}
         </div>
 
-        {((listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) || (listing.socialMediaLinks && listing.socialMediaLinks.length > 0)) && (
-          <div className="flex justify-center gap-4 mt-6">
+        {listing.plan === 'premium' && ((listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) || (listing.socialMediaLinks && listing.socialMediaLinks.length > 0)) && (
+          <div className="flex lg:hidden justify-center gap-4 mt-6">
             {listing.socialMedia?.instagram && (
               <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
-                <Instagram className="w-5 h-5" />
+                <FaInstagram className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.facebook && (
               <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
-                <Facebook className="w-5 h-5" />
+                <FaFacebook className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.twitter && (
               <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
-                <Twitter className="w-5 h-5" />
+                <FaTwitter className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.tiktok && (
               <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
-                <Smartphone className="w-5 h-5" />
+                <FaTiktok className="w-5 h-5" />
               </a>
             )}
             {listing.socialMediaLinks?.map((link, idx) => {
@@ -619,7 +651,7 @@ export const ListingDetail: React.FC = () => {
               const isTikTok = link.toLowerCase().includes('tiktok.com');
               const isTwitter = link.toLowerCase().includes('twitter.com') || link.toLowerCase().includes('x.com');
               
-              const Icon = isInstagram ? Instagram : isFacebook ? Facebook : isTwitter ? Twitter : isTikTok ? Smartphone : Globe;
+              const Icon = isInstagram ? FaInstagram : isFacebook ? FaFacebook : isTwitter ? FaTwitter : isTikTok ? FaTiktok : Globe;
 
               return (
                 <a key={idx} href={formattedLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
@@ -821,7 +853,7 @@ export const ListingDetail: React.FC = () => {
           </section>
 
           {/* Reviews */}
-          <section className="space-y-6">
+          <section className="flex flex-col flex-1 space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-bold">Reviews</h2>
               <button 
@@ -832,7 +864,7 @@ export const ListingDetail: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               {reviews.length > 0 ? (
                 reviews.map((review) => (
                   <div key={review.id} className="bg-white p-4 rounded-2xl border border-gray-50 shadow-sm space-y-2">
@@ -913,7 +945,7 @@ export const ListingDetail: React.FC = () => {
             </div>
 
             {/* Review Form */}
-            <div id="review-form" className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <div id="review-form" className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4 mt-auto">
               <h3 className="font-bold">Leave a Review</h3>
               {reviewSuccess && (
                 <div className="bg-green-50 text-green-600 p-4 rounded-2xl text-sm font-bold animate-in zoom-in-95 duration-300">
@@ -941,22 +973,22 @@ export const ListingDetail: React.FC = () => {
               <button
                 onClick={handleAddReview}
                 disabled={isSubmitting}
-                className="w-full py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all disabled:opacity-50"
+                className="w-full md:w-auto md:px-8 py-4 md:py-3 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex md:inline-flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                {isSubmitting ? 'Submitting...' : <>Submit a Review <Send className="w-4 h-4 ml-1" /></>}
               </button>
             </div>
           </section>
           </div>
 
           {/* Right Column (Sidebar) */}
-          <div className="hidden lg:flex lg:flex-col lg:col-span-3 gap-6 lg:-mt-4">
+          <div className="hidden lg:flex lg:flex-col lg:col-span-3 gap-6 lg:-mt-4 h-full">
             {/* Map */}
             {listing.address && (
               <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm space-y-4">
                 <h2 className="text-xl font-bold">Location</h2>
                 <div className="w-full h-48 rounded-2xl overflow-hidden bg-gray-100 relative z-10">
-                  <OpenStreetMap address={listing.address} />
+                  <OpenStreetMap address={listing.address.replace(/(?:Unit|Apt|Suite|#|Room)\s*[A-Za-z0-9\-]+/gi, '').replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim()} />
                 </div>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
@@ -1018,7 +1050,7 @@ export const ListingDetail: React.FC = () => {
             
             {/* Hours */}
             {listing.openingHours && (
-              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4 mt-auto">
                 <h2 className="text-xl font-bold">
                   Hours
                 </h2>
@@ -1038,6 +1070,50 @@ export const ListingDetail: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {listing.plan === 'premium' && ((listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) || (listing.socialMediaLinks && listing.socialMediaLinks.length > 0)) && (
+              <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+                <h2 className="text-xl font-bold mb-4">Social Media</h2>
+                <div className="flex flex-wrap gap-4">
+                  {listing.socialMedia?.instagram && (
+                    <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                      <FaInstagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {listing.socialMedia?.facebook && (
+                    <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                      <FaFacebook className="w-5 h-5" />
+                    </a>
+                  )}
+                  {listing.socialMedia?.twitter && (
+                    <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                      <FaTwitter className="w-5 h-5" />
+                    </a>
+                  )}
+                  {listing.socialMedia?.tiktok && (
+                    <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                      <FaTiktok className="w-5 h-5" />
+                    </a>
+                  )}
+                  {listing.socialMediaLinks?.map((link, idx) => {
+                    if (!link) return null;
+                    const formattedLink = link.startsWith('http') ? link : `https://${link}`;
+                    const isInstagram = link.toLowerCase().includes('instagram.com');
+                    const isFacebook = link.toLowerCase().includes('facebook.com');
+                    const isTikTok = link.toLowerCase().includes('tiktok.com');
+                    const isTwitter = link.toLowerCase().includes('twitter.com') || link.toLowerCase().includes('x.com');
+                    
+                    const Icon = isInstagram ? FaInstagram : isFacebook ? FaFacebook : isTwitter ? FaTwitter : isTikTok ? FaTiktok : Globe;
+
+                    return (
+                      <a key={idx} href={formattedLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
+                        <Icon className="w-5 h-5" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1051,26 +1127,26 @@ export const ListingDetail: React.FC = () => {
       />
     </div>
 
-    {/* Related Listings - Desktop Only */}
-    {relatedListings.length > 0 && (
+    {/* Nearby Listings - Desktop Only */}
+    {nearbyListings.length > 0 && (
       <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl mx-auto mt-12 mb-16 animate-in fade-in duration-500">
-        <h2 className="text-2xl font-bold mb-6">Related Listings</h2>
+        <h2 className="text-2xl font-bold mb-6">Nearby Listings</h2>
         <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
-          {relatedListings.map((related) => (
+          {nearbyListings.map((nearby) => (
             <Link
-              key={related.id}
-              to={getListingUrl(related)}
+              key={nearby.id}
+              to={getListingUrl(nearby)}
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col transition-all group"
             >
               <div className="relative h-48 w-full shrink-0">
-                {related.photos && related.photos.length > 0 ? (
-                  <img src={(related.photos[0]) || undefined} alt={related.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
+                {nearby.photos && nearby.photos.length > 0 ? (
+                  <img src={(nearby.photos[0]) || undefined} alt={nearby.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                     <span className="text-gray-400 font-medium text-sm">No Image</span>
                   </div>
                 )}
-                {related.isFeatured && (
+                {nearby.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">
                     Featured
                   </div>
@@ -1078,20 +1154,25 @@ export const ListingDetail: React.FC = () => {
               </div>
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg leading-tight group-hover:text-[#e90b35] transition-colors line-clamp-1">{related.name}</h3>
+                  <h3 className="font-bold text-lg leading-tight group-hover:text-[#e90b35] transition-colors line-clamp-1">{nearby.name}</h3>
                   <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg shrink-0">
                     <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-bold">{related.averageRating}</span>
+                    <span className="text-sm font-bold">{nearby.averageRating}</span>
                   </div>
                 </div>
                 <p className="text-gray-500 text-sm flex items-center gap-2 mb-3">
                   <MapPin className="w-4 h-4 text-[#e90b35]" />
-                  <span className="line-clamp-1">{related.address}</span>
+                  <span className="line-clamp-1">{nearby.address}</span>
                 </p>
-                <div className="mt-auto">
+                <div className="mt-auto flex items-center justify-between">
                   <span className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase inline-block">
-                    {Array.isArray(related.category) ? related.category[0] : related.category}
+                    {Array.isArray(nearby.category) ? nearby.category[0] : nearby.category}
                   </span>
+                  {nearby.distance !== undefined && nearby.distance !== Infinity && (
+                    <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                      {nearby.distance < 1 ? `${Math.round(nearby.distance * 1000)} m` : `${nearby.distance.toFixed(1)} km`}
+                    </span>
+                  )}
                 </div>
               </div>
             </Link>

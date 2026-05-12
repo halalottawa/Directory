@@ -3,7 +3,7 @@ import path from 'path';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 
-const BASE_URL = 'https://halalottawa.com';
+const BASE_URL = 'https://halalottawa.ca';
 
 const staticUrls = [
   "/",
@@ -64,9 +64,16 @@ async function generateSitemap() {
       listingsSnap.forEach((doc) => {
         const data = doc.data();
         const idPath = data.slug || doc.id;
-        const category = data.category || 'listings';
+        
+        let categoryPath = 'listings';
+        if (Array.isArray(data.category) && data.category.length > 0) {
+          categoryPath = encodeURIComponent(data.category[0].toLowerCase());
+        } else if (typeof data.category === 'string') {
+          categoryPath = encodeURIComponent(data.category.toLowerCase());
+        }
+
         urls.push({
-          loc: `${BASE_URL}/${category}/${idPath}`,
+          loc: `${BASE_URL}/${categoryPath}/${idPath}`,
           changefreq: "weekly",
           priority: "0.7",
         });

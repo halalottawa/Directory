@@ -145,7 +145,7 @@ export const Home: React.FC = () => {
       <SEO 
         title="Home"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
-        canonicalUrl="https://halalottawa.com"
+        canonicalUrl="https://halalottawa.ca"
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",

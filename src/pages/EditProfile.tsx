@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, Save, User, Mail, Phone, MapPin, Camera, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Save, User, Mail, Phone, MapPin, Camera, AlertCircle, CheckCircle2, Send } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';

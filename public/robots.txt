@@ -25,4 +25,4 @@ Allow: /grocery
 Allow: /clothing
 
 # Sitemap
-Sitemap: https://halalottawa.com/sitemap.xml
+Sitemap: https://halalottawa.ca/sitemap.xml

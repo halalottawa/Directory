@@ -103,7 +103,7 @@ export const Jobs: React.FC = () => {
       <SEO 
         title="Jobs" 
         description="Explore local job opportunities and careers tailored for the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.com/jobs" 
+        canonicalUrl="https://halalottawa.ca/jobs" 
       />
 
       <AdDisplay />
@@ -112,10 +112,9 @@ export const Jobs: React.FC = () => {
         <h1 className="text-2xl md:text-3xl font-bold">Jobs</h1>
         <Link 
           to="/jobs/add" 
-          className="bg-[#e90b35] text-white p-2 md:px-4 md:py-2 rounded-full md:rounded-xl shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center md:gap-2"
+          className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
         >
           <Plus className="w-6 h-6 md:w-5 md:h-5" />
-          <span className="hidden md:inline">Post a Job</span>
         </Link>
       </div>
 

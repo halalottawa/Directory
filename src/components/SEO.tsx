@@ -15,7 +15,7 @@ export const SEO: React.FC<SEOProps> = ({
   title,
   description,
   canonicalUrl,
-  ogImage = 'https://halalottawa.com/default-og.jpg', // Placeholder default image
+  ogImage = 'https://halalottawa.ca/default-og.jpg', // Placeholder default image
   ogType = 'website',
   twitterCard = 'summary_large_image',
   structuredData,

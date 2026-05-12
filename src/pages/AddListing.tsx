@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText } from 'lucide-react';
+import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText, Send } from 'lucide-react';
 import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -121,13 +121,13 @@ export const AddListing: React.FC = () => {
   };
 
   return (
-    <main className="min-h-screen bg-white p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <main className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:mb-12">
       <Helmet>
         <title>Add Listing | Halal Ottawa</title>
         <meta name="description" content="Submit a new halal listing to the Halal Ottawa." />
       </Helmet>
 
-      <div className="max-w-md mx-auto space-y-6">
+      <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Add Listing</h1>
           <p className="text-gray-500">Submit a new halal listing to the community.</p>
@@ -145,8 +145,8 @@ export const AddListing: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
-            <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative md:col-span-2">
               <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -158,7 +158,7 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-2">
               <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -170,7 +170,7 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 md:col-span-2">
               <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map(cat => (
                   <button
@@ -195,7 +195,7 @@ export const AddListing: React.FC = () => {
             </div>
 
             {formData.category.includes('Restaurants') && (
-              <div className="space-y-6 p-6 bg-gray-50 rounded-[32px] border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-6 p-6 bg-gray-50 rounded-[32px] border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-300 md:col-span-2">
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {LISTING_TYPES.map(type => (
@@ -246,7 +246,7 @@ export const AddListing: React.FC = () => {
               </div>
             )}
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="tel"
@@ -257,7 +257,7 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="email"
@@ -268,7 +268,7 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -279,7 +279,7 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative">
+            <div className="relative md:col-span-1">
               <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -365,7 +365,7 @@ export const AddListing: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -413,13 +413,13 @@ export const AddListing: React.FC = () => {
             <textarea
               placeholder="Description"
               required
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-32 resize-none"
+              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-32 resize-none md:col-span-2"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
 
             {user?.role === 'admin' && (
-              <div className="relative">
+              <div className="relative md:col-span-2">
                 <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
@@ -432,13 +432,15 @@ export const AddListing: React.FC = () => {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Submitting...' : 'Submit Listing'}
-          </button>
+          <div className="flex justify-start">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full md:w-auto md:px-12 py-4 md:py-3 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 flex md:inline-flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {loading ? 'Submitting...' : <>Submit Listing <Send className="w-5 h-5" /></>}
+            </button>
+          </div>
         </form>
       </div>
     </main>

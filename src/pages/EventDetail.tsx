@@ -169,7 +169,7 @@ export const EventDetail: React.FC = () => {
         <SEO
         title={event.title}
         description={event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description}
-        canonicalUrl={`https://halalottawa.com/events/${slug}`}
+        canonicalUrl={`https://halalottawa.ca/events/${slug}`}
         ogImage={event.coverImage || undefined}
         structuredData={{
           "@context": "https://schema.org",
