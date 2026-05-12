@@ -165,7 +165,7 @@ export const EventDetail: React.FC = () => {
 
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="animate-in fade-in duration-500 md:max-w-7xl xl:max-w-[1400px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
         <SEO
         title={event.title}
         description={event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description}
@@ -322,7 +322,7 @@ export const EventDetail: React.FC = () => {
 
       {/* Related Events - Desktop Only */}
       {relatedEvents.length > 0 && (
-        <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl mx-auto mt-12 mb-16 animate-in fade-in duration-500">
+        <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl xl:max-w-[1400px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
           <h2 className="text-2xl font-bold mb-6">More Events</h2>
           <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
             {relatedEvents.map((related) => (

@@ -172,7 +172,7 @@ export const CategoryListings: React.FC = () => {
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title={formattedCategory} 
         description={`Explore the best ${formattedCategory} in Ottawa. Find top-rated places in the local Muslim community directory.`} 

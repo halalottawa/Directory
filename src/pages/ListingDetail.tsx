@@ -30,7 +30,7 @@ export const ListingDetail: React.FC = () => {
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [editingReview, setEditingReview] = useState<string | null>(null);
   const [editComment, setEditComment] = useState('');
-  const [nearbyListings, setNearbyListings] = useState<Listing[]>([]);
+  const [relatedListings, setRelatedListings] = useState<Listing[]>([]);
 
   // Contact Info Modal state
   const [infoModal, setInfoModal] = useState<{
@@ -114,26 +114,8 @@ export const ListingDetail: React.FC = () => {
   }, [slug, user]);
 
   useEffect(() => {
-    const fetchNearbyListings = async () => {
-      if (!listing || !listing.lat || !listing.lng) return;
-
-      const getDistance = (lat1: any, lon1: any, lat2: any, lon2: any) => {
-        const pLat1 = Number(lat1);
-        const pLon1 = Number(lon1);
-        const pLat2 = Number(lat2);
-        const pLon2 = Number(lon2);
-        
-        if (isNaN(pLat1) || isNaN(pLon1) || isNaN(pLat2) || isNaN(pLon2)) return Infinity;
-
-        try {
-          // Leaflet's distanceTo method returns distance in meters.
-          // Convert to kilometers to stay consistent with previous code.
-          return L.latLng(pLat1, pLon1).distanceTo(L.latLng(pLat2, pLon2)) / 1000;
-        } catch (e) {
-          console.error("Error calculating distance:", e);
-          return Infinity;
-        }
-      };
+    const fetchRelatedListings = async () => {
+      if (!listing) return;
 
       try {
         const q = query(
@@ -141,43 +123,50 @@ export const ListingDetail: React.FC = () => {
           where('isApproved', '==', true)
         );
         const querySnapshot = await getDocs(q);
-        const nearbyFirestore = querySnapshot.docs
+        const allFirestore = querySnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as Listing))
-          .filter(l => l.id !== listing.id && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null);
+          .filter(l => l.id !== listing.id);
 
-        const nearbyDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null);
+        const allDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug);
 
-        // Deduplicate, calculate distance, sort, and limit to 4
-        const allListings = [...nearbyFirestore, ...nearbyDemo];
+        const allListings = [...allFirestore, ...allDemo];
         const uniqueListings = Array.from(new Map(allListings.map(item => [item.id, item])).values());
 
-        const distancesMapped = uniqueListings.map(l => ({
-          ...l,
-          distance: getDistance(listing.lat, listing.lng, l.lat, l.lng)
-        }));
+        // Find listings that share at least one category with the current listing
+        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
         
-        console.log("Distances mapped:", distancesMapped.map(l => `${l.name}: ${l.distance}`));
+        const related = uniqueListings.filter(l => {
+          const lCategories = Array.isArray(l.category) ? l.category : [l.category];
+          return lCategories.some(c => currentCategories.includes(c));
+        });
 
-        const allNearby = distancesMapped.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)).slice(0, 4);
-        
-        console.log("Sorted nearby:", allNearby.map(l => `${l.name}: ${l.distance}`));
+        // Sort by averageRating prioritizing highly rated, and take 4
+        const sortedRelated = related.sort((a, b) => {
+             const aRating = a.averageRating || 0;
+             const bRating = b.averageRating || 0;
+             return bRating - aRating;
+        }).slice(0, 4);
 
-        setNearbyListings(allNearby);
+        setRelatedListings(sortedRelated);
       } catch(err) {
-        console.error("Error fetching nearby listings:", err);
-        // Fallback to DEMO_LISTINGS if query fails
-        const nearbyDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug && l.lat !== undefined && l.lng !== undefined && l.lat !== null && l.lng !== null)
-          .map(l => ({
-            ...l,
-            distance: getDistance(listing.lat, listing.lng, l.lat, l.lng)
-          })).sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity)).slice(0, 4);
+        console.error("Error fetching related listings:", err);
         
-        setNearbyListings(nearbyDemo);
+        // Fallback to demo data
+        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
+        const relatedDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug)
+          .filter(l => {
+            const lCategories = Array.isArray(l.category) ? l.category : [l.category];
+            return lCategories.some(c => currentCategories.includes(c));
+          })
+          .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+          .slice(0, 4);
+          
+        setRelatedListings(relatedDemo);
       }
     };
 
-    fetchNearbyListings();
-  }, [listing?.id, listing?.lat, listing?.lng, slug]);
+    fetchRelatedListings();
+  }, [listing?.id, listing?.category, slug]);
 
   const onClaim = () => {
     if (!user) {
@@ -378,7 +367,7 @@ export const ListingDetail: React.FC = () => {
     
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="animate-in fade-in duration-500 md:max-w-7xl xl:max-w-[1400px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
@@ -1127,26 +1116,26 @@ export const ListingDetail: React.FC = () => {
       />
     </div>
 
-    {/* Nearby Listings - Desktop Only */}
-    {nearbyListings.length > 0 && (
-      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl mx-auto mt-12 mb-16 animate-in fade-in duration-500">
-        <h2 className="text-2xl font-bold mb-6">Nearby Listings</h2>
+    {/* Related Listings - Desktop Only */}
+    {relatedListings.length > 0 && (
+      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl xl:max-w-[1400px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
+        <h2 className="text-2xl font-bold mb-6">Related Listings</h2>
         <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
-          {nearbyListings.map((nearby) => (
+          {relatedListings.map((related) => (
             <Link
-              key={nearby.id}
-              to={getListingUrl(nearby)}
+              key={related.id}
+              to={getListingUrl(related)}
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col transition-all group"
             >
               <div className="relative h-48 w-full shrink-0">
-                {nearby.photos && nearby.photos.length > 0 ? (
-                  <img src={(nearby.photos[0]) || undefined} alt={nearby.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
+                {related.photos && related.photos.length > 0 ? (
+                  <img src={(related.photos[0]) || undefined} alt={related.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                     <span className="text-gray-400 font-medium text-sm">No Image</span>
                   </div>
                 )}
-                {nearby.isFeatured && (
+                {related.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">
                     Featured
                   </div>
@@ -1154,25 +1143,20 @@ export const ListingDetail: React.FC = () => {
               </div>
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg leading-tight group-hover:text-[#e90b35] transition-colors line-clamp-1">{nearby.name}</h3>
+                  <h3 className="font-bold text-lg leading-tight group-hover:text-[#e90b35] transition-colors line-clamp-1">{related.name}</h3>
                   <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg shrink-0">
                     <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-bold">{nearby.averageRating}</span>
+                    <span className="text-sm font-bold">{related.averageRating}</span>
                   </div>
                 </div>
                 <p className="text-gray-500 text-sm flex items-center gap-2 mb-3">
                   <MapPin className="w-4 h-4 text-[#e90b35]" />
-                  <span className="line-clamp-1">{nearby.address}</span>
+                  <span className="line-clamp-1">{related.address}</span>
                 </p>
                 <div className="mt-auto flex items-center justify-between">
                   <span className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase inline-block">
-                    {Array.isArray(nearby.category) ? nearby.category[0] : nearby.category}
+                    {Array.isArray(related.category) ? related.category[0] : related.category}
                   </span>
-                  {nearby.distance !== undefined && nearby.distance !== Infinity && (
-                    <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
-                      {nearby.distance < 1 ? `${Math.round(nearby.distance * 1000)} m` : `${nearby.distance.toFixed(1)} km`}
-                    </span>
-                  )}
                 </div>
               </div>
             </Link>

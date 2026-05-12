@@ -99,7 +99,7 @@ export const Jobs: React.FC = () => {
   }, [searchQuery]);
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title="Jobs" 
         description="Explore local job opportunities and careers tailored for the Ottawa Muslim community." 

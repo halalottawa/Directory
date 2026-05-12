@@ -141,7 +141,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl mx-auto">
+    <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title="Home"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
@@ -166,7 +166,7 @@ export const Home: React.FC = () => {
 
       {/* Hero & Search */}
       <section className="space-y-4">
-        <form onSubmit={handleSearch} className="relative max-w-3xl mx-auto">
+        <form onSubmit={handleSearch} className="relative w-full mx-auto">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
