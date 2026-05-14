@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CATEGORIES, DEMO_LISTINGS } from '../constants';
+import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
@@ -20,12 +20,43 @@ export const CategoryListings: React.FC = () => {
   const categorySlug = paramCategory || pathname.split('/')[1];
   
   // Format category from slug (e.g., "restaurants" -> "Restaurants")
-  const formattedCategory = categorySlug 
+  const rawFormattedCategory = categorySlug 
     ? categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1).toLowerCase()
     : '';
     
-  // Validate if it's a real category
-  const isValidCategory = CATEGORIES.includes(formattedCategory as any);
+  const isMainCategory = CATEGORIES.map(c => c.toLowerCase()).includes(rawFormattedCategory.toLowerCase());
+  const matchedType = LISTING_TYPES.find(t => t.toLowerCase() === rawFormattedCategory.toLowerCase());
+  const matchedCuisine = CUISINES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase());
+
+  // Validate if it's a real category, listing type, or cuisine
+  const isValidCategory = isMainCategory || !!matchedType || !!matchedCuisine;
+
+  const formattedCategory = isMainCategory 
+    ? (CATEGORIES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase()) || rawFormattedCategory)
+    : (matchedType || matchedCuisine || rawFormattedCategory);
+    
+  // Calculate current month and year for SEO titles
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+  const currentYear = currentDate.getFullYear();
+  const monthYearStr = `${currentMonth} ${currentYear}`;
+
+  let pageTitle = `${formattedCategory}`;
+  if (formattedCategory === 'Restaurants') {
+    pageTitle = `Halal Restaurants in Ottawa - ${monthYearStr}`;
+  } else if (formattedCategory === 'Grocery') {
+    pageTitle = `Halal Grocery Stores in Ottawa - ${monthYearStr}`;
+  } else if (formattedCategory === 'Clothing') {
+    pageTitle = `Islamic Clothing in Ottawa - ${monthYearStr}`;
+  } else if (formattedCategory === 'Schools') {
+    pageTitle = `Islamic Schools in Ottawa - ${monthYearStr}`;
+  } else if (formattedCategory === 'Butchers') {
+    pageTitle = `Halal Meat in Ottawa - ${monthYearStr}`;
+  } else if (!isMainCategory && isValidCategory) {
+    pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
+  } else {
+    pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
+  }
 
   const [rawListings, setRawListings] = useState<Listing[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -74,9 +105,14 @@ export const CategoryListings: React.FC = () => {
       // Filter client-side for better robustness (handles string vs array and pending vs approved)
       const filtered = firestoreListings.filter(l => {
         const listingCategories = Array.isArray(l.category) ? l.category : [l.category];
+        const listingTypes = l.types || [];
+        const listingCuisines = l.cuisine || [];
+
         const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
+        const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
+        const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
         
-        if (!matchesCategory) return false;
+        if (!(matchesCategory || matchesType || matchesCuisine)) return false;
         
         // Admin sees everything
         if (user?.role === 'admin') return true;
@@ -104,7 +140,11 @@ export const CategoryListings: React.FC = () => {
     // Merge with demo data
     const allListings = [...rawListings, ...DEMO_LISTINGS.filter(l => {
         const cats = Array.isArray(l.category) ? l.category : [l.category];
-        return cats.includes(formattedCategory as any);
+        const types = l.types || [];
+        const cuisines = l.cuisine || [];
+        return cats.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase()) || 
+               types.some(t => t.toLowerCase() === formattedCategory.toLowerCase()) ||
+               cuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
     })];
     
     // Sort allListings: Featured first, then by date
@@ -174,9 +214,9 @@ export const CategoryListings: React.FC = () => {
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title={formattedCategory} 
+        title={pageTitle} 
         description={`Explore the best ${formattedCategory} in Ottawa. Find top-rated places in the local Muslim community directory.`} 
-        canonicalUrl={`https://halalottawa.ca/${paramCategory}`} 
+        canonicalUrl={`https://halalottawa.ca/${paramCategory || pathname.split('/')[1]}`} 
       />
 
       <div className="flex justify-between items-center">

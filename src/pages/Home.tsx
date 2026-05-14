@@ -143,7 +143,7 @@ export const Home: React.FC = () => {
   return (
     <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title="Home"
+        title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
         canonicalUrl="https://halalottawa.ca"
         structuredData={{

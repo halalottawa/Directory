@@ -20,7 +20,9 @@ export const SEO: React.FC<SEOProps> = ({
   twitterCard = 'summary_large_image',
   structuredData,
 }) => {
-  const siteTitle = `${title} | Halal Ottawa`;
+  const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa')
+    ? title 
+    : `${title} | Halal Ottawa`;
 
   return (
     <Helmet>
