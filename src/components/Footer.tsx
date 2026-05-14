@@ -1,18 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Globe } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaReddit } from 'react-icons/fa6';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export const Footer: React.FC = () => {
+  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().logoUrl) {
+        setSiteLogoUrl(docSnap.data().logoUrl);
+      }
+    });
+    return () => unsub();
+  }, []);
+
   return (
     <footer className="hidden md:block bg-gray-900 pt-16 pb-8 border-t border-gray-800">
-      <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-12">
+      <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src="https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp" 
+                src={siteLogoUrl} 
                 alt="Halal Ottawa" 
                 className="h-10 w-auto brightness-0 invert" 
               />

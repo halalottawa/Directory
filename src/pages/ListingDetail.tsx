@@ -367,7 +367,7 @@ export const ListingDetail: React.FC = () => {
     
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-7xl xl:max-w-[1400px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
@@ -860,7 +860,7 @@ export const ListingDetail: React.FC = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 bg-gray-100 rounded-full overflow-hidden">
-                          {review.userPhoto && review.userPhoto.trim() !== '' ? <img src={(review.userPhoto) || undefined} alt={review.userName} /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">{review.userName[0]}</div>}
+                          {<div className="w-full h-full flex items-center justify-center text-gray-500 font-bold uppercase text-sm">{(review.userName?.[0] || '?')}</div>}
                         </div>
                         <div>
                           <p className="font-bold text-sm">{review.userName}</p>
@@ -1118,7 +1118,7 @@ export const ListingDetail: React.FC = () => {
 
     {/* Related Listings - Desktop Only */}
     {relatedListings.length > 0 && (
-      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full max-w-7xl xl:max-w-[1400px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
+      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
         <h2 className="text-2xl font-bold mb-6">Related Listings</h2>
         <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
           {relatedListings.map((related) => (

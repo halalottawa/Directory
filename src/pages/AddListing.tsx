@@ -121,7 +121,7 @@ export const AddListing: React.FC = () => {
   };
 
   return (
-    <main className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:mb-12">
+    <main className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:mb-12">
       <Helmet>
         <title>Add Listing | Halal Ottawa</title>
         <meta name="description" content="Submit a new halal listing to the Halal Ottawa." />

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES } from '../constants';
 
@@ -13,8 +15,18 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().logoUrl) {
+        setSiteLogoUrl(docSnap.data().logoUrl);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -51,7 +63,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Desktop Left: Logo */}
         <div onClick={handleLogoClick} className="hidden md:flex items-center justify-start gap-2 cursor-pointer">
           <img 
-            src="https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp" 
+            src={siteLogoUrl} 
             alt="Halal Ottawa" 
             className="h-[52px] w-auto"
             referrerPolicy="no-referrer"
@@ -81,7 +93,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Mobile Center: Logo */}
         <div onClick={handleLogoClick} className="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer">
           <img 
-            src="https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp" 
+            src={siteLogoUrl} 
             alt="Halal Ottawa" 
             className="h-[44px] w-auto"
             referrerPolicy="no-referrer"
@@ -98,11 +110,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
                 className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] overflow-hidden border border-white shadow-sm flex items-center justify-center text-white text-[10px] font-black hover:scale-105 transition-transform"
               >
-                {user.photoURL && user.photoURL.trim() !== '' ? (
-                  <img src={(user.photoURL) || undefined} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{(user.firstName?.[0] || user.name?.[0] || '?').toUpperCase()}</span>
-                )}
+                <span>{(user?.firstName?.[0] || user?.name?.[0] || '?').toUpperCase()}</span>
               </button>
 
               {/* Desktop Profile Dropdown */}
@@ -183,11 +191,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
             onClick={() => setIsMenuOpen(false)}
           />
-          <div className="relative w-72 bg-white h-full shadow-2xl animate-in slide-in-from-left duration-500 flex flex-col">
+          <div className="relative w-72 bg-white h-full shadow-2xl animate-in slide-in-from-left duration-500 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
             <div className="p-6 flex justify-between items-center border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <img 
-                  src="https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp" 
+                  src={siteLogoUrl} 
                   alt="Halal Ottawa" 
                   className="h-[52px] w-auto"
                   referrerPolicy="no-referrer"

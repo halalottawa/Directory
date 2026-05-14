@@ -171,11 +171,7 @@ export const Profile: React.FC = () => {
           <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
             <div className="relative group">
               <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl shadow-gray-200 bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-4xl font-black">
-                {user.photoURL && user.photoURL.trim() !== '' ? (
-                  <img src={(user.photoURL) || undefined} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{(user.firstName?.[0] || user.name?.[0] || '?').toUpperCase()}</span>
-                )}
+                <span>{(user?.firstName?.[0] || user?.name?.[0] || '?').toUpperCase()}</span>
               </div>
             </div>
 

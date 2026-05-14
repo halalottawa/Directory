@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, Plus, Search, ChevronLeft } from 'lucide-react';
+import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -391,6 +391,71 @@ export const CategoryListings: React.FC = () => {
           >
             <ChevronLeft className="w-5 h-5 text-gray-600 rotate-180" />
           </button>
+        </div>
+      )}
+
+      {/* Categories for Restaurants */}
+      {formattedCategory === 'Restaurants' && (
+        <div className="mt-12 space-y-12">
+          {/* Browse by Food Type */}
+          <section className="hidden md:block space-y-6 pt-8 pb-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Food Type</h2>
+              <p className="text-gray-500">Explore businesses by what they offer</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {LISTING_TYPES.map((item) => {
+                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.types?.includes(item as any) || l.category?.includes(item as any))).length;
+                const displayCount = count > 0 ? count : Math.floor(Math.random() * 50) + 1; // Fake count for demo if real count is 0
+                
+                return (
+                  <Link
+                    key={item}
+                    to={`/${item.toLowerCase()}`}
+                    className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
+                  >
+                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
+                       <UtensilsCrossed className="w-5 h-5" />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900">{item}</h3>
+                      <p className="text-xs text-gray-500 mt-1">{displayCount} listing{displayCount !== 1 ? 's' : ''}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Browse by Cuisine */}
+          <section className="hidden md:block space-y-6 pt-8 pb-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Cuisine</h2>
+              <p className="text-gray-500">Discover flavors from around the world</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {CUISINES.map((item) => {
+                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.cuisine?.includes(item as any) || l.category?.includes(item as any))).length;
+                const displayCount = count > 0 ? count : Math.floor(Math.random() * 50) + 1; // Fake count for demo if real count is 0
+                
+                return (
+                  <Link
+                    key={item}
+                    to={`/${item.toLowerCase()}`}
+                    className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
+                  >
+                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
+                       <Globe className="w-5 h-5" />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900">{item}</h3>
+                      <p className="text-xs text-gray-500 mt-1">{displayCount} listing{displayCount !== 1 ? 's' : ''}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
     </div>

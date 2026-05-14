@@ -114,7 +114,7 @@ export const QiblaDirection: React.FC = () => {
     : 0;
 
   return (
-    <div className="animate-in fade-in duration-500 bg-white md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
+    <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
       <Helmet>
         <title>Qibla Direction | Halal Ottawa</title>
         <meta name="description" content="Find the Qibla direction online accurately using your device compass and location in Ottawa." />

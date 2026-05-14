@@ -118,7 +118,7 @@ export const EditJob: React.FC = () => {
   if (loading) return <div className="p-8 text-center">Loading job details...</div>;
 
   return (
-    <main className="animate-in fade-in duration-500 md:max-w-7xl md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] xl:w-full md:mt-8 md:mb-12">
+    <main className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:mb-12">
       <Helmet>
         <title>Edit Job | Halal Ottawa</title>
         <meta name="description" content="Update the job opportunity details." />

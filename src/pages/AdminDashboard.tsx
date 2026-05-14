@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X } from 'lucide-react';
-import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -10,6 +10,7 @@ import { Helmet } from 'react-helmet-async';
 import { toast } from 'sonner';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Pagination } from '../components/Pagination';
+import { uploadFile } from '../utils/storageUtils';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -64,6 +65,10 @@ export const AdminDashboard: React.FC = () => {
   const [newAd, setNewAd] = useState({ type: 'banner', imageUrl: '', linkUrl: '', codeSnippet: '', isActive: true });
   const [isAddingAd, setIsAddingAd] = useState(false);
 
+  // Settings states
+  const [siteLogoUrl, setSiteLogoUrl] = useState('');
+  const [isLogoUploading, setIsLogoUploading] = useState(false);
+
   const [viewFeedbackItem, setViewFeedbackItem] = useState<{ type: 'reviews' | 'comments', item: any } | null>(null);
 
   const generateWithRetry = async (ai: any, prompt: string, toastId: any, maxRetries = 6) => {
@@ -115,7 +120,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
-        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap
+        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap
       ] = await Promise.all([
         getDocs(collection(db, 'listings')),
         getDocs(collection(db, 'events')),
@@ -125,7 +130,8 @@ export const AdminDashboard: React.FC = () => {
         getDocs(collection(db, 'comments')),
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'ads')),
-        getDocs(collection(db, 'plan_requests'))
+        getDocs(collection(db, 'plan_requests')),
+        getDoc(doc(db, 'settings', 'general'))
       ]);
 
       const listings = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Listing))
@@ -144,6 +150,10 @@ export const AdminDashboard: React.FC = () => {
       const adsData = adsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const plansData = planRequestsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      if (settingsSnap.exists() && settingsSnap.data().logoUrl) {
+        setSiteLogoUrl(settingsSnap.data().logoUrl);
+      }
 
       setPendingListings(listings.filter(i => !i.isApproved));
       setApprovedListings(listings.filter(i => i.isApproved));
@@ -189,6 +199,23 @@ export const AdminDashboard: React.FC = () => {
       handleFirestoreError(err, OperationType.LIST, 'admin_dashboard');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setIsLogoUploading(true);
+    try {
+      const url = await uploadFile(file, 'settings', 'halal-ottawa-logo');
+      await setDoc(doc(db, 'settings', 'general'), { logoUrl: url }, { merge: true });
+      setSiteLogoUrl(url);
+      toast.success('Site logo updated successfully.');
+    } catch (error) {
+      toast.error('Failed to upload site logo.');
+      console.error(error);
+    } finally {
+      setIsLogoUploading(false);
     }
   };
 
@@ -835,7 +862,6 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
       return '';
     };
     const getImage = () => {
-      if (type === 'users' && item.photoURL && item.photoURL.trim() !== '') return item.photoURL;
       if (item.photos?.[0] && item.photos[0].trim() !== '') return item.photos[0];
       if (item.coverImage && item.coverImage.trim() !== '') return item.coverImage;
       if (item.companyLogo && item.companyLogo.trim() !== '') return item.companyLogo;
@@ -1078,6 +1104,42 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                   {isBatchUpdating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Refresh Categories
                 </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Site Settings Section */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
+            Site Settings
+          </h2>
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 mb-1">Site Logo</h3>
+              <p className="text-xs text-gray-500 mb-4">Upload a logo to display in the header and footer.</p>
+              <div className="flex items-center gap-4">
+                {siteLogoUrl ? (
+                  <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 p-2 flex items-center justify-center">
+                    <img src={siteLogoUrl} alt="Site Logo" className="max-w-full max-h-full object-contain" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
+                    <span className="text-xs">No Logo</span>
+                  </div>
+                )}
+                <div>
+                  <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
+                    {isLogoUploading ? 'Uploading...' : 'Upload Logo'}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload} 
+                      className="hidden" 
+                      disabled={isLogoUploading} 
+                    />
+                  </label>
+                </div>
               </div>
             </div>
           </div>

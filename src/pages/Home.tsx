@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Newspaper, Calendar, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Newspaper, Calendar, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, NewsArticle, Event, Job } from '../types';
