@@ -211,8 +211,8 @@ export const AdminDashboard: React.FC = () => {
       await setDoc(doc(db, 'settings', 'general'), { logoUrl: url }, { merge: true });
       setSiteLogoUrl(url);
       toast.success('Site logo updated successfully.');
-    } catch (error) {
-      toast.error('Failed to upload site logo.');
+    } catch (error: any) {
+      toast.error('Error: ' + (error?.message || String(error)));
       console.error(error);
     } finally {
       setIsLogoUploading(false);

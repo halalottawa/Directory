@@ -52,7 +52,8 @@ async function startServer() {
         const blob = await put(`${cleanName}.webp`, procBuffer, { 
           access: 'public',
           contentType: 'image/webp',
-          addRandomSuffix: false
+          addRandomSuffix: false,
+          allowOverwrite: true
         });
         return res.json({ url: blob.url });
       }
@@ -128,7 +129,8 @@ async function startServer() {
         const blob = await put(`${cleanName}.webp`, procBuffer, { 
           access: 'public',
           contentType: 'image/webp',
-          addRandomSuffix: false
+          addRandomSuffix: false,
+          allowOverwrite: true
         });
         return res.json({ url: blob.url });
       }
