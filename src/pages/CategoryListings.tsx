@@ -217,6 +217,7 @@ export const CategoryListings: React.FC = () => {
         title={pageTitle} 
         description={`Explore the best ${formattedCategory} in Ottawa. Find top-rated places in the local Muslim community directory.`} 
         canonicalUrl={`https://halalottawa.ca/${paramCategory || pathname.split('/')[1]}`} 
+        disableSuffix={true}
       />
 
       <div className="flex justify-between items-center">

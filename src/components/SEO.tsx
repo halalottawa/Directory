@@ -9,6 +9,7 @@ interface SEOProps {
   ogType?: 'website' | 'article' | 'profile';
   twitterCard?: 'summary' | 'summary_large_image';
   structuredData?: Record<string, any>;
+  disableSuffix?: boolean;
 }
 
 export const SEO: React.FC<SEOProps> = ({
@@ -19,8 +20,9 @@ export const SEO: React.FC<SEOProps> = ({
   ogType = 'website',
   twitterCard = 'summary_large_image',
   structuredData,
+  disableSuffix = false,
 }) => {
-  const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa')
+  const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa') || disableSuffix
     ? title 
     : `${title} | Halal Ottawa`;
 
