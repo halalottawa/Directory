@@ -102,7 +102,25 @@ export const Events: React.FC = () => {
       <SEO 
         title="Events" 
         description="Find upcoming Islamic events, meetups, classes, and halaqas in the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.ca/events" 
+        canonicalUrl="https://www.halalottawa.ca/events" 
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.halalottawa.ca"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Events",
+              "item": "https://www.halalottawa.ca/events"
+            }
+          ]
+        }}
       />
 
       <AdDisplay />
@@ -137,7 +155,14 @@ export const Events: React.FC = () => {
           >
             <div className="relative h-48 shrink-0">
               {event.coverImage && event.coverImage.trim() !== '' ? (
-                <img src={(event.coverImage) || undefined} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <img 
+                  src={(event.coverImage) || undefined} 
+                  alt={event.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  loading="lazy"
+                  width="400"
+                  height="192"
+                />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                   <span className="text-gray-400 text-xs font-medium">No Image</span>

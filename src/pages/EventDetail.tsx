@@ -169,30 +169,62 @@ export const EventDetail: React.FC = () => {
         <SEO
         title={event.title}
         description={event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description}
-        canonicalUrl={`https://halalottawa.ca/events/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/events/${slug}`}
         ogImage={event.coverImage || undefined}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "Event",
-          "name": event.title,
-          "description": event.description,
-          "startDate": event.dateTime,
-          "location": {
-            "@type": "Place",
-            "name": event.location,
-            "address": event.location
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": event.title,
+            "description": event.description,
+            "startDate": event.dateTime,
+            "location": {
+              "@type": "Place",
+              "name": event.location,
+              "address": event.location
+            },
+            "image": event.coverImage || "https://www.halalottawa.ca/default-og.jpg",
+            "organizer": {
+              "@type": "Organization",
+              "name": event.organizer
+            }
           },
-          "image": event.coverImage || "https://halalottawa.com/default-og.jpg",
-          "organizer": {
-            "@type": "Organization",
-            "name": event.organizer
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Events",
+                "item": "https://www.halalottawa.ca/events"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": event.title
+              }
+            ]
           }
-        }}
+        ]}
       />
 
       <div className="relative h-64">
         {event.coverImage && event.coverImage.trim() !== '' ? (
-          <img src={(event.coverImage) || undefined} alt={event.title} className="w-full h-full object-cover" />
+          <img 
+            src={(event.coverImage) || undefined} 
+            alt={event.title} 
+            className="w-full h-full object-cover" 
+            fetchPriority="high"
+            width="800"
+            height="256"
+          />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
             <span className="text-gray-400 font-medium">No Image Available</span>
@@ -333,7 +365,14 @@ export const EventDetail: React.FC = () => {
               >
                 <div className="relative h-32 shrink-0">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
-                    <img src={(related.coverImage) || undefined} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                      src={(related.coverImage) || undefined} 
+                      alt={related.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      loading="lazy"
+                      width="400"
+                      height="128"
+                    />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>

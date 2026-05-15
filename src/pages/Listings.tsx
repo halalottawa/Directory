@@ -172,7 +172,25 @@ export const Listings: React.FC = () => {
       <SEO 
         title="Listings" 
         description="Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.ca/listings" 
+        canonicalUrl="https://www.halalottawa.ca/listings" 
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.halalottawa.ca"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Listings",
+              "item": "https://www.halalottawa.ca/listings"
+            }
+          ]
+        }}
       />
 
       <AdDisplay />
@@ -227,7 +245,7 @@ export const Listings: React.FC = () => {
       {/* Listings Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">
         {currentListings.length > 0 ? (
-          currentListings.map((listing) => (
+          currentListings.map((listing, idx) => (
             <Link
               key={listing.id}
               to={getListingUrl(listing)}
@@ -235,7 +253,16 @@ export const Listings: React.FC = () => {
             >
               <div className="relative h-48 sm:w-48 sm:h-auto shrink-0">
                 {listing.photos?.[0] ? (
-                  <img src={(listing.photos[0]) || undefined} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                  <img 
+                    src={(listing.photos[0]) || undefined} 
+                    alt={listing.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    referrerPolicy="no-referrer" 
+                    loading={idx < 4 ? "eager" : "lazy"}
+                    fetchPriority={idx < 4 ? "high" : "auto"}
+                    width="400"
+                    height="192"
+                  />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                     <span className="text-gray-400 text-xs font-medium">No Image</span>

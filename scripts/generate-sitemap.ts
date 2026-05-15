@@ -3,7 +3,7 @@ import path from 'path';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 
-const BASE_URL = 'https://halalottawa.ca';
+const BASE_URL = 'https://www.halalottawa.ca';
 
 const staticUrls = [
   "/",

@@ -1,36 +1,39 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Home } from './pages/Home';
-import { Listings } from './pages/Listings';
-import { CategoryListings } from './pages/CategoryListings';
-import { ListingDetail } from './pages/ListingDetail';
-import { AddListing } from './pages/AddListing';
-import { News } from './pages/News';
-import { NewsDetail } from './pages/NewsDetail';
-import { Events } from './pages/Events';
-import { EventDetail } from './pages/EventDetail';
-import { AddEvent } from './pages/AddEvent';
-import { Jobs } from './pages/Jobs';
-import { JobDetail } from './pages/JobDetail';
-import { AddJob } from './pages/AddJob';
-import { AddNews } from './pages/AddNews';
-import { EditListing } from './pages/EditListing';
-import { EditEvent } from './pages/EditEvent';
-import { EditJob } from './pages/EditJob';
-import { EditNews } from './pages/EditNews';
-import { Login } from './pages/Login';
-import { Profile } from './pages/Profile';
-import { EditProfile } from './pages/EditProfile';
-import { SavedItems } from './pages/SavedItems';
-import { Settings } from './pages/Settings';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { PrivacyPolicy } from './pages/PrivacyPolicy';
-import { TermsOfService } from './pages/TermsOfService';
-import { FAQ } from './pages/FAQ';
-import { QiblaDirection } from './pages/QiblaDirection';
+
+// Lazy load pages
+const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
+const Listings = React.lazy(() => import('./pages/Listings').then(module => ({ default: module.Listings })));
+const CategoryListings = React.lazy(() => import('./pages/CategoryListings').then(module => ({ default: module.CategoryListings })));
+const ListingDetail = React.lazy(() => import('./pages/ListingDetail').then(module => ({ default: module.ListingDetail })));
+const AddListing = React.lazy(() => import('./pages/AddListing').then(module => ({ default: module.AddListing })));
+const News = React.lazy(() => import('./pages/News').then(module => ({ default: module.News })));
+const NewsDetail = React.lazy(() => import('./pages/NewsDetail').then(module => ({ default: module.NewsDetail })));
+const Events = React.lazy(() => import('./pages/Events').then(module => ({ default: module.Events })));
+const EventDetail = React.lazy(() => import('./pages/EventDetail').then(module => ({ default: module.EventDetail })));
+const AddEvent = React.lazy(() => import('./pages/AddEvent').then(module => ({ default: module.AddEvent })));
+const Jobs = React.lazy(() => import('./pages/Jobs').then(module => ({ default: module.Jobs })));
+const JobDetail = React.lazy(() => import('./pages/JobDetail').then(module => ({ default: module.JobDetail })));
+const AddJob = React.lazy(() => import('./pages/AddJob').then(module => ({ default: module.AddJob })));
+const AddNews = React.lazy(() => import('./pages/AddNews').then(module => ({ default: module.AddNews })));
+const EditListing = React.lazy(() => import('./pages/EditListing').then(module => ({ default: module.EditListing })));
+const EditEvent = React.lazy(() => import('./pages/EditEvent').then(module => ({ default: module.EditEvent })));
+const EditJob = React.lazy(() => import('./pages/EditJob').then(module => ({ default: module.EditJob })));
+const EditNews = React.lazy(() => import('./pages/EditNews').then(module => ({ default: module.EditNews })));
+const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
+const Profile = React.lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
+const EditProfile = React.lazy(() => import('./pages/EditProfile').then(module => ({ default: module.EditProfile })));
+const SavedItems = React.lazy(() => import('./pages/SavedItems').then(module => ({ default: module.SavedItems })));
+const Settings = React.lazy(() => import('./pages/Settings').then(module => ({ default: module.Settings })));
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy').then(module => ({ default: module.PrivacyPolicy })));
+const TermsOfService = React.lazy(() => import('./pages/TermsOfService').then(module => ({ default: module.TermsOfService })));
+const FAQ = React.lazy(() => import('./pages/FAQ').then(module => ({ default: module.FAQ })));
+const QiblaDirection = React.lazy(() => import('./pages/QiblaDirection').then(module => ({ default: module.QiblaDirection })));
+
 import ErrorBoundary from './components/ErrorBoundary';
 
 import { useAuth } from './context/AuthContext';
@@ -51,10 +54,15 @@ const AppContent: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/listings" element={<Listings />} />
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+          <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      }>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/listings" element={<Listings />} />
           <Route path="/restaurants" element={<CategoryListings />} />
           <Route path="/mosques" element={<CategoryListings />} />
           <Route path="/organizations" element={<CategoryListings />} />
@@ -95,6 +103,7 @@ const AppContent: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Login />} />
       </Routes>
+      </Suspense>
     </ErrorBoundary>
   );
 };

@@ -99,7 +99,25 @@ export const News: React.FC = () => {
       <SEO 
         title="News" 
         description="Read the latest news, announcements, and updates from the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.ca/news" 
+        canonicalUrl="https://www.halalottawa.ca/news" 
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.halalottawa.ca"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "News",
+              "item": "https://www.halalottawa.ca/news"
+            }
+          ]
+        }}
       />
 
       <AdDisplay />
@@ -136,7 +154,14 @@ export const News: React.FC = () => {
           >
             <div className="relative h-48 shrink-0">
               {article.coverImage && article.coverImage.trim() !== '' ? (
-                <img src={(article.coverImage) || undefined} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                <img 
+                  src={(article.coverImage) || undefined} 
+                  alt={article.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  loading="lazy"
+                  width="400"
+                  height="192"
+                />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                   <span className="text-gray-400 text-xs font-medium">No Image</span>

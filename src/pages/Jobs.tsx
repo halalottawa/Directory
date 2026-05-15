@@ -103,7 +103,25 @@ export const Jobs: React.FC = () => {
       <SEO 
         title="Jobs" 
         description="Explore local job opportunities and careers tailored for the Ottawa Muslim community." 
-        canonicalUrl="https://halalottawa.ca/jobs" 
+        canonicalUrl="https://www.halalottawa.ca/jobs" 
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.halalottawa.ca"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Jobs",
+              "item": "https://www.halalottawa.ca/jobs"
+            }
+          ]
+        }}
       />
 
       <AdDisplay />
@@ -139,7 +157,14 @@ export const Jobs: React.FC = () => {
             <div className="flex gap-3 items-start">
               <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                 {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                  <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" />
+                  <img 
+                    src={(job.companyLogo) || undefined} 
+                    alt={job.company} 
+                    className="w-full h-full object-cover" 
+                    loading="lazy"
+                    width="48"
+                    height="48"
+                  />
                 ) : (
                   <Building2 className="w-6 h-6 text-gray-400" />
                 )}

@@ -111,33 +111,65 @@ export const NewsDetail: React.FC = () => {
         <SEO
         title={article.title}
         description={article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content}
-        canonicalUrl={`https://halalottawa.ca/news/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/news/${slug}`}
         ogImage={article.coverImage || undefined}
         ogType="article"
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "Article",
-          "headline": article.title,
-          "image": article.coverImage || "https://halalottawa.com/default-og.jpg",
-          "datePublished": article.publishDate,
-          "author": {
-            "@type": "Person",
-            "name": article.author || "Halal Ottawa Staff"
-          },
-          "publisher": {
-            "@type": "Organization",
-            "name": "Halal Ottawa",
-            "logo": {
-              "@type": "ImageObject",
-              "url": "https://halalottawa.com/logo.png"
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": article.title,
+            "image": article.coverImage || "https://www.halalottawa.ca/default-og.jpg",
+            "datePublished": article.publishDate,
+            "author": {
+              "@type": "Person",
+              "name": article.author || "Halal Ottawa Staff"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Halal Ottawa",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://www.halalottawa.ca/logo.png"
+              }
             }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "News",
+                "item": "https://www.halalottawa.ca/news"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": article.title
+              }
+            ]
           }
-        }}
+        ]}
       />
 
       <div className="relative h-64">
         {article.coverImage && article.coverImage.trim() !== '' ? (
-          <img src={(article.coverImage) || undefined} alt={article.title} className="w-full h-full object-cover" />
+          <img 
+            src={(article.coverImage) || undefined} 
+            alt={article.title} 
+            className="w-full h-full object-cover" 
+            fetchPriority="high"
+            width="800"
+            height="256"
+          />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
             <span className="text-gray-400 font-medium">No Image Available</span>
@@ -213,7 +245,14 @@ export const NewsDetail: React.FC = () => {
               >
                 <div className="relative w-full h-48 shrink-0">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
-                    <img src={(related.coverImage) || undefined} alt={related.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img 
+                      src={(related.coverImage) || undefined} 
+                      alt={related.title} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      loading="lazy"
+                      width="400"
+                      height="192"
+                    />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Compass, MapPin, Navigation2, Crosshair, AlertCircle } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 import { AdDisplay } from '../components/AdDisplay';
 
 const KAABA_LAT = 21.422487;
@@ -115,10 +115,29 @@ export const QiblaDirection: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
-      <Helmet>
-        <title>Qibla Direction | Halal Ottawa</title>
-        <meta name="description" content="Find the Qibla direction online accurately using your device compass and location in Ottawa." />
-      </Helmet>
+      <SEO 
+        title="Qibla Direction" 
+        description="Find the Qibla direction online accurately using your device compass and location in Ottawa." 
+        canonicalUrl="https://www.halalottawa.ca/tools/qibla"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.halalottawa.ca"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Qibla Direction",
+              "item": "https://www.halalottawa.ca/tools/qibla"
+            }
+          ]
+        }}
+      />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
         <AdDisplay />

@@ -4,15 +4,24 @@ Allow: /
 # Block crawling of private and administrative areas
 Disallow: /admin
 Disallow: /login
+Disallow: /register
 Disallow: /profile
 Disallow: /settings
 Disallow: /saved
 
 # Block crawling of forms and action routes
-Disallow: /add-*
-Disallow: /edit-*
-Disallow: /*/edit
+Disallow: /listings/add
+Disallow: /listings/edit/
+Disallow: /events/add
+Disallow: /events/edit/
+Disallow: /jobs/add
+Disallow: /jobs/edit/
+Disallow: /news/add
+Disallow: /news/edit/
+Disallow: /profile/edit
 Disallow: /listings
+Allow: /listings/
+Allow: /listings$
 
 # Ensure public listings and content are explicitly allowed
 Allow: /jobs
@@ -23,6 +32,8 @@ Allow: /mosques
 Allow: /organizations
 Allow: /grocery
 Allow: /clothing
+Allow: /llms.txt
+Allow: /llm.txt
 
 # Sitemap
-Sitemap: https://halalottawa.ca/sitemap.xml
+Sitemap: https://www.halalottawa.ca/sitemap.xml

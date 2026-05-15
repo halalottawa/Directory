@@ -371,49 +371,74 @@ export const ListingDetail: React.FC = () => {
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
-        canonicalUrl={`https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`}
         ogImage={listing.photos && listing.photos.length > 0 ? listing.photos[0] : undefined}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": (() => {
-            switch(mainCategoryStr) {
-              case 'Restaurants': return 'Restaurant';
-              case 'Mosques': return 'Mosque';
-              case 'Grocery': return 'GroceryStore';
-              case 'Clothing': return 'ClothingStore';
-              case 'Schools': return 'School';
-              case 'Organizations': return 'Organization';
-              case 'Butchers': return 'MeatStore';
-              default: return 'LocalBusiness';
-            }
-          })(),
-          "name": listing.name,
-          "image": listing.photos?.length > 0 ? listing.photos : undefined,
-          "@id": `https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
-          "url": listing.website || `https://halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
-          "telephone": listing.phoneNumber || undefined,
-          "address": {
-            "@type": "PostalAddress",
-            "streetAddress": listing.address,
-            "addressLocality": "Ottawa",
-            "addressRegion": "ON",
-            "addressCountry": "CA"
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": (() => {
+              switch(mainCategoryStr) {
+                case 'Restaurants': return 'Restaurant';
+                case 'Mosques': return 'Mosque';
+                case 'Grocery': return 'GroceryStore';
+                case 'Clothing': return 'ClothingStore';
+                case 'Schools': return 'School';
+                case 'Organizations': return 'Organization';
+                case 'Butchers': return 'MeatStore';
+                default: return 'LocalBusiness';
+              }
+            })(),
+            "name": listing.name,
+            "image": listing.photos?.length > 0 ? listing.photos : undefined,
+            "@id": `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
+            "url": listing.website || `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
+            "telephone": listing.phoneNumber || undefined,
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": listing.address,
+              "addressLocality": "Ottawa",
+              "addressRegion": "ON",
+              "addressCountry": "CA"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": listing.lat,
+              "longitude": listing.lng
+            },
+            "description": listing.description,
+            "openingHours": listing.openingHours ? listing.openingHours : undefined,
+            ...(listing.cuisine && listing.cuisine.length > 0 && Array.isArray(listing.category) && listing.category.includes('Restaurants') ? { "servesCuisine": listing.cuisine.join(", ") } : {}),
+            ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": listing.menuUrl || listing.menuPdfUrl } : {}),
+            "aggregateRating": listing.reviewCount && listing.reviewCount > 0 ? {
+              "@type": "AggregateRating",
+              "ratingValue": listing.averageRating,
+              "reviewCount": listing.reviewCount
+            } : undefined
           },
-          "geo": {
-            "@type": "GeoCoordinates",
-            "latitude": listing.lat,
-            "longitude": listing.lng
-          },
-          "description": listing.description,
-          "openingHours": listing.openingHours ? listing.openingHours : undefined,
-          ...(listing.cuisine && listing.cuisine.length > 0 && Array.isArray(listing.category) && listing.category.includes('Restaurants') ? { "servesCuisine": listing.cuisine.join(", ") } : {}),
-          ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": listing.menuUrl || listing.menuPdfUrl } : {}),
-          "aggregateRating": listing.reviewCount && listing.reviewCount > 0 ? {
-            "@type": "AggregateRating",
-            "ratingValue": listing.averageRating,
-            "reviewCount": listing.reviewCount
-          } : undefined
-        }}
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": mainCategoryStr,
+                "item": `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}`
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": listing.name
+              }
+            ]
+          }
+        ]}
       />
 
       {/* Image Gallery */}
@@ -421,7 +446,17 @@ export const ListingDetail: React.FC = () => {
         {listing.photos && listing.photos.length > 0 ? (
           <div className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
             {listing.photos.map((photo, idx) => (
-              <img key={idx} src={(photo) || undefined} alt={`${listing.name} - Photo ${idx + 1}`} className="w-full h-full object-cover shrink-0 snap-center" crossOrigin="anonymous" loading="lazy" />
+              <img 
+                key={idx} 
+                src={(photo) || undefined} 
+                alt={`${listing.name} - Photo ${idx + 1}`} 
+                className="w-full h-full object-cover shrink-0 snap-center" 
+                crossOrigin="anonymous" 
+                loading={idx === 0 ? "eager" : "lazy"}
+                fetchPriority={idx === 0 ? "high" : "auto"}
+                width="800"
+                height="288"
+              />
             ))}
           </div>
         ) : (
@@ -1129,7 +1164,15 @@ export const ListingDetail: React.FC = () => {
             >
               <div className="relative h-48 w-full shrink-0">
                 {related.photos && related.photos.length > 0 ? (
-                  <img src={(related.photos[0]) || undefined} alt={related.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" crossOrigin="anonymous" loading="lazy" />
+                  <img 
+                    src={(related.photos[0]) || undefined} 
+                    alt={related.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    crossOrigin="anonymous" 
+                    loading="lazy"
+                    width="400"
+                    height="192"
+                  />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">
                     <span className="text-gray-400 font-medium text-sm">No Image</span>

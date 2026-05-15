@@ -125,30 +125,55 @@ export const JobDetail: React.FC = () => {
         <SEO
         title={`${job.title} at ${job.company}`}
         description={job.description.length > 150 ? job.description.substring(0, 150) + '...' : job.description}
-        canonicalUrl={`https://halalottawa.ca/jobs/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/jobs/${slug}`}
         ogImage={job.companyLogo || undefined}
-        structuredData={{
-          "@context": "https://schema.org/",
-          "@type": "JobPosting",
-          "title": job.title,
-          "description": job.description,
-          "identifier": {
-            "@type": "PropertyValue",
-            "name": job.company,
-            "value": job.id
+        structuredData={[
+          {
+            "@context": "https://schema.org/",
+            "@type": "JobPosting",
+            "title": job.title,
+            "description": job.description,
+            "identifier": {
+              "@type": "PropertyValue",
+              "name": job.company,
+              "value": job.id
+            },
+            "datePosted": job.createdAt,
+            "employmentType": job.type,
+            "hiringOrganization": {
+              "@type": "Organization",
+              "name": job.company,
+              "logo": job.companyLogo || "https://www.halalottawa.ca/default-og.jpg"
+            },
+            "jobLocation": {
+              "@type": "Place",
+              "address": "Ottawa, Canada"
+            }
           },
-          "datePosted": job.createdAt,
-          "employmentType": job.type,
-          "hiringOrganization": {
-            "@type": "Organization",
-            "name": job.company,
-            "logo": job.companyLogo || "https://halalottawa.com/default-og.jpg"
-          },
-          "jobLocation": {
-            "@type": "Place",
-            "address": "Ottawa, Canada"
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Jobs",
+                "item": "https://www.halalottawa.ca/jobs"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": job.title
+              }
+            ]
           }
-        }}
+        ]}
       />
 
       <div className="bg-white p-8 border-b border-gray-100 space-y-6">
@@ -175,7 +200,14 @@ export const JobDetail: React.FC = () => {
           <div className="grid grid-cols-[auto_1fr] gap-x-5 items-center">
             {job.companyLogo && job.companyLogo.trim() !== '' && (
               <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 row-span-2">
-                <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" />
+                <img 
+                  src={(job.companyLogo) || undefined} 
+                  alt={job.company} 
+                  className="w-full h-full object-cover" 
+                  fetchPriority="high"
+                  width="64"
+                  height="64"
+                />
               </div>
             )}
             <div className={job.companyLogo && job.companyLogo.trim() !== '' ? "col-start-2 min-w-0" : "col-span-2 min-w-0"}>
@@ -247,7 +279,14 @@ export const JobDetail: React.FC = () => {
                   <div className="flex gap-3 items-start">
                     <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                       {related.companyLogo && related.companyLogo.trim() !== '' ? (
-                        <img src={(related.companyLogo) || undefined} alt={related.company} className="w-full h-full object-cover" />
+                        <img 
+                          src={(related.companyLogo) || undefined} 
+                          alt={related.company} 
+                          className="w-full h-full object-cover" 
+                          loading="lazy"
+                          width="48"
+                          height="48"
+                        />
                       ) : (
                         <Building2 className="w-6 h-6 text-gray-400" />
                       )}

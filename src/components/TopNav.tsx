@@ -66,6 +66,9 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             src={siteLogoUrl} 
             alt="Halal Ottawa" 
             className="h-[52px] w-auto"
+            fetchPriority="high"
+            width="180"
+            height="52"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -96,6 +99,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             src={siteLogoUrl} 
             alt="Halal Ottawa" 
             className="h-[44px] w-auto"
+            width="152"
+            height="44"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -198,6 +203,9 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   src={siteLogoUrl} 
                   alt="Halal Ottawa" 
                   className="h-[52px] w-auto"
+                  width="180"
+                  height="52"
+                  loading="lazy"
                   referrerPolicy="no-referrer"
                 />
               </div>

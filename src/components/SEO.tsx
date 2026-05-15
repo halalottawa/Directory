@@ -8,7 +8,7 @@ interface SEOProps {
   ogImage?: string;
   ogType?: 'website' | 'article' | 'profile';
   twitterCard?: 'summary' | 'summary_large_image';
-  structuredData?: Record<string, any>;
+  structuredData?: Record<string, any> | Record<string, any>[];
   disableSuffix?: boolean;
 }
 
@@ -16,7 +16,7 @@ export const SEO: React.FC<SEOProps> = ({
   title,
   description,
   canonicalUrl,
-  ogImage = 'https://halalottawa.ca/default-og.jpg', // Placeholder default image
+  ogImage = 'https://www.halalottawa.ca/default-og.jpg', // Placeholder default image
   ogType = 'website',
   twitterCard = 'summary_large_image',
   structuredData,

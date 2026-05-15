@@ -145,16 +145,16 @@ export const Home: React.FC = () => {
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
-        canonicalUrl="https://halalottawa.ca"
+        canonicalUrl="https://www.halalottawa.ca"
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": "Halal Ottawa",
-          "url": "https://halalottawa.com/",
+          "url": "https://www.halalottawa.ca/",
           "description": "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.",
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://halalottawa.com/listings?search={search_term_string}",
+            "target": "https://www.halalottawa.ca/listings?search={search_term_string}",
             "query-input": "required name=search_term_string"
           }
         }}
@@ -234,7 +234,7 @@ export const Home: React.FC = () => {
           <Link to="/listings" className="text-[#e90b35] text-sm md:text-base font-semibold">View all</Link>
         </div>
         <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-          {featuredListings.map((listing) => (
+          {featuredListings.map((listing, idx) => (
             <Link
               key={listing.id}
               to={getListingUrl(listing)}
@@ -242,7 +242,15 @@ export const Home: React.FC = () => {
             >
               <div className="relative h-32 md:h-48">
                 {listing.photos?.[0] ? (
-                  <img src={(listing.photos[0]) || undefined} alt={listing.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                  <img 
+                    src={(listing.photos[0]) || undefined} 
+                    alt={listing.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    loading={idx < 2 ? "eager" : "lazy"}
+                    fetchPriority={idx < 2 ? "high" : "auto"}
+                    width="400"
+                    height="192"
+                  />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                     <span className="text-gray-400 text-xs font-medium">No Image</span>
@@ -281,7 +289,14 @@ export const Home: React.FC = () => {
             >
               <div className="relative w-24 h-24 md:w-full md:h-48 shrink-0">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
-                  <img src={(news.coverImage) || undefined} alt={news.title} className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                  <img 
+                    src={(news.coverImage) || undefined} 
+                    alt={news.title} 
+                    className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
+                    loading="lazy"
+                    width="400"
+                    height="192"
+                  />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
                     <span className="text-gray-400 text-[10px] md:text-xs font-medium">No Image</span>
@@ -320,7 +335,14 @@ export const Home: React.FC = () => {
               >
                 <div className="relative h-32">
                   {event.coverImage && event.coverImage.trim() !== '' ? (
-                    <img src={(event.coverImage) || undefined} alt={event.title} className="w-full h-full object-cover" loading="lazy" />
+                    <img 
+                      src={(event.coverImage) || undefined} 
+                      alt={event.title} 
+                      className="w-full h-full object-cover" 
+                      loading="lazy"
+                      width="400"
+                      height="128"
+                    />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-medium">No Image</span>
@@ -359,7 +381,14 @@ export const Home: React.FC = () => {
               <div className="flex gap-3 items-start">
                 <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                   {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                    <img src={(job.companyLogo) || undefined} alt={job.company} className="w-full h-full object-cover" loading="lazy" />
+                    <img 
+                      src={(job.companyLogo) || undefined} 
+                      alt={job.company} 
+                      className="w-full h-full object-cover" 
+                      loading="lazy"
+                      width="48"
+                      height="48"
+                    />
                   ) : (
                     <Building2 className="w-6 h-6 text-gray-400" />
                   )}
