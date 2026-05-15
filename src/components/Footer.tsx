@@ -2,26 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Globe } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaReddit } from 'react-icons/fa6';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 export const Footer: React.FC = () => {
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
 
   useEffect(() => {
-    let unsub: () => void;
-    Promise.all([
-      import('firebase/firestore'),
-      import('../firebase')
-    ]).then(([{ doc, onSnapshot }, { db }]) => {
-      unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-        if (docSnap.exists() && docSnap.data().logoUrl) {
-          setSiteLogoUrl(docSnap.data().logoUrl);
-        }
-      });
-    }).catch(console.error);
-    return () => {
-      if (typeof unsub === 'function') unsub();
-    };
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().logoUrl) {
+        setSiteLogoUrl(docSnap.data().logoUrl);
+      }
+    });
+    return () => unsub();
   }, []);
 
   return (

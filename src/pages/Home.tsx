@@ -142,7 +142,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
+    <div className="p-4 md:p-8 space-y-8 md:space-y-12 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
@@ -249,6 +249,7 @@ export const Home: React.FC = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     loading={idx < 2 ? "eager" : "lazy"}
                     fetchPriority={idx < 2 ? "high" : "auto"}
+                    decoding="async"
                     width="400"
                     height="192"
                   />
@@ -295,6 +296,7 @@ export const Home: React.FC = () => {
                     alt={news.title} 
                     className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                     loading="lazy"
+                    decoding="async"
                     width="400"
                     height="192"
                   />
@@ -341,6 +343,7 @@ export const Home: React.FC = () => {
                       alt={event.title} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
+                      decoding="async"
                       width="400"
                       height="128"
                     />
@@ -387,6 +390,7 @@ export const Home: React.FC = () => {
                       alt={job.company} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
+                      decoding="async"
                       width="48"
                       height="48"
                     />

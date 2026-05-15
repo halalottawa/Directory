@@ -368,7 +368,7 @@ export const ListingDetail: React.FC = () => {
     
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
@@ -455,6 +455,7 @@ export const ListingDetail: React.FC = () => {
                 crossOrigin="anonymous" 
                 loading={idx === 0 ? "eager" : "lazy"}
                 fetchPriority={idx === 0 ? "high" : "auto"}
+                decoding="async"
                 width="800"
                 height="288"
               />

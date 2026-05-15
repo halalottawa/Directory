@@ -24,13 +24,28 @@ export const AdDisplay: React.FC = () => {
     fetchAd();
   }, []);
 
-  if (!ad) return null;
+  if (!ad) {
+    return (
+      <div className="w-full my-6 flex justify-center">
+        <div className="w-full max-w-4xl h-[100px] md:h-[200px] bg-gray-50 rounded-2xl animate-pulse flex items-center justify-center border border-gray-100">
+          <span className="text-gray-200 text-xs font-bold uppercase tracking-widest">Advertisement Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full my-6 flex justify-center">
+    <div className="w-full my-6 flex justify-center min-h-[100px]">
       {ad.type === 'banner' ? (
         <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="block w-full max-w-4xl rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-          <img src={(ad.imageUrl) || undefined} alt="Advertisement" className="w-full h-auto object-cover max-h-[250px]" />
+          <img 
+            src={getOptimizedImageUrl(ad.imageUrl, 1200, 300)} 
+            alt="Advertisement" 
+            className="w-full h-auto object-cover max-h-[250px]"
+            decoding="async"
+            width="1200"
+            height="300"
+          />
         </a>
       ) : (
         <div 

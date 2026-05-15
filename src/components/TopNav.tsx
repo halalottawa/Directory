@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle } from 'lucide-react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { CATEGORIES } from '../constants';
@@ -19,22 +21,13 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let unsub: () => void;
-    // Dynamically import Firebase to reduce initial bundle size
-    Promise.all([
-      import('firebase/firestore'),
-      import('../firebase')
-    ]).then(([{ doc, onSnapshot }, { db }]) => {
-      unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-        if (docSnap.exists() && docSnap.data().logoUrl) {
-          setSiteLogoUrl(docSnap.data().logoUrl);
-        }
-      });
-    }).catch(console.error);
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().logoUrl) {
+        setSiteLogoUrl(docSnap.data().logoUrl);
+      }
+    });
 
-    return () => {
-      if (typeof unsub === 'function') unsub();
-    };
+    return () => unsub();
   }, []);
 
   const isActive = (path: string) => {
