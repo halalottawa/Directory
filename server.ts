@@ -327,8 +327,89 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    
+    app.get("*", async (req, res) => {
+      try {
+        const indexPath = path.join(distPath, "index.html");
+        let html = fs.readFileSync(indexPath, "utf-8");
+        
+        // Basic SEO injection for specific routes
+        let title = "Halal Ottawa - Halal Places in Ottawa";
+        let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
+        let ogImage = "https://www.halalottawa.ca/default-og.jpg";
+        
+        const urlPath = req.path;
+        
+        // Fetch data for dynamic routes if possible
+        const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+        if (fs.existsSync(configPath)) {
+          const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+          const { initializeApp, getApps } = await import("firebase/app");
+          const { getFirestore, collection, getDocs, query, where, limit } = await import("firebase/firestore");
+          
+          const fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
+          const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+
+          // Example: Listing Detail Page /category/slug or /listings/slug
+          const pathParts = urlPath.split('/').filter(Boolean);
+          if (pathParts.length === 2 || (pathParts.length === 2 && pathParts[0] === 'listings')) {
+            const slug = pathParts[1] || pathParts[0];
+            const q = query(collection(db, 'listings'), where('slug', '==', slug), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              const data = snap.docs[0].data();
+              title = `${data.name} | Halal Ottawa`;
+              description = data.description?.substring(0, 160) || description;
+              if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
+            }
+          } else if (pathParts.length === 2 && pathParts[0] === 'news') {
+             const slug = pathParts[1];
+             const q = query(collection(db, 'news'), where('slug', '==', slug), limit(1));
+             const snap = await getDocs(q);
+             if (!snap.empty) {
+               const data = snap.docs[0].data();
+               title = `${data.title} | Halal Ottawa`;
+               description = data.content?.substring(0, 160) || description;
+               if (data.coverImage) ogImage = data.coverImage;
+             }
+          }
+        }
+
+        // Simple string replacement for basic SEO tags
+        html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+        html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`);
+        
+        // Inject OG tags if not present
+        if (!html.includes('property="og:title"')) {
+          let extraTags = `
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${ogImage}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+          `;
+
+          // Inject basic Schema if we have data
+          const pathParts = urlPath.split('/').filter(Boolean);
+          if (pathParts.length === 2) {
+             const schemaData = {
+               "@context": "https://schema.org",
+               "@type": "WebPage",
+               "name": title,
+               "description": description,
+               "image": ogImage
+             };
+             extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+          }
+
+          html = html.replace('</head>', `${extraTags}\n  </head>`);
+        }
+
+        res.send(html);
+      } catch (err) {
+        console.error("Error serving index.html:", err);
+        res.sendFile(path.join(distPath, "index.html"));
+      }
     });
   }
 

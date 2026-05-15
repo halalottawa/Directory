@@ -10,7 +10,7 @@ import { DEMO_LISTINGS } from '../constants';
 import L from 'leaflet';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
@@ -368,12 +368,12 @@ export const ListingDetail: React.FC = () => {
     
   return (
     <>
-      <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
-        canonicalUrl={`https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`}
-        ogImage={listing.photos && listing.photos.length > 0 ? listing.photos[0] : undefined}
+        canonicalUrl={getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`)}
+        ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
         structuredData={[
           {
             "@context": "https://schema.org",
@@ -390,9 +390,9 @@ export const ListingDetail: React.FC = () => {
               }
             })(),
             "name": listing.name,
-            "image": listing.photos?.length > 0 ? listing.photos : undefined,
-            "@id": `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
-            "url": listing.website || `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}/${slug}`,
+            "image": listing.photos?.length > 0 ? listing.photos.map(p => getAbsoluteUrl(p)) : undefined,
+            "@id": getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`),
+            "url": listing.website || getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`),
             "telephone": listing.phoneNumber || undefined,
             "address": {
               "@type": "PostalAddress",
@@ -409,7 +409,7 @@ export const ListingDetail: React.FC = () => {
             "description": listing.description,
             "openingHours": listing.openingHours ? listing.openingHours : undefined,
             ...(listing.cuisine && listing.cuisine.length > 0 && Array.isArray(listing.category) && listing.category.includes('Restaurants') ? { "servesCuisine": listing.cuisine.join(", ") } : {}),
-            ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": listing.menuUrl || listing.menuPdfUrl } : {}),
+            ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": getAbsoluteUrl(listing.menuUrl || listing.menuPdfUrl!) } : {}),
             "aggregateRating": listing.reviewCount && listing.reviewCount > 0 ? {
               "@type": "AggregateRating",
               "ratingValue": listing.averageRating,
@@ -424,13 +424,13 @@ export const ListingDetail: React.FC = () => {
                 "@type": "ListItem",
                 "position": 1,
                 "name": "Home",
-                "item": "https://www.halalottawa.ca"
+                "item": getAbsoluteUrl("")
               },
               {
                 "@type": "ListItem",
                 "position": 2,
                 "name": mainCategoryStr,
-                "item": `https://www.halalottawa.ca/${encodeURIComponent(mainCategoryStr.toLowerCase())}`
+                "item": getAbsoluteUrl(mainCategoryStr.toLowerCase())
               },
               {
                 "@type": "ListItem",
@@ -455,7 +455,6 @@ export const ListingDetail: React.FC = () => {
                 crossOrigin="anonymous" 
                 loading={idx === 0 ? "eager" : "lazy"}
                 fetchPriority={idx === 0 ? "high" : "auto"}
-                decoding="async"
                 width="800"
                 height="288"
               />

@@ -10,6 +10,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { formatDate } from '../utils/dateFormatter';
 import { AdDisplay } from '../components/AdDisplay';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 
 export const News: React.FC = () => {
@@ -100,7 +101,7 @@ export const News: React.FC = () => {
       <SEO 
         title="News" 
         description="Read the latest news, announcements, and updates from the Ottawa Muslim community." 
-        canonicalUrl="https://www.halalottawa.ca/news" 
+        canonicalUrl={getAbsoluteUrl("news")} 
         structuredData={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",

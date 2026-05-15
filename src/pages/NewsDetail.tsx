@@ -13,6 +13,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 
 export const NewsDetail: React.FC = () => {
@@ -112,8 +113,8 @@ export const NewsDetail: React.FC = () => {
         <SEO
         title={article.title}
         description={article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content}
-        canonicalUrl={`https://www.halalottawa.ca/news/${slug}`}
-        ogImage={article.coverImage || undefined}
+        canonicalUrl={getAbsoluteUrl(`news/${slug}`)}
+        ogImage={article.coverImage ? getAbsoluteUrl(article.coverImage) : undefined}
         ogType="article"
         structuredData={[
           {

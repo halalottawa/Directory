@@ -8,7 +8,7 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_EVENTS, DEMO_JOBS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
-import { getListingUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
@@ -38,7 +38,8 @@ const FAQItem: React.FC<{ question: string, answer: string, isOpen: boolean, onT
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition-all duration-300">
       <button 
         onClick={onToggle} 
-        className="w-full text-left p-6 flex justify-between items-center focus:outline-none"
+        aria-expanded={isOpen}
+        className="w-full text-left p-6 flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-[#e90b35] focus:ring-inset"
       >
         <h3 className="font-bold text-lg text-gray-900">{question}</h3>
         <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
@@ -142,20 +143,20 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 md:space-y-12 max-w-7xl xl:max-w-[1400px] mx-auto">
+    <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
-        canonicalUrl="https://www.halalottawa.ca"
+        canonicalUrl={getAbsoluteUrl("")}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",
           "name": "Halal Ottawa",
-          "url": "https://www.halalottawa.ca/",
+          "url": getAbsoluteUrl(""),
           "description": "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.",
           "potentialAction": {
             "@type": "SearchAction",
-            "target": "https://www.halalottawa.ca/listings?search={search_term_string}",
+            "target": `${getAbsoluteUrl("listings")}?search={search_term_string}`,
             "query-input": "required name=search_term_string"
           }
         }}
@@ -185,7 +186,8 @@ export const Home: React.FC = () => {
           <Link
             key={cat}
             to={`/${cat.toLowerCase()}`}
-            className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all active:scale-95"
+            aria-label={`Browse ${cat} category`}
+            className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all active:scale-95 outline-none focus:ring-2 focus:ring-[#e90b35]"
           >
             <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
               <CategoryIcon category={cat as any} className="w-5 h-5" />
@@ -209,7 +211,8 @@ export const Home: React.FC = () => {
               <div key={`${cat}-${i}`} className="flex-[0_0_calc(100%/6)] min-w-0 pl-3">
                 <Link
                   to={`/${cat.toLowerCase()}`}
-                  className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full"
+                  aria-label={`Browse ${cat} category`}
+                  className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35]"
                 >
                   <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
                     <CategoryIcon category={cat as any} className="w-5 h-5" />
@@ -231,17 +234,23 @@ export const Home: React.FC = () => {
       {/* Featured Listings */}
       <section className="space-y-4">
         <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold">Featured Listings</h2>
-          <Link to="/listings" className="text-[#e90b35] text-sm md:text-base font-semibold">View all</Link>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Featured Listings</h2>
+          <Link 
+            to="/listings" 
+            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+            aria-label="View all featured listings"
+          >
+            View all
+          </Link>
         </div>
         <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           {featuredListings.map((listing, idx) => (
             <Link
               key={listing.id}
               to={getListingUrl(listing)}
-              className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all"
+              className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
             >
-              <div className="relative h-32 md:h-48">
+              <div className="relative aspect-[4/3] md:aspect-video w-full bg-gray-100">
                 {listing.photos?.[0] ? (
                   <img 
                     src={getOptimizedImageUrl(listing.photos[0], 400, 192)} 
@@ -249,7 +258,6 @@ export const Home: React.FC = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     loading={idx < 2 ? "eager" : "lazy"}
                     fetchPriority={idx < 2 ? "high" : "auto"}
-                    decoding="async"
                     width="400"
                     height="192"
                   />
@@ -279,24 +287,29 @@ export const Home: React.FC = () => {
       {/* Latest News */}
       <section className="space-y-4">
         <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold">Latest News</h2>
-          <Link to="/news" className="text-[#e90b35] text-sm md:text-base font-semibold">View all</Link>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest News</h2>
+          <Link 
+            to="/news" 
+            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+            aria-label="View all news articles"
+          >
+            View all
+          </Link>
         </div>
         <div className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
           {latestNews.map((news, index) => (
             <Link
               key={news.id}
               to={`/news/${news.slug || news.id}`}
-              className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm ${index >= 3 ? 'hidden md:flex' : ''}`}
+              className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35] ${index >= 3 ? 'hidden md:flex' : ''}`}
             >
-              <div className="relative w-24 h-24 md:w-full md:h-48 shrink-0">
+              <div className="relative w-24 h-24 md:w-full aspect-square md:aspect-video shrink-0 bg-gray-100">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
                   <img 
                     src={getOptimizedImageUrl(news.coverImage, 400, 192)} 
                     alt={news.title} 
                     className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                     loading="lazy"
-                    decoding="async"
                     width="400"
                     height="192"
                   />
@@ -326,24 +339,29 @@ export const Home: React.FC = () => {
       {featuredEvents.length > 0 && (
         <section className="space-y-4">
           <div className="flex justify-between items-end">
-            <h2 className="text-xl md:text-2xl font-bold">Upcoming Events</h2>
-            <Link to="/events" className="text-[#e90b35] text-sm md:text-base font-semibold">View all</Link>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Upcoming Events</h2>
+            <Link 
+              to="/events" 
+              className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+              aria-label="View all upcoming events"
+            >
+              View all
+            </Link>
           </div>
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
             {featuredEvents.map((event) => (
               <Link
                 key={event.id}
                 to={`/events/${event.slug || event.id}`}
-                className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all"
+                className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
               >
-                <div className="relative h-32">
+                <div className="relative aspect-[2/1] bg-gray-100">
                   {event.coverImage && event.coverImage.trim() !== '' ? (
                     <img 
                       src={getOptimizedImageUrl(event.coverImage, 400, 128)} 
                       alt={event.title} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
-                      decoding="async"
                       width="400"
                       height="128"
                     />
@@ -372,25 +390,30 @@ export const Home: React.FC = () => {
       {/* Latest Jobs */}
       <section className="space-y-4">
         <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold">Latest Jobs</h2>
-          <Link to="/jobs" className="text-[#e90b35] text-sm md:text-base font-semibold">View all</Link>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Jobs</h2>
+          <Link 
+            to="/jobs" 
+            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+            aria-label="View all job listings"
+          >
+            View all
+          </Link>
         </div>
         <div className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-2 md:gap-4 md:space-y-0">
           {featuredJobs.map((job) => (
             <Link
               key={job.id}
               to={`/jobs/${job.slug || job.id}`}
-              className="block bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:shadow-md transition-all"
+              className="block bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
             >
               <div className="flex gap-3 items-start">
-                <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 aspect-square">
                   {job.companyLogo && job.companyLogo.trim() !== '' ? (
                     <img 
                       src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
                       alt={job.company} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
-                      decoding="async"
                       width="48"
                       height="48"
                     />

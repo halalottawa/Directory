@@ -24,7 +24,7 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-6">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2" aria-label="Halal Ottawa Home">
               <img 
                 src={getOptimizedImageUrl(siteLogoUrl, 160, 40)} 
                 alt="Halal Ottawa" 

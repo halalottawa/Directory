@@ -49,13 +49,18 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Mobile Left: Menu / Back */}
         <div className="flex items-center justify-start md:hidden">
           {showBack ? (
-            <button onClick={handleBackClick} className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors">
+            <button 
+              onClick={handleBackClick} 
+              className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors"
+              aria-label="Go back"
+            >
               <ChevronLeft className="w-6 h-6 text-gray-600" />
             </button>
           ) : (
             <button 
               onClick={() => setIsMenuOpen(true)}
               className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors"
+              aria-label="Open menu"
             >
               <Menu className="w-6 h-6 text-gray-600" />
             </button>
@@ -63,7 +68,12 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         </div>
 
         {/* Desktop Left: Logo */}
-        <div onClick={handleLogoClick} className="hidden md:flex items-center justify-start gap-2 cursor-pointer">
+        <div 
+          onClick={handleLogoClick} 
+          className="hidden md:flex items-center justify-start gap-2 cursor-pointer"
+          aria-label="Halal Ottawa Home"
+          role="link"
+        >
           <img 
             src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
             alt="Halal Ottawa" 
@@ -96,7 +106,12 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         </nav>
 
         {/* Mobile Center: Logo */}
-        <div onClick={handleLogoClick} className="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer">
+        <div 
+          onClick={handleLogoClick} 
+          className="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer"
+          aria-label="Halal Ottawa Home"
+          role="link"
+        >
           <img 
             src={getOptimizedImageUrl(siteLogoUrl, 152, 44)} 
             alt="Halal Ottawa" 
@@ -119,6 +134,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             <div className="relative">
               <button 
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                aria-label="Open profile menu"
+                aria-expanded={isProfileDropdownOpen}
                 className="w-8 h-8 rounded-full bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] overflow-hidden border border-white shadow-sm flex items-center justify-center text-white text-[10px] font-black hover:scale-105 transition-transform"
               >
                 <span>{(user?.firstName?.[0] || user?.name?.[0] || '?').toUpperCase()}</span>

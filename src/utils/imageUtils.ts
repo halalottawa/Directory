@@ -1,4 +1,4 @@
-export const getOptimizedImageUrl = (url: string | null | undefined, width: number = 800, height?: number): string | undefined => {
+export const getOptimizedImageUrl = (url: string | null | undefined, width: number = 800, height?: number, quality: number = 85): string | undefined => {
   if (!url) return undefined;
   
   // Return early if it's already an optimized url, data URIs, or local paths
@@ -13,7 +13,7 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
 
   try {
     const encodedUrl = encodeURIComponent(url);
-    let optUrl = `https://wsrv.nl/?url=${encodedUrl}&w=${width}&output=webp&q=40`;
+    let optUrl = `https://wsrv.nl/?url=${encodedUrl}&w=${width}&output=webp&q=${quality}`;
     if (height) {
       optUrl += `&h=${height}&fit=cover`;
     }
