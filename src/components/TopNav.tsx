@@ -17,7 +17,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -110,7 +110,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         <div className="flex justify-end items-center gap-3 relative">
 
 
-          {user ? (
+          {loading ? (
+            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center animate-pulse border border-gray-200">
+              <User className="w-4 h-4 text-gray-300" />
+            </div>
+          ) : user ? (
             <div className="relative">
               <button 
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}

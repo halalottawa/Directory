@@ -44,14 +44,6 @@ import { Toaster } from 'sonner';
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
   return (
     <ErrorBoundary>
       <Suspense fallback={
