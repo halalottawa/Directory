@@ -9,6 +9,7 @@ import { DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
 import { AdDisplay } from '../components/AdDisplay';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const News: React.FC = () => {
@@ -155,7 +156,7 @@ export const News: React.FC = () => {
             <div className="relative h-48 shrink-0">
               {article.coverImage && article.coverImage.trim() !== '' ? (
                 <img 
-                  src={(article.coverImage) || undefined} 
+                  src={getOptimizedImageUrl(article.coverImage, 400, 192)} 
                   alt={article.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   loading="lazy"

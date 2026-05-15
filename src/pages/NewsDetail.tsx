@@ -12,6 +12,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { formatDate } from '../utils/dateFormatter';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const NewsDetail: React.FC = () => {
@@ -163,7 +164,7 @@ export const NewsDetail: React.FC = () => {
       <div className="relative h-64">
         {article.coverImage && article.coverImage.trim() !== '' ? (
           <img 
-            src={(article.coverImage) || undefined} 
+            src={getOptimizedImageUrl(article.coverImage, 800, 256)} 
             alt={article.title} 
             className="w-full h-full object-cover" 
             fetchPriority="high"
@@ -246,7 +247,7 @@ export const NewsDetail: React.FC = () => {
                 <div className="relative w-full h-48 shrink-0">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
                     <img 
-                      src={(related.coverImage) || undefined} 
+                      src={getOptimizedImageUrl(related.coverImage, 400, 192)} 
                       alt={related.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                       loading="lazy"

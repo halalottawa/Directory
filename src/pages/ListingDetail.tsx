@@ -11,6 +11,7 @@ import L from 'leaflet';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { OpenStreetMap } from '../components/OpenStreetMap';
@@ -448,7 +449,7 @@ export const ListingDetail: React.FC = () => {
             {listing.photos.map((photo, idx) => (
               <img 
                 key={idx} 
-                src={(photo) || undefined} 
+                src={getOptimizedImageUrl(photo, 800, 288)} 
                 alt={`${listing.name} - Photo ${idx + 1}`} 
                 className="w-full h-full object-cover shrink-0 snap-center" 
                 crossOrigin="anonymous" 
@@ -1165,7 +1166,7 @@ export const ListingDetail: React.FC = () => {
               <div className="relative h-48 w-full shrink-0">
                 {related.photos && related.photos.length > 0 ? (
                   <img 
-                    src={(related.photos[0]) || undefined} 
+                    src={getOptimizedImageUrl(related.photos[0], 400, 192)} 
                     alt={related.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     crossOrigin="anonymous" 

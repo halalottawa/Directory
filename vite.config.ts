@@ -26,7 +26,9 @@ export default defineConfig(({mode}) => {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-            'vendor-ui': ['lucide-react', 'motion/react', 'react-helmet-async']
+            'vendor-ui': ['lucide-react', 'motion/react', 'react-helmet-async'],
+            'vendor-leaflet': ['leaflet', 'react-leaflet'],
+            'vendor-markdown': ['react-markdown']
           }
         }
       }

@@ -12,6 +12,7 @@ import { getListingUrl } from '../utils/url';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 const faqs = [
   {
@@ -243,7 +244,7 @@ export const Home: React.FC = () => {
               <div className="relative h-32 md:h-48">
                 {listing.photos?.[0] ? (
                   <img 
-                    src={(listing.photos[0]) || undefined} 
+                    src={getOptimizedImageUrl(listing.photos[0], 400, 192)} 
                     alt={listing.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     loading={idx < 2 ? "eager" : "lazy"}
@@ -290,7 +291,7 @@ export const Home: React.FC = () => {
               <div className="relative w-24 h-24 md:w-full md:h-48 shrink-0">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
                   <img 
-                    src={(news.coverImage) || undefined} 
+                    src={getOptimizedImageUrl(news.coverImage, 400, 192)} 
                     alt={news.title} 
                     className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                     loading="lazy"
@@ -336,7 +337,7 @@ export const Home: React.FC = () => {
                 <div className="relative h-32">
                   {event.coverImage && event.coverImage.trim() !== '' ? (
                     <img 
-                      src={(event.coverImage) || undefined} 
+                      src={getOptimizedImageUrl(event.coverImage, 400, 128)} 
                       alt={event.title} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
@@ -382,7 +383,7 @@ export const Home: React.FC = () => {
                 <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                   {job.companyLogo && job.companyLogo.trim() !== '' ? (
                     <img 
-                      src={(job.companyLogo) || undefined} 
+                      src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
                       alt={job.company} 
                       className="w-full h-full object-cover" 
                       loading="lazy"

@@ -10,6 +10,7 @@ import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const Listings: React.FC = () => {
@@ -254,7 +255,7 @@ export const Listings: React.FC = () => {
               <div className="relative h-48 sm:w-48 sm:h-auto shrink-0">
                 {listing.photos?.[0] ? (
                   <img 
-                    src={(listing.photos[0]) || undefined} 
+                    src={getOptimizedImageUrl(listing.photos[0], 400, 192)} 
                     alt={listing.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     referrerPolicy="no-referrer" 

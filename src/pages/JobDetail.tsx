@@ -11,6 +11,7 @@ import { SaveButton } from '../components/SaveButton';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { formatDate } from '../utils/dateFormatter';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const JobDetail: React.FC = () => {
@@ -201,7 +202,7 @@ export const JobDetail: React.FC = () => {
             {job.companyLogo && job.companyLogo.trim() !== '' && (
               <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 row-span-2">
                 <img 
-                  src={(job.companyLogo) || undefined} 
+                  src={getOptimizedImageUrl(job.companyLogo, 64, 64)} 
                   alt={job.company} 
                   className="w-full h-full object-cover" 
                   fetchPriority="high"
@@ -280,7 +281,7 @@ export const JobDetail: React.FC = () => {
                     <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                       {related.companyLogo && related.companyLogo.trim() !== '' ? (
                         <img 
-                          src={(related.companyLogo) || undefined} 
+                          src={getOptimizedImageUrl(related.companyLogo, 48, 48)} 
                           alt={related.company} 
                           className="w-full h-full object-cover" 
                           loading="lazy"

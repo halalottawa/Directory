@@ -8,6 +8,7 @@ import { Job } from '../types';
 import { DEMO_JOBS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { AdDisplay } from '../components/AdDisplay';
 import { SEO } from '../components/SEO';
 
@@ -158,7 +159,7 @@ export const Jobs: React.FC = () => {
               <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                 {job.companyLogo && job.companyLogo.trim() !== '' ? (
                   <img 
-                    src={(job.companyLogo) || undefined} 
+                    src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
                     alt={job.company} 
                     className="w-full h-full object-cover" 
                     loading="lazy"

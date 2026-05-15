@@ -4,6 +4,7 @@ import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper,
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { CATEGORIES } from '../constants';
 
 interface TopNavProps {
@@ -63,7 +64,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Desktop Left: Logo */}
         <div onClick={handleLogoClick} className="hidden md:flex items-center justify-start gap-2 cursor-pointer">
           <img 
-            src={siteLogoUrl} 
+            src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
             alt="Halal Ottawa" 
             className="h-[52px] w-auto"
             fetchPriority="high"
@@ -96,7 +97,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Mobile Center: Logo */}
         <div onClick={handleLogoClick} className="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer">
           <img 
-            src={siteLogoUrl} 
+            src={getOptimizedImageUrl(siteLogoUrl, 152, 44)} 
             alt="Halal Ottawa" 
             className="h-[44px] w-auto"
             width="152"
@@ -200,7 +201,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             <div className="p-6 flex justify-between items-center border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <img 
-                  src={siteLogoUrl} 
+                  src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
                   alt="Halal Ottawa" 
                   className="h-[52px] w-auto"
                   width="180"

@@ -9,6 +9,7 @@ import { DEMO_EVENTS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate, formatTime } from '../utils/dateFormatter';
 import { AdDisplay } from '../components/AdDisplay';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const Events: React.FC = () => {
@@ -156,7 +157,7 @@ export const Events: React.FC = () => {
             <div className="relative h-48 shrink-0">
               {event.coverImage && event.coverImage.trim() !== '' ? (
                 <img 
-                  src={(event.coverImage) || undefined} 
+                  src={getOptimizedImageUrl(event.coverImage, 400, 192)} 
                   alt={event.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   loading="lazy"
