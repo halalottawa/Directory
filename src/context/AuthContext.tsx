@@ -10,8 +10,7 @@ import {
   deleteUser
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { getToken } from 'firebase/messaging';
-import { auth, db, messagingPromise } from '../firebase';
+import { auth, db, getMessagingPromise } from '../firebase';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
@@ -53,9 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        const messaging = await messagingPromise;
+        const messaging = await getMessagingPromise();
         if (messaging) {
           try {
+            const { getToken } = await import('firebase/messaging');
             const currentToken = await getToken(messaging, {
               vapidKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeZ1vHIUgl1wIi0m-m2c-x39-t0gQyT9-rX8-p9-s9-v9-w9-y9-z9' // Note: Replace with real VAPID key if needed
             });
