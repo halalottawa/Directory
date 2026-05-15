@@ -4,6 +4,7 @@ import { Mail, MapPin, Globe } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaReddit } from 'react-icons/fa6';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 export const Footer: React.FC = () => {
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
@@ -25,7 +26,7 @@ export const Footer: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="flex items-center gap-2">
               <img 
-                src={siteLogoUrl} 
+                src={getOptimizedImageUrl(siteLogoUrl, 160, 40)} 
                 alt="Halal Ottawa" 
                 className="h-10 w-auto brightness-0 invert" 
                 loading="lazy"
