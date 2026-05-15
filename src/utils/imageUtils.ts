@@ -13,7 +13,7 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
 
   try {
     const encodedUrl = encodeURIComponent(url);
-    let optUrl = `https://wsrv.nl/?url=${encodedUrl}&w=${width}&output=webp&q=60`;
+    let optUrl = `https://wsrv.nl/?url=${encodedUrl}&w=${width}&output=webp&q=40`;
     if (height) {
       optUrl += `&h=${height}&fit=cover`;
     }
