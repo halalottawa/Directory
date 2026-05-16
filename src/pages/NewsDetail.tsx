@@ -20,8 +20,16 @@ export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [article, setArticle] = useState<NewsArticle | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [article, setArticle] = useState<NewsArticle | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'news') {
+      const initData = (window as any).__INITIAL_DATA__ as NewsArticle;
+      if (initData && (initData.slug === slug || initData.id === slug)) {
+        return initData;
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(article === null);
   const [modalOpen, setModalOpen] = useState(false);
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
 

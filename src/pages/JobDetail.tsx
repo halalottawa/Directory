@@ -18,8 +18,16 @@ export const JobDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [job, setJob] = useState<Job | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [job, setJob] = useState<Job | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'job') {
+      const initData = (window as any).__INITIAL_DATA__ as Job;
+      if (initData && (initData.slug === slug || initData.id === slug)) {
+        return initData;
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(job === null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const [relatedJobs, setRelatedJobs] = useState<Job[]>([]);

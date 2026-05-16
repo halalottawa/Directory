@@ -340,57 +340,104 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         
         const urlPath = req.path;
         
+        let initialData: any = null;
+        let routeType: string = '';
+
         // Fetch data for dynamic routes if possible
         const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
         if (fs.existsSync(configPath)) {
           const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
           const { initializeApp, getApps } = await import("firebase/app");
-          const { getFirestore, collection, getDocs, query, where, limit } = await import("firebase/firestore");
+          const { getFirestore, collection, getDocs, query, where, limit, orderBy } = await import("firebase/firestore");
           
           const fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
           const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
 
-          // Example: Listing Detail Page /category/slug or /listings/slug
           const pathParts = urlPath.split('/').filter(Boolean);
-          if (pathParts.length === 2 || (pathParts.length === 2 && pathParts[0] === 'listings')) {
+          
+          // Home Page Pre-fetch
+          if (pathParts.length === 0) {
+            routeType = 'home';
+            try {
+              const qListings = query(collection(db, 'listings'), where('isApproved', '==', true), where('isFeatured', '==', true), limit(8));
+              const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
+              const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
+              const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
+              
+              const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
+                getDocs(qListings), getDocs(qNews), getDocs(qEvents), getDocs(qJobs)
+              ]);
+              
+              const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              
+              let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+              newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
+              
+              let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+              eventsData = eventsData.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 8);
+              
+              let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+              jobsData = jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
+              
+              initialData = {
+                listings: listingsData,
+                news: newsData,
+                events: eventsData,
+                jobs: jobsData,
+                timestamp: Date.now()
+              };
+            } catch(e) {
+              console.error("Error pre-fetching home data", e);
+            }
+          }
+          // Listing Detail Page /category/slug or /listings/slug
+          else if (pathParts.length === 2 || (pathParts.length === 2 && pathParts[0] === 'listings')) {
             const slug = pathParts[1] || pathParts[0];
             const q = query(collection(db, 'listings'), where('slug', '==', slug), limit(1));
             const snap = await getDocs(q);
             if (!snap.empty) {
-              const data = snap.docs[0].data();
+              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.name} | Halal Ottawa`;
               description = data.description?.substring(0, 160) || description;
               if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
+              initialData = data;
+              routeType = 'listing';
             }
           } else if (pathParts.length === 2 && pathParts[0] === 'news') {
              const slug = pathParts[1];
              const q = query(collection(db, 'news'), where('slug', '==', slug), limit(1));
              const snap = await getDocs(q);
              if (!snap.empty) {
-               const data = snap.docs[0].data();
+               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
                title = `${data.title} | Halal Ottawa`;
                description = data.content?.substring(0, 160) || description;
                if (data.coverImage) ogImage = data.coverImage;
+               initialData = data;
+               routeType = 'news';
              }
           } else if (pathParts.length === 2 && pathParts[0] === 'events') {
              const slug = pathParts[1];
              const q = query(collection(db, 'events'), where('slug', '==', slug), limit(1));
              const snap = await getDocs(q);
              if (!snap.empty) {
-               const data = snap.docs[0].data();
+               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
                title = `${data.title} | Halal Ottawa Events`;
                description = data.description?.substring(0, 160) || description;
                if (data.coverImage) ogImage = data.coverImage;
+               initialData = data;
+               routeType = 'event';
              }
           } else if (pathParts.length === 2 && pathParts[0] === 'jobs') {
              const slug = pathParts[1];
              const q = query(collection(db, 'jobs'), where('slug', '==', slug), limit(1));
              const snap = await getDocs(q);
              if (!snap.empty) {
-               const data = snap.docs[0].data();
+               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
                title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
                description = data.description?.substring(0, 160) || description;
                if (data.companyLogo) ogImage = data.companyLogo;
+               initialData = data;
+               routeType = 'job';
              }
           }
         }
@@ -411,7 +458,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
           // Inject basic Schema if we have data
           const pathParts = urlPath.split('/').filter(Boolean);
-          if (pathParts.length === 2) {
+          if (pathParts.length === 2 && initialData) {
              const schemaData = {
                "@context": "https://schema.org",
                "@type": "WebPage",
@@ -420,6 +467,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                "image": ogImage
              };
              extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+          }
+          
+          if (initialData) {
+            extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
           }
 
           html = html.replace('</head>', `${extraTags}\n  </head>`);

@@ -19,8 +19,17 @@ export const EventDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [event, setEvent] = useState<Event | null>(location.state?.event || null);
-  const [loading, setLoading] = useState(!location.state?.event);
+  const [event, setEvent] = useState<Event | null>(() => {
+    if (location.state?.event) return location.state.event;
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'event') {
+      const initData = (window as any).__INITIAL_DATA__ as Event;
+      if (initData && (initData.slug === slug || initData.id === slug)) {
+        return initData;
+      }
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(event === null);
   const [modalOpen, setModalOpen] = useState(false);
   const [relatedEvents, setRelatedEvents] = useState<Event[]>([]);
 

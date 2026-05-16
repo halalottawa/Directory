@@ -22,9 +22,17 @@ export const ListingDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [listing, setListing] = useState<Listing | null>(null);
+  const [listing, setListing] = useState<Listing | null>(() => {
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'listing') {
+      const initData = (window as any).__INITIAL_DATA__ as Listing;
+      if (initData && (initData.slug === slug || initData.id === slug)) {
+        return initData;
+      }
+    }
+    return null;
+  });
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(listing === null);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);

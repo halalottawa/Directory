@@ -60,10 +60,15 @@ export const Home: React.FC = () => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start', slidesToScroll: 1 }, [Autoplay({ delay: 3000, stopOnInteraction: false })]);
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
-  const [latestNews, setLatestNews] = useState<NewsArticle[]>([]);
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>([]);
-  const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
+
+  const initData = typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home' 
+    ? (window as any).__INITIAL_DATA__ 
+    : null;
+
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>(initData?.listings || []);
+  const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
+  const [featuredEvents, setFeaturedEvents] = useState<Event[]>(initData?.events || []);
+  const [featuredJobs, setFeaturedJobs] = useState<Job[]>(initData?.jobs || []);
   const navigate = useNavigate();
 
   useEffect(() => {
