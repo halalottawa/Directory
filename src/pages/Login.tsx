@@ -30,6 +30,16 @@ export const Login: React.FC = () => {
   const { user, setGuest, loginWithGoogle } = useAuth();
 
   const handleGoogleLogin = async () => {
+    if (isRegister) {
+      if (!acceptedPolicy) {
+        setError('You must agree to the Privacy Policy to register.');
+        return;
+      }
+      if (!consent) {
+        setError('You must agree to receive updates to register.');
+        return;
+      }
+    }
     setError('');
     setLoading(true);
     try {
@@ -177,6 +187,44 @@ export const Login: React.FC = () => {
           </button>
         </div>
 
+        {isRegister && (
+          <div className="space-y-3 mb-4">
+            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="relative mt-0.5 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={acceptedPolicy}
+                  onChange={(e) => setAcceptedPolicy(e.target.checked)}
+                />
+                <div className={`w-5 h-5 rounded border-2 transition-all ${acceptedPolicy ? 'bg-[#e90b35] border-[#e90b35]' : 'border-gray-300 group-hover:border-[#e90b35]'}`}>
+                  {acceptedPolicy && <CheckCircle2 className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                </div>
+              </div>
+              <span className="text-xs text-gray-600 leading-tight">
+                I agree to the <Link to="/privacy-policy" className="text-[#e90b35] font-bold hover:underline">Privacy Policy</Link> and data collection terms.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="relative mt-0.5 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                />
+                <div className={`w-5 h-5 rounded border-2 transition-all ${consent ? 'bg-[#e90b35] border-[#e90b35]' : 'border-gray-300 group-hover:border-[#e90b35]'}`}>
+                  {consent && <CheckCircle2 className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+                </div>
+              </div>
+              <span className="text-xs text-gray-600 leading-tight">
+                I agree to receive updates about halal food, community events, and news in Ottawa.
+              </span>
+            </label>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleGoogleLogin}
@@ -240,44 +288,6 @@ export const Login: React.FC = () => {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
-
-            {isRegister && (
-              <div className="space-y-3">
-                <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-                  <div className="relative mt-0.5 flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={acceptedPolicy}
-                      onChange={(e) => setAcceptedPolicy(e.target.checked)}
-                    />
-                    <div className={`w-5 h-5 rounded border-2 transition-all ${acceptedPolicy ? 'bg-[#e90b35] border-[#e90b35]' : 'border-gray-300 group-hover:border-[#e90b35]'}`}>
-                      {acceptedPolicy && <CheckCircle2 className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-600 leading-tight">
-                    I agree to the <Link to="/privacy-policy" className="text-[#e90b35] font-bold hover:underline">Privacy Policy</Link> and data collection terms.
-                  </span>
-                </label>
-
-                <label className="flex items-start gap-3 cursor-pointer group bg-white p-4 rounded-2xl border border-gray-200 shadow-sm">
-                  <div className="relative mt-0.5 flex-shrink-0">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={consent}
-                      onChange={(e) => setConsent(e.target.checked)}
-                    />
-                    <div className={`w-5 h-5 rounded border-2 transition-all ${consent ? 'bg-[#e90b35] border-[#e90b35]' : 'border-gray-300 group-hover:border-[#e90b35]'}`}>
-                      {consent && <CheckCircle2 className="w-4 h-4 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
-                    </div>
-                  </div>
-                  <span className="text-xs text-gray-600 leading-tight">
-                    I agree to receive updates about halal food, community events, and news in Ottawa.
-                  </span>
-                </label>
-              </div>
-            )}
 
             <button
               type="submit"

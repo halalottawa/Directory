@@ -146,7 +146,8 @@ export const AdminDashboard: React.FC = () => {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const comments = commentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Comment))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+      const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       const adsData = adsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const plansData = planRequestsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -852,7 +853,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
       return item.name || item.title || 'Untitled';
     };
     const getSubtitle = () => {
-      if (type === 'users') return item.email;
+      if (type === 'users') return item.createdAt ? `${item.email} (Joined: ${new Date(item.createdAt).toLocaleDateString()})` : item.email;
       if (type === 'reviews') return `Rating: ${item.rating}/5`;
       if (type === 'comments') return `On ${item.parentType}`;
       if (type === 'listings') return Array.isArray(item.category) ? item.category.join(', ') : item.category;
