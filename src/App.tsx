@@ -40,6 +40,7 @@ import { useAuth } from './context/AuthContext';
 
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'sonner';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
@@ -109,6 +110,7 @@ export default function App() {
           <AppContent />
         </AuthProvider>
       </BrowserRouter>
+      <SpeedInsights />
     </HelmetProvider>
   );
 }
