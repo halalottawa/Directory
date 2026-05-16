@@ -567,8 +567,15 @@ Return the result strictly as a valid JSON object matching the following schema.
             photosArray = [finalPhotoUrl];
           }
 
-          await addDoc(collection(db, 'listings'), {
+          const { setDoc, doc } = await import('firebase/firestore');
+          const { generateSlug, getUniqueSlug } = await import('../utils/slugify');
+          
+          const baseSlug = generateSlug(data.name);
+          const uniqueSlug = await getUniqueSlug(db, 'listings', baseSlug);
+
+          await setDoc(doc(db, 'listings', uniqueSlug), {
             name: data.name,
+            slug: uniqueSlug,
             address: data.address,
             phoneNumber: data.phone,
             email: data.email,

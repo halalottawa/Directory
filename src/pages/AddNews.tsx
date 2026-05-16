@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, ChevronLeft, Send } from 'lucide-react';
-import { addDoc, collection } from 'firebase/firestore';
+import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { generateSlug } from '../utils/slugify';
+import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
 import { uploadFromUrl } from '../utils/storageUtils';
 
@@ -29,18 +29,19 @@ export const AddNews: React.FC = () => {
     setLoading(true);
     try {
       const isAdmin = user.role === 'admin';
-      const newSlug = isAdmin && formData.slug 
+      const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+      const uniqueSlug = await getUniqueSlug(db, 'news', baseSlug);
 
       let finalImageUrl = formData.coverImage || 'https://picsum.photos/seed/news/800/600';
       if (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://')) {
-        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${uniqueSlug}-cover`);
       }
 
-      await addDoc(collection(db, 'news'), {
+      await setDoc(doc(db, 'news', uniqueSlug), {
         ...formData,
-        slug: newSlug,
+        slug: uniqueSlug,
         author: 'Halal Ottawa',
         coverImage: finalImageUrl,
         isFeatured: false,

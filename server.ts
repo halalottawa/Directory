@@ -326,7 +326,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { index: false }));
     
     app.get("*", async (req, res) => {
       try {
@@ -371,6 +371,26 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                title = `${data.title} | Halal Ottawa`;
                description = data.content?.substring(0, 160) || description;
                if (data.coverImage) ogImage = data.coverImage;
+             }
+          } else if (pathParts.length === 2 && pathParts[0] === 'events') {
+             const slug = pathParts[1];
+             const q = query(collection(db, 'events'), where('slug', '==', slug), limit(1));
+             const snap = await getDocs(q);
+             if (!snap.empty) {
+               const data = snap.docs[0].data();
+               title = `${data.title} | Halal Ottawa Events`;
+               description = data.description?.substring(0, 160) || description;
+               if (data.coverImage) ogImage = data.coverImage;
+             }
+          } else if (pathParts.length === 2 && pathParts[0] === 'jobs') {
+             const slug = pathParts[1];
+             const q = query(collection(db, 'jobs'), where('slug', '==', slug), limit(1));
+             const snap = await getDocs(q);
+             if (!snap.empty) {
+               const data = snap.docs[0].data();
+               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
+               description = data.description?.substring(0, 160) || description;
+               if (data.companyLogo) ogImage = data.companyLogo;
              }
           }
         }

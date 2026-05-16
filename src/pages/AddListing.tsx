@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText, Send } from 'lucide-react';
-import { addDoc, collection } from 'firebase/firestore';
+import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { generateSlug } from '../utils/slugify';
+import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
 import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
@@ -79,25 +79,26 @@ export const AddListing: React.FC = () => {
     setLoading(true);
     try {
       const isAdmin = user.role === 'admin';
-      const newSlug = isAdmin && formData.slug 
+      const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.name);
+      const uniqueSlug = await getUniqueSlug(db, 'listings', baseSlug);
 
       const processedPhotos = await Promise.all(
         formData.photos.filter(p => p.trim() !== '').map(async (photoUrl, idx) => {
           if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
-            const fileName = idx === 0 ? newSlug : `${newSlug}-${idx}`;
+            const fileName = idx === 0 ? uniqueSlug : `${uniqueSlug}-${idx}`;
             return await uploadFromUrl(photoUrl, fileName);
           }
           return photoUrl;
         })
       );
 
-      const listingRef = await addDoc(collection(db, 'listings'), {
+      await setDoc(doc(db, 'listings', uniqueSlug), {
         ...formData,
         types: formData.category.includes('Restaurants') ? formData.types : [],
         cuisine: formData.category.includes('Restaurants') ? formData.cuisine : [],
-        slug: newSlug,
+        slug: uniqueSlug,
         photos: processedPhotos,
         lat: 45.4215, // Default Ottawa center for demo
         lng: -75.6972,

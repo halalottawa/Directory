@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Image as ImageIcon, Send } from 'lucide-react';
-import { addDoc, collection } from 'firebase/firestore';
+import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { JobType } from '../types';
-import { generateSlug } from '../utils/slugify';
+import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
 import { uploadFromUrl } from '../utils/storageUtils';
 
@@ -35,19 +35,20 @@ export const AddJob: React.FC = () => {
     setLoading(true);
     try {
       const isAdmin = user.role === 'admin';
-      const newSlug = isAdmin && formData.slug 
+      const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+      const uniqueSlug = await getUniqueSlug(db, 'jobs', baseSlug);
 
       let finalLogoUrl = formData.companyLogo;
       if (finalLogoUrl && (finalLogoUrl.startsWith('http://') || finalLogoUrl.startsWith('https://'))) {
-        finalLogoUrl = await uploadFromUrl(finalLogoUrl, `${formData.company}-logo`);
+        finalLogoUrl = await uploadFromUrl(finalLogoUrl, `${uniqueSlug}-logo`);
       }
 
-      await addDoc(collection(db, 'jobs'), {
+      await setDoc(doc(db, 'jobs', uniqueSlug), {
         ...formData,
         companyLogo: finalLogoUrl,
-        slug: newSlug,
+        slug: uniqueSlug,
         isApproved: isAdmin, // Admin posts directly
         submittedBy: user.uid,
         createdAt: new Date().toISOString(),

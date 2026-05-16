@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Info, MapPin, Calendar, Clock, Link as LinkIcon, User, Camera, CheckCircle2, AlertCircle, Send } from 'lucide-react';
-import { addDoc, collection } from 'firebase/firestore';
+import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { TimePicker } from '../components/TimePicker';
-import { generateSlug } from '../utils/slugify';
+import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { Helmet } from 'react-helmet-async';
 import { uploadFromUrl } from '../utils/storageUtils';
 
@@ -37,18 +37,19 @@ export const AddEvent: React.FC = () => {
     try {
       const isAdmin = user.role === 'admin';
       const { date, time, ...rest } = formData;
-      const newSlug = isAdmin && formData.slug 
+      const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
+      const uniqueSlug = await getUniqueSlug(db, 'events', baseSlug);
 
       let finalImageUrl = formData.coverImage || 'https://picsum.photos/seed/newevent/800/600';
       if (finalImageUrl.startsWith('http://') || finalImageUrl.startsWith('https://')) {
-        finalImageUrl = await uploadFromUrl(finalImageUrl, `${formData.title}-cover`);
+        finalImageUrl = await uploadFromUrl(finalImageUrl, `${uniqueSlug}-cover`);
       }
 
-      await addDoc(collection(db, 'events'), {
+      await setDoc(doc(db, 'events', uniqueSlug), {
         ...rest,
-        slug: newSlug,
+        slug: uniqueSlug,
         dateTime: `${date}T${time}`,
         coverImage: finalImageUrl,
         lat: 45.4215,

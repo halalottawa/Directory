@@ -74,11 +74,11 @@ export const Home: React.FC = () => {
           collection(db, 'listings'), 
           where('isApproved', '==', true),
           where('isFeatured', '==', true),
-          limit(6)
+          limit(8)
         );
         const listingsSnap = await getDocs(qListings);
         const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured));
+        setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured).slice(0, 8));
 
         // Fetch Latest News
         const qNews = query(
@@ -105,12 +105,10 @@ export const Home: React.FC = () => {
         const eventsSnap = await getDocs(qEvents);
         const eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Event[];
         
-        // Show only upcoming events (today or after), sorted by date (closest first)
-        const nowTime = new Date().setHours(0, 0, 0, 0);
+        // Show the latest 8 events chronologically (newest first)
         const sortedEvents = eventsData
-          .filter(event => new Date(event.dateTime).getTime() >= nowTime)
-          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
-          .slice(0, 6);
+          .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
+          .slice(0, 8);
           
         setFeaturedEvents(sortedEvents.length > 0 ? sortedEvents : []);
 
@@ -243,23 +241,23 @@ export const Home: React.FC = () => {
             View all
           </Link>
         </div>
-        <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+        <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           {featuredListings.map((listing, idx) => (
             <Link
               key={listing.id}
               to={getListingUrl(listing)}
               className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
             >
-              <div className="relative aspect-[4/3] md:aspect-video w-full bg-gray-100">
+              <div className="relative aspect-[2/1] w-full bg-gray-100">
                 {listing.photos?.[0] ? (
                   <img 
-                    src={getOptimizedImageUrl(listing.photos[0], 400, 192)} 
+                    src={getOptimizedImageUrl(listing.photos[0], 400, 128)} 
                     alt={listing.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     loading={idx < 2 ? "eager" : "lazy"}
                     fetchPriority={idx < 2 ? "high" : "auto"}
                     width="400"
-                    height="192"
+                    height="128"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -303,15 +301,15 @@ export const Home: React.FC = () => {
               to={`/news/${news.slug || news.id}`}
               className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35] ${index >= 3 ? 'hidden md:flex' : ''}`}
             >
-              <div className="relative w-24 h-24 md:w-full aspect-square md:aspect-video shrink-0 bg-gray-100">
+              <div className="relative w-24 h-24 md:w-full md:h-auto aspect-square md:aspect-[2/1] shrink-0 bg-gray-100">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
                   <img 
-                    src={getOptimizedImageUrl(news.coverImage, 400, 192)} 
+                    src={getOptimizedImageUrl(news.coverImage, 400, 128)} 
                     alt={news.title} 
                     className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                     loading="lazy"
                     width="400"
-                    height="192"
+                    height="128"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
@@ -339,11 +337,11 @@ export const Home: React.FC = () => {
       {featuredEvents.length > 0 && (
         <section className="space-y-4">
           <div className="flex justify-between items-end">
-            <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Upcoming Events</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Events</h2>
             <Link 
               to="/events" 
               className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
-              aria-label="View all upcoming events"
+              aria-label="View all latest events"
             >
               View all
             </Link>
