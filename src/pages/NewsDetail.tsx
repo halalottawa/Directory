@@ -170,7 +170,7 @@ export const NewsDetail: React.FC = () => {
         ]}
       />
 
-      <div className="relative h-64">
+      <div className="relative h-64 bg-gray-100">
         {article.coverImage && article.coverImage.trim() !== '' ? (
           <img 
             src={getOptimizedImageUrl(article.coverImage, 800, 256)} 
@@ -179,6 +179,7 @@ export const NewsDetail: React.FC = () => {
             fetchPriority="high"
             width="800"
             height="256"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -253,7 +254,7 @@ export const NewsDetail: React.FC = () => {
                 to={`/news/${related.slug || related.id}`}
                 className="bg-white hover:shadow-md transition-all border border-gray-50 group flex flex-col rounded-3xl overflow-hidden shadow-sm"
               >
-                <div className="relative w-full h-48 shrink-0">
+                <div className="relative w-full h-48 shrink-0 bg-gray-100">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
                     <img 
                       src={getOptimizedImageUrl(related.coverImage, 400, 192)} 
@@ -262,6 +263,7 @@ export const NewsDetail: React.FC = () => {
                       loading="lazy"
                       width="400"
                       height="192"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">

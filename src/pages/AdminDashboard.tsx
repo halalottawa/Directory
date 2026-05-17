@@ -1319,8 +1319,9 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
 
         {/* Users Section */}
         <section className="space-y-3">
-          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
-            Users
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2 flex items-center justify-between">
+            <span>Users</span>
+            <span className="text-gray-400 font-medium">({allUsers.length} total)</span>
           </h2>
           
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">

@@ -252,17 +252,18 @@ export const Listings: React.FC = () => {
               to={getListingUrl(listing)}
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col sm:flex-row transition-all group"
             >
-              <div className="relative h-48 sm:w-48 sm:h-auto shrink-0">
+              <div className="relative h-48 sm:w-48 sm:h-auto shrink-0 aspect-[16/9] sm:aspect-square bg-gray-100">
                 {listing.photos?.[0] ? (
                   <img 
-                    src={getOptimizedImageUrl(listing.photos[0], 400, 192)} 
+                    src={getOptimizedImageUrl(listing.photos[0], 400, 400)} 
                     alt={listing.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     referrerPolicy="no-referrer" 
                     loading={idx < 4 ? "eager" : "lazy"}
                     fetchPriority={idx < 4 ? "high" : "auto"}
                     width="400"
-                    height="192"
+                    height="400"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">

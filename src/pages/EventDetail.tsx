@@ -12,6 +12,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { formatDate, formatTime } from '../utils/dateFormatter';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const EventDetail: React.FC = () => {
@@ -224,15 +225,16 @@ export const EventDetail: React.FC = () => {
         ]}
       />
 
-      <div className="relative h-64">
+      <div className="relative h-64 bg-gray-100">
         {event.coverImage && event.coverImage.trim() !== '' ? (
           <img 
-            src={(event.coverImage) || undefined} 
+            src={getOptimizedImageUrl(event.coverImage, 800, 256)} 
             alt={event.title} 
             className="w-full h-full object-cover" 
             fetchPriority="high"
             width="800"
             height="256"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -372,15 +374,16 @@ export const EventDetail: React.FC = () => {
                 to={`/events/${related.slug || related.id}`}
                 className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all group flex flex-col"
               >
-                <div className="relative h-32 shrink-0">
+                <div className="relative h-32 shrink-0 bg-gray-100">
                   {related.coverImage && related.coverImage.trim() !== '' ? (
                     <img 
-                      src={(related.coverImage) || undefined} 
+                      src={getOptimizedImageUrl(related.coverImage, 400, 128)} 
                       alt={related.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                       loading="lazy"
                       width="400"
                       height="128"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">

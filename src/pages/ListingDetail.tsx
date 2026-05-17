@@ -465,6 +465,7 @@ export const ListingDetail: React.FC = () => {
                 fetchPriority={idx === 0 ? "high" : "auto"}
                 width="800"
                 height="288"
+                decoding="async"
               />
             ))}
           </div>
@@ -1181,6 +1182,7 @@ export const ListingDetail: React.FC = () => {
                     loading="lazy"
                     width="400"
                     height="192"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center">

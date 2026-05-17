@@ -256,13 +256,14 @@ export const Home: React.FC = () => {
               <div className="relative aspect-[2/1] w-full bg-gray-100">
                 {listing.photos?.[0] ? (
                   <img 
-                    src={getOptimizedImageUrl(listing.photos[0], 400, 128)} 
+                    src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
                     alt={listing.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     loading={idx < 2 ? "eager" : "lazy"}
                     fetchPriority={idx < 2 ? "high" : "auto"}
-                    width="400"
-                    height="128"
+                    width="480"
+                    height="240"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -309,12 +310,13 @@ export const Home: React.FC = () => {
               <div className="relative w-24 h-24 md:w-full md:h-auto aspect-square md:aspect-[2/1] shrink-0 bg-gray-100">
                 {news.coverImage && news.coverImage.trim() !== '' ? (
                   <img 
-                    src={getOptimizedImageUrl(news.coverImage, 400, 128)} 
+                    src={getOptimizedImageUrl(news.coverImage, 400, 200)} 
                     alt={news.title} 
                     className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                     loading="lazy"
                     width="400"
-                    height="128"
+                    height="200"
+                    decoding="async"
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
@@ -361,12 +363,13 @@ export const Home: React.FC = () => {
                 <div className="relative aspect-[2/1] bg-gray-100">
                   {event.coverImage && event.coverImage.trim() !== '' ? (
                     <img 
-                      src={getOptimizedImageUrl(event.coverImage, 400, 128)} 
+                      src={getOptimizedImageUrl(event.coverImage, 400, 200)} 
                       alt={event.title} 
                       className="w-full h-full object-cover" 
                       loading="lazy"
                       width="400"
-                      height="128"
+                      height="200"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">

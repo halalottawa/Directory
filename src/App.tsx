@@ -47,7 +47,7 @@ const AppContent: React.FC = () => {
   return (
     <ErrorBoundary>
       <Suspense fallback={
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
           <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
         </div>
       }>

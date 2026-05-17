@@ -216,6 +216,7 @@ export const JobDetail: React.FC = () => {
                   fetchPriority="high"
                   width="64"
                   height="64"
+                  decoding="async"
                 />
               </div>
             )}
@@ -295,6 +296,7 @@ export const JobDetail: React.FC = () => {
                           loading="lazy"
                           width="48"
                           height="48"
+                          decoding="async"
                         />
                       ) : (
                         <Building2 className="w-6 h-6 text-gray-400" />

@@ -77,7 +77,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           <img 
             src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
             alt="Halal Ottawa" 
-            className="h-[52px] w-auto"
+            className="h-[52px] w-[180px] object-contain"
             fetchPriority="high"
             width="180"
             height="52"
@@ -115,9 +115,10 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           <img 
             src={getOptimizedImageUrl(siteLogoUrl, 152, 44)} 
             alt="Halal Ottawa" 
-            className="h-[44px] w-auto"
+            className="h-[44px] w-[152px] object-contain"
             width="152"
             height="44"
+            fetchPriority="high"
             referrerPolicy="no-referrer"
           />
         </div>
