@@ -6,7 +6,8 @@ import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, s
 import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
+import { getListingTagsString } from '../components/ListingTags';
 import { toast } from 'sonner';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Pagination } from '../components/Pagination';
@@ -863,7 +864,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
       if (type === 'users') return item.createdAt ? `${item.email} (Joined: ${new Date(item.createdAt).toLocaleDateString()})` : item.email;
       if (type === 'reviews') return `Rating: ${item.rating}/5`;
       if (type === 'comments') return `On ${item.parentType}`;
-      if (type === 'listings') return Array.isArray(item.category) ? item.category.join(', ') : item.category;
+      if (type === 'listings') return getListingTagsString(item);
       if (type === 'events') return item.location;
       if (type === 'jobs') return item.company;
       if (type === 'plan_requests') return `${item.requestType === 'claim_listing' ? 'CLAIM' : 'NEW'} | Listing: ${item.listingName} - By: ${item.contactEmail}`;
@@ -1043,10 +1044,10 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
-      <Helmet>
-        <title>Admin Dashboard | Halal Ottawa</title>
-        <meta name="description" content="Manage and moderate your community platform." />
-      </Helmet>
+      <SEO 
+        title="Admin Dashboard" 
+        description="Manage and moderate your community platform." 
+      />
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-12">
         <h1 className="text-3xl font-bold">Admin Dashboard</h1>

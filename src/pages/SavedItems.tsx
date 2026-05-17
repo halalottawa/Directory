@@ -8,7 +8,8 @@ import { Bookmark, Heart, Clock, ChevronRight, ChevronLeft, MapPin, Calendar, Br
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
-import { Helmet } from 'react-helmet-async';
+import { getListingTagsString } from '../components/ListingTags';
+import { SEO } from '../components/SEO';
 
 export const SavedItems: React.FC = () => {
   const { user } = useAuth();
@@ -95,7 +96,7 @@ export const SavedItems: React.FC = () => {
   const renderItemCard = (item: any, type: string, isLast: boolean) => {
     const getTitle = () => item.name || item.title || 'Untitled';
     const getSubtitle = () => {
-      if (type === 'listings') return Array.isArray(item.category as any) ? (item.category as any).join(', ') : item.category;
+      if (type === 'listings') return getListingTagsString(item);
       if (type === 'events') return item.location;
       if (type === 'jobs') return item.company;
       return '';
@@ -159,10 +160,10 @@ export const SavedItems: React.FC = () => {
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
-      <Helmet>
-        <title>Saved Items | Halal Ottawa</title>
-        <meta name="description" content="View your saved listings, events, jobs, and news on Halal Ottawa." />
-      </Helmet>
+      <SEO 
+        title="Saved Items" 
+        description="View your saved listings, events, jobs, and news on Halal Ottawa." 
+      />
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-12">
         <h1 className="text-3xl font-bold">Saved Items</h1>

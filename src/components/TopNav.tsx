@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle } from 'lucide-react';
+import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle, Compass } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -238,7 +238,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
               </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto py-6 px-4">
+            <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
               {user ? (
                 <nav className="">
                   <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Account</p>
@@ -306,6 +306,24 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   <p className="text-gray-400 text-sm">Please login to access your account menu.</p>
                 </div>
               )}
+
+              <nav>
+                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Tools</p>
+                <Link 
+                  to="/tools/qibla" 
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                    isActive('/tools/qibla') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                    isActive('/tools/qibla') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                  }`}>
+                    <Compass className="w-4 h-4" />
+                  </div>
+                  <span className="font-bold">Qibla Direction</span>
+                </Link>
+              </nav>
             </div>
 
             <div className="p-6 border-t border-gray-50 space-y-4">

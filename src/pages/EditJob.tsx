@@ -8,7 +8,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Job, JobType } from '../types';
 import { generateSlug } from '../utils/slugify';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 import { uploadFromUrl } from '../utils/storageUtils';
 
 export const EditJob: React.FC = () => {
@@ -119,10 +119,10 @@ export const EditJob: React.FC = () => {
 
   return (
     <main className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:mb-12">
-      <Helmet>
-        <title>Edit Job | Halal Ottawa</title>
-        <meta name="description" content="Update the job opportunity details." />
-      </Helmet>
+      <SEO 
+        title="Edit Job" 
+        description="Update the job opportunity details." 
+      />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="flex items-center justify-end">

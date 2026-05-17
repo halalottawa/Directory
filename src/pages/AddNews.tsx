@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { generateSlug, getUniqueSlug } from '../utils/slugify';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 import { uploadFromUrl } from '../utils/storageUtils';
 
 export const AddNews: React.FC = () => {
@@ -63,10 +63,10 @@ export const AddNews: React.FC = () => {
 
   return (
     <main className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:mb-12">
-      <Helmet>
-        <title>Submit News | Halal Ottawa</title>
-        <meta name="description" content="Share community news or updates." />
-      </Helmet>
+      <SEO 
+        title="Submit News" 
+        description="Share community news or updates." 
+      />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="space-y-2">

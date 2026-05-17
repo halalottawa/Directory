@@ -6,7 +6,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { sendPasswordResetEmail, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
 
 export const Settings: React.FC = () => {
@@ -149,10 +149,10 @@ export const Settings: React.FC = () => {
 
   return (
     <main className="p-6 space-y-8 animate-in fade-in duration-500">
-      <Helmet>
-        <title>Settings | Halal Ottawa</title>
-        <meta name="description" content="Manage your account settings and preferences on Halal Ottawa." />
-      </Helmet>
+      <SEO 
+        title="Settings" 
+        description="Manage your account settings and preferences on Halal Ottawa." 
+      />
 
       <h1 className="text-3xl font-bold">Settings</h1>
 

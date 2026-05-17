@@ -33,6 +33,7 @@ const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy').then(modu
 const TermsOfService = React.lazy(() => import('./pages/TermsOfService').then(module => ({ default: module.TermsOfService })));
 const FAQ = React.lazy(() => import('./pages/FAQ').then(module => ({ default: module.FAQ })));
 const QiblaDirection = React.lazy(() => import('./pages/QiblaDirection').then(module => ({ default: module.QiblaDirection })));
+const NotFound = React.lazy(() => import('./pages/NotFound').then(module => ({ default: module.NotFound })));
 
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -90,6 +91,7 @@ const AppContent: React.FC = () => {
           <Route path="/news/add" element={<ProtectedRoute requireAdmin message="Admin access required to publish news articles."><AddNews /></ProtectedRoute>} />
           <Route path="/news/edit/:id" element={<ProtectedRoute requireAdmin message="Admin access required to edit news articles."><EditNews /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin message="Admin access required for the dashboard."><AdminDashboard /></ProtectedRoute>} />
+          <Route path="*" element={<NotFound />} />
         </Route>
         
         <Route path="/login" element={<Login />} />

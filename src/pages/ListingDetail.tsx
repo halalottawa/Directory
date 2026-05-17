@@ -16,6 +16,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { OpenStreetMap } from '../components/OpenStreetMap';
 import { SEO } from '../components/SEO';
+import { NotFound } from './NotFound';
 import { toast } from 'sonner';
 
 export const ListingDetail: React.FC = () => {
@@ -349,8 +350,12 @@ export const ListingDetail: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
-  if (!listing) return <div className="p-8 text-center">Listing not found.</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!listing) return <NotFound title="Listing Not Found" message="The listing you are looking for does not exist or has been removed." buttonLink="/listings" buttonText="Back to Listings" />;
 
   const renderBreadcrumbs = (position: 'top' | 'content') => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;

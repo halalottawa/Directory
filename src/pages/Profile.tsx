@@ -11,7 +11,8 @@ import { X, Save, ChevronRight } from 'lucide-react';
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
-import { Helmet } from 'react-helmet-async';
+import { getListingTagsString } from '../components/ListingTags';
+import { SEO } from '../components/SEO';
 import { Pagination } from '../components/Pagination';
 
 export const Profile: React.FC = () => {
@@ -88,7 +89,7 @@ export const Profile: React.FC = () => {
       return item.name || item.title || 'Untitled';
     };
     const getSubtitle = () => {
-      if (type === 'listings') return Array.isArray(item.category as any) ? (item.category as any).join(', ') : item.category;
+      if (type === 'listings') return getListingTagsString(item);
       if (type === 'events') return item.location;
       if (type === 'jobs') return item.company;
       if (type === 'reviews') return `Rating: ${item.rating}/5`;
@@ -160,10 +161,10 @@ export const Profile: React.FC = () => {
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
-      <Helmet>
-        <title>{user.name} | Profile | Halal Ottawa</title>
-        <meta name="description" content={`Profile page for ${user.name} on Halal Ottawa.`} />
-      </Helmet>
+      <SEO 
+        title={`${user.name} | Profile`} 
+        description={`Profile page for ${user.name} on Halal Ottawa.`} 
+      />
 
       {/* Profile Hero */}
       <div className="bg-white border-b border-gray-100">

@@ -14,6 +14,7 @@ import { SaveButton } from '../components/SaveButton';
 import { formatDate, formatTime } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
+import { NotFound } from './NotFound';
 
 export const EventDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -170,8 +171,12 @@ export const EventDetail: React.FC = () => {
     window.open(url, '_blank');
   };
 
-  if (loading) return <div className="p-8 text-center">Loading event...</div>;
-  if (!event) return <div className="p-8 text-center">Event not found.</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!event) return <NotFound title="Event Not Found" message="The event you are looking for does not exist or has been removed." buttonLink="/events" buttonText="Back to Events" />;
 
   return (
     <>

@@ -13,6 +13,7 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
+import { NotFound } from './NotFound';
 
 export const JobDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -125,8 +126,12 @@ export const JobDetail: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading job...</div>;
-  if (!job) return <div className="p-8 text-center">Job not found.</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!job) return <NotFound title="Job Not Found" message="The job you are looking for does not exist or has been removed." buttonLink="/jobs" buttonText="Back to Jobs" />;
 
   return (
     <>

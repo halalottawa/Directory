@@ -15,6 +15,7 @@ import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
+import { NotFound } from './NotFound';
 
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -112,8 +113,12 @@ export const NewsDetail: React.FC = () => {
     }
   };
 
-  if (loading) return <div className="p-8 text-center">Loading article...</div>;
-  if (!article) return <div className="p-8 text-center">Article not found.</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+      <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!article) return <NotFound title="Article Not Found" message="The article you are looking for does not exist or has been removed." buttonLink="/news" buttonText="Back to News" />;
 
   return (
     <>

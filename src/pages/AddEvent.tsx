@@ -7,8 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { TimePicker } from '../components/TimePicker';
 import { generateSlug, getUniqueSlug } from '../utils/slugify';
-import { Helmet } from 'react-helmet-async';
 import { uploadFromUrl } from '../utils/storageUtils';
+import { SEO } from '../components/SEO';
 
 export const AddEvent: React.FC = () => {
   const navigate = useNavigate();
@@ -73,10 +73,10 @@ export const AddEvent: React.FC = () => {
 
   return (
     <main className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:mb-12">
-      <Helmet>
-        <title>Add Event | Halal Ottawa</title>
-        <meta name="description" content="Share a community gathering or Islamic event." />
-      </Helmet>
+      <SEO 
+        title="Add Event" 
+        description="Share a community gathering or Islamic event in Ottawa." 
+      />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
         <div className="space-y-2">

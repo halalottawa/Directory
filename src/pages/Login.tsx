@@ -12,7 +12,7 @@ import { auth, db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -146,10 +146,10 @@ export const Login: React.FC = () => {
 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-      <Helmet>
-        <title>{isRegister ? 'Register' : 'Login'} | Halal Ottawa</title>
-        <meta name="description" content={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} />
-      </Helmet>
+      <SEO 
+        title={isRegister ? 'Register' : 'Login'} 
+        description={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} 
+      />
 
       <button 
         onClick={() => navigate(-1)} 

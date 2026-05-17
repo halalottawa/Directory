@@ -6,7 +6,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { TopNav } from '../components/TopNav';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 
 export const EditProfile: React.FC = () => {
   const { user } = useAuth();
@@ -159,10 +159,10 @@ export const EditProfile: React.FC = () => {
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12">
-      <Helmet>
-        <title>Edit Profile | Halal Ottawa</title>
-        <meta name="description" content="Edit your profile information on Halal Ottawa." />
-      </Helmet>
+      <SEO 
+        title="Edit Profile" 
+        description="Edit your profile information on Halal Ottawa." 
+      />
 
       <TopNav showBack />
       
