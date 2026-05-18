@@ -8,7 +8,6 @@ import { Bookmark, Heart, Clock, ChevronRight, ChevronLeft, MapPin, Calendar, Br
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
-import { getListingTagsString } from '../components/ListingTags';
 import { SEO } from '../components/SEO';
 
 export const SavedItems: React.FC = () => {
@@ -96,7 +95,7 @@ export const SavedItems: React.FC = () => {
   const renderItemCard = (item: any, type: string, isLast: boolean) => {
     const getTitle = () => item.name || item.title || 'Untitled';
     const getSubtitle = () => {
-      if (type === 'listings') return getListingTagsString(item);
+      if (type === 'listings') return Array.isArray(item.category as any) ? (item.category as any).join(', ') : item.category;
       if (type === 'events') return item.location;
       if (type === 'jobs') return item.company;
       return '';

@@ -12,7 +12,6 @@ import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
-import { ListingTags } from '../components/ListingTags';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 const faqs = [
@@ -278,7 +277,6 @@ export const Home: React.FC = () => {
                 </div>
               </div>
               <div className="p-4">
-                <ListingTags category={listing.category} types={listing.types} cuisine={listing.cuisine} className="mb-2" />
                 <h3 className="font-bold leading-tight line-clamp-1">{listing.name}</h3>
                 <p className="text-gray-500 text-xs font-semibold mt-2 flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />

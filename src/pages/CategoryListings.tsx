@@ -11,7 +11,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
-import { ListingTags } from '../components/ListingTags';
+import { NotFound } from './NotFound';
 
 export const CategoryListings: React.FC = () => {
   const { user } = useAuth();
@@ -202,17 +202,7 @@ export const CategoryListings: React.FC = () => {
   }, [isMobile, currentPage, totalPages]);
 
   if (!isValidCategory) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-gray-900">Category Not Found</h1>
-          <p className="text-gray-500">The category you are looking for does not exist.</p>
-          <Link to="/" className="inline-block bg-[#e90b35] text-white px-6 py-2 rounded-full font-bold">
-            Go Home
-          </Link>
-        </div>
-      </div>
-    );
+    return <NotFound />;
   }
 
   return (
@@ -313,6 +303,9 @@ export const CategoryListings: React.FC = () => {
                     <span className="text-gray-400 text-xs font-medium">No Image</span>
                   </div>
                 )}
+                <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-1 rounded-md shadow-md backdrop-blur-md bg-opacity-95">
+                  {Array.isArray(listing.category as any) ? (listing.category as any)[0] : listing.category}
+                </div>
                 {listing.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
                 )}
@@ -322,7 +315,6 @@ export const CategoryListings: React.FC = () => {
               </div>
               <div className="p-4 flex-1 flex flex-col justify-between">
                 <div>
-                  <ListingTags category={listing.category} types={listing.types} cuisine={listing.cuisine} className="mb-2" />
                   <div className="flex justify-between items-start">
                     <h2 className="font-bold text-lg leading-tight">{listing.name}</h2>
                     <div className="flex items-center gap-1 text-xs font-bold bg-yellow-50 text-yellow-700 px-2 py-1 rounded-lg">
@@ -334,6 +326,34 @@ export const CategoryListings: React.FC = () => {
                     <MapPin className="w-4 h-4 text-[#e90b35]" />
                     {listing.address}
                   </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {(() => {
+                      const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);
+                      return (
+                        <>
+                          {allCategories.map((cat: string, idx: number) => (
+                            <span key={`cat-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase">
+                              {cat}
+                            </span>
+                          ))}
+                          {allCategories.includes('Restaurants') && (
+                            <>
+                              {listing.types?.map((type, index) => (
+                                <span key={`type-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
+                                  {type}
+                                </span>
+                              ))}
+                              {listing.cuisine?.map((c, index) => (
+                                <span key={`cuisine-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
+                                  {c}
+                                </span>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div className="mt-4 flex justify-between items-center">
                   <span className="text-xs text-gray-400">{listing.reviewCount} reviews</span>

@@ -131,7 +131,7 @@ export const JobDetail: React.FC = () => {
       <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
-  if (!job) return <NotFound title="Job Not Found" message="The job you are looking for does not exist or has been removed." buttonLink="/jobs" buttonText="Back to Jobs" />;
+  if (!job) return <NotFound />;
 
   return (
     <>

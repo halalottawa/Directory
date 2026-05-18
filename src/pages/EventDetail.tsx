@@ -176,7 +176,7 @@ export const EventDetail: React.FC = () => {
       <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
-  if (!event) return <NotFound title="Event Not Found" message="The event you are looking for does not exist or has been removed." buttonLink="/events" buttonText="Back to Events" />;
+  if (!event) return <NotFound />;
 
   return (
     <>

@@ -302,8 +302,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   )}
                 </nav>
               ) : (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-gray-400 text-sm">Please login to access your account menu.</p>
+                <div className="px-4 py-8 text-center bg-gray-50 rounded-2xl">
+                  <p className="text-gray-500 text-sm font-medium">Please login to access your account menu.</p>
                 </div>
               )}
 

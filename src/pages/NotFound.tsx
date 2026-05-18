@@ -20,39 +20,37 @@ export const NotFound: React.FC<NotFoundProps> = ({
   const navigate = useNavigate();
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] animate-in fade-in duration-500 pb-20">
+    <main className="flex-1 w-full max-w-7xl mx-auto px-4 mt-8 lg:mt-12 mb-20 flex flex-col items-center justify-center animate-in fade-in duration-500">
       <SEO 
         title={title} 
         description={message} 
       />
       
-      <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] pt-8 md:pt-16 pb-12 px-4 md:px-0">
-        <div className="bg-white p-8 md:p-16 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-8 flex flex-col justify-center items-center py-20 min-h-[60vh]">
-          <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto">
-            <span className="text-4xl font-bold text-[#e90b35]">404</span>
-          </div>
-          
-          <div className="space-y-4 max-w-lg mx-auto">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">{title}</h1>
-            <p className="text-gray-500 text-lg">{message}</p>
-          </div>
+      <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 flex flex-col items-center justify-center min-h-[50vh]">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto">
+          <span className="text-3xl font-bold text-[#e90b35]">404</span>
+        </div>
+        
+        <div className="space-y-2 max-w-md mx-auto">
+          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
+          <p className="text-gray-500">{message}</p>
+        </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row gap-4 justify-center items-center w-full max-w-md mx-auto">
-            {showBackButton && (
-              <button
-                onClick={() => navigate(-1)}
-                className="w-full inline-flex items-center justify-center px-8 py-4 border border-gray-200 rounded-full text-gray-700 bg-white hover:bg-gray-50 font-bold transition-all active:scale-95 text-base"
-              >
-                Go Back
-              </button>
-            )}
-            <Link
-              to={buttonLink}
-              className="w-full inline-flex items-center justify-center px-8 py-4 border border-transparent rounded-full text-white bg-[#e90b35] hover:bg-[#d00a2f] font-bold shadow-lg shadow-red-100 transition-all active:scale-95 text-base"
+        <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center w-full max-w-md mx-auto">
+          {showBackButton && (
+            <button
+              onClick={() => navigate(-1)}
+              className="flex-1 inline-flex items-center justify-center px-6 py-3.5 border border-gray-200 rounded-2xl text-gray-700 bg-white hover:bg-gray-50 font-bold transition-all active:scale-95"
             >
-              {buttonText}
-            </Link>
-          </div>
+              Go Back
+            </button>
+          )}
+          <Link
+            to={buttonLink}
+            className="flex-1 inline-flex items-center justify-center px-6 py-3.5 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-200 hover:bg-[#d00a2f] active:scale-95 transition-all"
+          >
+            {buttonText}
+          </Link>
         </div>
       </div>
     </main>

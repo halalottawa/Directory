@@ -7,7 +7,6 @@ import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
-import { getListingTagsString } from '../components/ListingTags';
 import { toast } from 'sonner';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Pagination } from '../components/Pagination';
@@ -864,7 +863,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
       if (type === 'users') return item.createdAt ? `${item.email} (Joined: ${new Date(item.createdAt).toLocaleDateString()})` : item.email;
       if (type === 'reviews') return `Rating: ${item.rating}/5`;
       if (type === 'comments') return `On ${item.parentType}`;
-      if (type === 'listings') return getListingTagsString(item);
+      if (type === 'listings') return Array.isArray(item.category) ? item.category.join(', ') : item.category;
       if (type === 'events') return item.location;
       if (type === 'jobs') return item.company;
       if (type === 'plan_requests') return `${item.requestType === 'claim_listing' ? 'CLAIM' : 'NEW'} | Listing: ${item.listingName} - By: ${item.contactEmail}`;
@@ -1320,9 +1319,9 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
 
         {/* Users Section */}
         <section className="space-y-3">
-          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2 flex items-center justify-between">
-            <span>Users</span>
-            <span className="text-gray-400 font-medium">({allUsers.length} total)</span>
+          <h2 className="text-xl font-bold text-gray-900 ml-2 flex items-center gap-2">
+            Users
+            <span className="text-sm font-medium text-gray-400 bg-white px-2 py-1 rounded-full border border-gray-100 shadow-sm">{allUsers.length}</span>
           </h2>
           
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">

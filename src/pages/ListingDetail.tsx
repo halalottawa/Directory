@@ -355,7 +355,7 @@ export const ListingDetail: React.FC = () => {
       <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
-  if (!listing) return <NotFound title="Listing Not Found" message="The listing you are looking for does not exist or has been removed." buttonLink="/listings" buttonText="Back to Listings" />;
+  if (!listing) return <NotFound />;
 
   const renderBreadcrumbs = (position: 'top' | 'content') => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;

@@ -118,7 +118,7 @@ export const NewsDetail: React.FC = () => {
       <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
-  if (!article) return <NotFound title="Article Not Found" message="The article you are looking for does not exist or has been removed." buttonLink="/news" buttonText="Back to News" />;
+  if (!article) return <NotFound />;
 
   return (
     <>
