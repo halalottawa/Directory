@@ -34,6 +34,7 @@ const TermsOfService = React.lazy(() => import('./pages/TermsOfService').then(mo
 const FAQ = React.lazy(() => import('./pages/FAQ').then(module => ({ default: module.FAQ })));
 const QiblaDirection = React.lazy(() => import('./pages/QiblaDirection').then(module => ({ default: module.QiblaDirection })));
 const NotFound = React.lazy(() => import('./pages/NotFound').then(module => ({ default: module.NotFound })));
+const ShortLinkRedirect = React.lazy(() => import('./pages/ShortLinkRedirect').then(module => ({ default: module.ShortLinkRedirect })));
 
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -96,6 +97,7 @@ const AppContent: React.FC = () => {
         
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Login />} />
+        <Route path="/go/:slug" element={<ShortLinkRedirect />} />
       </Routes>
       </Suspense>
     </ErrorBoundary>

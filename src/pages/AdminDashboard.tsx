@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X } from 'lucide-react';
+import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon } from 'lucide-react';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
@@ -69,6 +69,12 @@ export const AdminDashboard: React.FC = () => {
   const [siteLogoUrl, setSiteLogoUrl] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
 
+  // Link Shortener states
+  const [originalUrl, setOriginalUrl] = useState('');
+  const [customSlug, setCustomSlug] = useState('');
+  const [isCreatingShortLink, setIsCreatingShortLink] = useState(false);
+  const [shortLinks, setShortLinks] = useState<any[]>([]);
+
   const [viewFeedbackItem, setViewFeedbackItem] = useState<{ type: 'reviews' | 'comments', item: any } | null>(null);
 
   const generateWithRetry = async (ai: any, prompt: string, toastId: any, maxRetries = 6) => {
@@ -120,7 +126,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
-        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap
+        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap, shortLinksSnap
       ] = await Promise.all([
         getDocs(collection(db, 'listings')),
         getDocs(collection(db, 'events')),
@@ -131,7 +137,8 @@ export const AdminDashboard: React.FC = () => {
         getDocs(collection(db, 'users')),
         getDocs(collection(db, 'ads')),
         getDocs(collection(db, 'plan_requests')),
-        getDoc(doc(db, 'settings', 'general'))
+        getDoc(doc(db, 'settings', 'general')),
+        getDocs(collection(db, 'short_links'))
       ]);
 
       const listings = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Listing))
@@ -151,6 +158,8 @@ export const AdminDashboard: React.FC = () => {
       const adsData = adsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const plansData = planRequestsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      const shortLinksData = shortLinksSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
 
       if (settingsSnap.exists() && settingsSnap.data().logoUrl) {
         setSiteLogoUrl(settingsSnap.data().logoUrl);
@@ -173,6 +182,7 @@ export const AdminDashboard: React.FC = () => {
       setAllUsers(users);
       setAds(adsData);
       setPlanRequests(plansData);
+      setShortLinks(shortLinksData.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
 
       // Auto-repair listing ratings based on actual approved reviews
       listings.forEach(async (listing) => {
@@ -676,6 +686,75 @@ Return the result strictly as a valid JSON object matching the following schema.
           setConfirmModal(null);
         }
       }
+    });
+  };
+
+  const handleCreateShortLink = async () => {
+    if (!originalUrl || !customSlug) {
+      toast.error('Please provide both original URL and custom slug.');
+      return;
+    }
+    
+    // Normalize custom slug (remove spaces, etc, but preserve case)
+    const normalizedSlug = customSlug.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    
+    if (!normalizedSlug) {
+      toast.error('Invalid custom slug format.');
+      return;
+    }
+
+    setIsCreatingShortLink(true);
+    try {
+      const { setDoc, doc, getDoc, serverTimestamp } = await import('firebase/firestore');
+      
+      const linkRef = doc(db, 'short_links', normalizedSlug);
+      const linkSnap = await getDoc(linkRef);
+      
+      if (linkSnap.exists()) {
+        toast.error('This custom slug is already in use by another short link.');
+        setIsCreatingShortLink(false);
+        return;
+      }
+      
+      await setDoc(linkRef, {
+        originalUrl,
+        slug: normalizedSlug,
+        createdAt: serverTimestamp(),
+        createdBy: user?.uid || 'admin',
+        visits: 0
+      });
+      
+      toast.success(`Short link created!`);
+      setOriginalUrl('');
+      setCustomSlug('');
+      fetchData(); // Refresh list after creation
+    } catch (err: any) {
+      console.error('Failed to create short link:', err);
+      toast.error(err.message || 'Failed to create short link');
+    } finally {
+      setIsCreatingShortLink(false);
+    }
+  };
+
+  const handleDeleteShortLink = async (slug: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Short Link',
+      message: 'Are you sure you want to delete this short link? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'short_links', slug));
+          toast.success('Short link deleted successfully');
+          fetchData();
+        } catch (err) {
+          handleFirestoreError(err, OperationType.DELETE, `short_links/${slug}`);
+          toast.error('Failed to delete short link');
+        } finally {
+          setConfirmModal(null);
+        }
+      },
+      confirmText: 'Delete',
+      confirmVariant: 'danger'
     });
   };
 
@@ -1580,6 +1659,105 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                 </button>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Link Shortener Section */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
+            Link Shortener
+          </h2>
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                <LinkIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Custom Link Shortener</h3>
+                <p className="text-sm text-gray-500">Create short links to any external URLs.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Original URL</label>
+                <input 
+                  type="url" 
+                  value={originalUrl}
+                  onChange={(e) => setOriginalUrl(e.target.value)}
+                  placeholder="https://example.com/very/long/url" 
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Custom Slug</label>
+                <div className="flex rounded-2xl overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500/50 transition-all bg-gray-50">
+                  <span className="flex items-center px-4 text-gray-400 font-medium text-sm bg-gray-100/50 border-r border-gray-200">
+                    https://www.halalottawa.ca/go/
+                  </span>
+                  <input 
+                    type="text" 
+                    value={customSlug}
+                    onChange={(e) => setCustomSlug(e.target.value)}
+                    placeholder="my-custom-link" 
+                    className="flex-1 px-3 py-3 bg-transparent text-sm focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button 
+                  onClick={handleCreateShortLink} 
+                  disabled={isCreatingShortLink || !originalUrl || !customSlug} 
+                  className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl shadow-lg shadow-gray-200 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                >
+                  {isCreatingShortLink ? 'Creating...' : 'Create Link'}
+                </button>
+              </div>
+            </div>
+
+            {shortLinks.length > 0 && (
+              <div className="mt-8 border-t border-gray-100 pt-6">
+                <h4 className="font-bold text-gray-900 mb-4">Created Links</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-[10px] uppercase tracking-wider text-gray-400 bg-gray-50/50">
+                      <tr>
+                        <th className="px-4 py-3 font-bold rounded-l-xl">Slug</th>
+                        <th className="px-4 py-3 font-bold">Original URL</th>
+                        <th className="px-4 py-3 font-bold text-center">Visits</th>
+                        <th className="px-4 py-3 font-bold rounded-r-xl">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {shortLinks.map(link => (
+                        <tr key={link.slug} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-indigo-600">
+                            <a href={`https://www.halalottawa.ca/go/${link.slug}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                              https://www.halalottawa.ca/go/{link.slug}
+                            </a>
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate" title={link.originalUrl}>
+                            {link.originalUrl}
+                          </td>
+                          <td className="px-4 py-3 text-center font-medium text-gray-900">
+                            {link.visits || 0}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => handleDeleteShortLink(link.slug)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                              title="Delete short link"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
