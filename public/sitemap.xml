@@ -86,597 +86,972 @@
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers,Restaurants/al-kalaa-mini-market</loc>
+    <loc>https://www.halalottawa.ca/grocery/al-kalaa-mini-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/cedar-valley-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/tasty-junction</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/machboos</loc>
+    <loc>https://www.halalottawa.ca/restaurants/cedar-valley-restaurant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations,Schools/kanata-muslim-association</loc>
+    <loc>https://www.halalottawa.ca/restaurants/hollys-gem-sandwiches</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/damas-supermarket</loc>
+    <loc>https://www.halalottawa.ca/restaurants/tajine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Restaurants/maryam-super-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/aseer-time</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/ottawa-muslim-cemetery</loc>
+    <loc>https://www.halalottawa.ca/restaurants/machboos</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/mezbaan-restaurant</loc>
+    <loc>https://www.halalottawa.ca/organizations/islam-care-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sultan-suleyman-turkish-cuisine</loc>
+    <loc>https://www.halalottawa.ca/mosques/kanata-muslim-association</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/laheeb-elite</loc>
+    <loc>https://www.halalottawa.ca/grocery/damas-supermarket</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/divan-turkish-cuisine</loc>
+    <loc>https://www.halalottawa.ca/grocery/maryam-super-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sabaya-shack</loc>
+    <loc>https://www.halalottawa.ca/organizations/ottawa-muslim-cemetery</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/barrhaven-islamic-centre</loc>
+    <loc>https://www.halalottawa.ca/restaurants/mezbaan-restaurant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/les-grillades</loc>
+    <loc>https://www.halalottawa.ca/restaurants/tawheed-bakery</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Clothing/misk-boutique</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sultan-suleyman-turkish-cuisine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/african-bbq-house</loc>
+    <loc>https://www.halalottawa.ca/restaurants/laheeb-elite</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/saigon-bistro</loc>
+    <loc>https://www.halalottawa.ca/restaurants/divan-turkish-cuisine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/masjid-bilal</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sabaya-shack</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/aladdin-grocery-meat-shop</loc>
+    <loc>https://www.halalottawa.ca/mosques/barrhaven-islamic-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/ya-habibi</loc>
+    <loc>https://www.halalottawa.ca/restaurants/les-grillades</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/abdullah-issa-masjid</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sindbad-bakery</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/mr-kabab</loc>
+    <loc>https://www.halalottawa.ca/clothing/misk-boutique</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/the-egyptian-corner</loc>
+    <loc>https://www.halalottawa.ca/restaurants/african-bbq-house</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/mc-halal-meat-grocery</loc>
+    <loc>https://www.halalottawa.ca/clothing/sabad-modest-wear</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/the-garlic-king</loc>
+    <loc>https://www.halalottawa.ca/grocery/moussa-market-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/digbys-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/saigon-bistro</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Schools,Organizations/alnour-school</loc>
+    <loc>https://www.halalottawa.ca/mosques/bayshore-musalla</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/salang-kabob-house</loc>
+    <loc>https://www.halalottawa.ca/mosques/masjid-bilal</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Restaurants/chelia</loc>
+    <loc>https://www.halalottawa.ca/grocery/aladdin-grocery-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/jami-omar</loc>
+    <loc>https://www.halalottawa.ca/mosques/masjid-taqwa</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/shawarma-king</loc>
+    <loc>https://www.halalottawa.ca/restaurants/ya-habibi</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Clothing/newins-boutique</loc>
+    <loc>https://www.halalottawa.ca/mosques/abdullah-issa-masjid</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/shirin-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/smoked-royale</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/eggstatic</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-heaven</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/stittsville-muslim-association</loc>
+    <loc>https://www.halalottawa.ca/restaurants/mr-kabab</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/yummy-touch-kitchen</loc>
+    <loc>https://www.halalottawa.ca/restaurants/zaytoun-pizza</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/falafel-on-wheels</loc>
+    <loc>https://www.halalottawa.ca/restaurants/the-egyptian-corner</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/moes-bbq</loc>
+    <loc>https://www.halalottawa.ca/grocery/mc-halal-meat-grocery</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/maya-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/cozamia</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/rumi-restaurant-afghan-bbq</loc>
+    <loc>https://www.halalottawa.ca/restaurants/saba-palace</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sukkar-house</loc>
+    <loc>https://www.halalottawa.ca/restaurants/the-garlic-king</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/ozzy-food-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/digbys-restaurant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/yaseen-halal-pizza-bakery</loc>
+    <loc>https://www.halalottawa.ca/schools/alnour-school</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/chocomyth</loc>
+    <loc>https://www.halalottawa.ca/restaurants/salang-kabob-house</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Butchers,Grocery,Restaurants/georges-meat-shop</loc>
+    <loc>https://www.halalottawa.ca/restaurants/night-bite</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/jericho</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-master</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/mezbaan-express</loc>
+    <loc>https://www.halalottawa.ca/grocery/chelia</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/dz-house</loc>
+    <loc>https://www.halalottawa.ca/restaurants/chicken-street</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/finga-lickin</loc>
+    <loc>https://www.halalottawa.ca/mosques/jami-omar</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/tacozzo</loc>
+    <loc>https://www.halalottawa.ca/restaurants/laurier-b-international</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Schools/the-learning-garden</loc>
+    <loc>https://www.halalottawa.ca/restaurants/over-rice</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery/shiraz-food-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-king</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/el-sarjinos-pizzeria</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-al-mouna</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/le-casablanca</loc>
+    <loc>https://www.halalottawa.ca/clothing/newins-boutique</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sultan-ahmet-turkish-cuisine</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shirin-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/chahaya-malaysia</loc>
+    <loc>https://www.halalottawa.ca/restaurants/eggstatic</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery/jasmin-market</loc>
+    <loc>https://www.halalottawa.ca/mosques/stittsville-muslim-association</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/agha-turkish-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/yummy-touch-kitchen</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/ottawa-kabab</loc>
+    <loc>https://www.halalottawa.ca/restaurants/falafel-on-wheels</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/imam-ash-shafii-centre</loc>
+    <loc>https://www.halalottawa.ca/restaurants/pizzalicious</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/barada-mart</loc>
+    <loc>https://www.halalottawa.ca/grocery/march-dz</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Clothing/heba-boutique</loc>
+    <loc>https://www.halalottawa.ca/restaurants/moes-bbq</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations,Schools/islamic-society-of-gloucester</loc>
+    <loc>https://www.halalottawa.ca/restaurants/maya-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/laziz-broast-mix-grill</loc>
+    <loc>https://www.halalottawa.ca/mosques/richmond-islamic-community</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/tasty-way</loc>
+    <loc>https://www.halalottawa.ca/restaurants/rumi-restaurant-afghan-bbq</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers,Restaurants/nehles-meat-grocery-bbq-shop</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sukkar-house</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/mac-qurtuba-islamic-centre</loc>
+    <loc>https://www.halalottawa.ca/restaurants/fire-shawarma</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sultan-ahmet-turkish-cuisine</loc>
+    <loc>https://www.halalottawa.ca/restaurants/ozzy-food-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/laheeb-grill</loc>
+    <loc>https://www.halalottawa.ca/grocery/green-fresh-supermarket</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Schools/ottawa-islamic-school</loc>
+    <loc>https://www.halalottawa.ca/restaurants/yaseen-halal-pizza-bakery</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/ottawa-uyghur-centre</loc>
+    <loc>https://www.halalottawa.ca/schools/al-fajr-school</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/turkish-anatolia-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/chocomyth</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/meat-me-outside-halal</loc>
+    <loc>https://www.halalottawa.ca/restaurants/taste-junction</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Schools/ummaty-school</loc>
+    <loc>https://www.halalottawa.ca/butchers/georges-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/ali-baba-bakery</loc>
+    <loc>https://www.halalottawa.ca/restaurants/jericho</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Restaurants/tayba-mart</loc>
+    <loc>https://www.halalottawa.ca/restaurants/mezbaan-express</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/kara-mia</loc>
+    <loc>https://www.halalottawa.ca/restaurants/dz-house</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/centretown-mosque</loc>
+    <loc>https://www.halalottawa.ca/restaurants/finga-lickin</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/al-oumara-butcher-grill</loc>
+    <loc>https://www.halalottawa.ca/restaurants/tacozzo</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/student-tasty-biryani-by-otaaq-cuisine</loc>
+    <loc>https://www.halalottawa.ca/grocery/barwaaqo-food-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/grilled-shawarma</loc>
+    <loc>https://www.halalottawa.ca/schools/the-learning-garden</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/shawarma-byte</loc>
+    <loc>https://www.halalottawa.ca/restaurants/shiraz-food-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques/ottawa-muslim-association</loc>
+    <loc>https://www.halalottawa.ca/grocery/tayebat-al-sham</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/supreme-kabob-house</loc>
+    <loc>https://www.halalottawa.ca/restaurants/el-sarjinos-pizzeria</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/baghlan-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/le-casablanca</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants,Grocery,Butchers/ottawa-halal-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sultan-ahmet-turkish-cuisine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations,Schools/snmc</loc>
+    <loc>https://www.halalottawa.ca/grocery/sm-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/shawarma-maestro</loc>
+    <loc>https://www.halalottawa.ca/restaurants/chahaya-malaysia</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/istanbul-food-mart</loc>
+    <loc>https://www.halalottawa.ca/grocery/jasmin-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/jajy-chicken-grill</loc>
+    <loc>https://www.halalottawa.ca/mosques/darul-uloom-ottawa</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/bukhari-community-centre</loc>
+    <loc>https://www.halalottawa.ca/restaurants/agha-turkish-restaurant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/khalil-seafood</loc>
+    <loc>https://www.halalottawa.ca/restaurants/ottawa-kabab</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Schools/jamia-islamia</loc>
+    <loc>https://www.halalottawa.ca/mosques/imam-ash-shafii-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/karahi-boys</loc>
+    <loc>https://www.halalottawa.ca/grocery/barada-mart</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/sahara</loc>
+    <loc>https://www.halalottawa.ca/clothing/heba-boutique</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers,Restaurants/new-middle-east-market</loc>
+    <loc>https://www.halalottawa.ca/butchers/mr-beef</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/boustan</loc>
+    <loc>https://www.halalottawa.ca/mosques/islamic-society-of-gloucester</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Restaurants,Butchers/al-mokhtar-food-centre</loc>
+    <loc>https://www.halalottawa.ca/restaurants/laziz-broast-mix-grill</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/hadhramout-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/la-bnoise</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Mosques,Organizations/assalam-mosque</loc>
+    <loc>https://www.halalottawa.ca/restaurants/tasty-way</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/uncle-alis-super-market</loc>
+    <loc>https://www.halalottawa.ca/restaurants/undergrounds</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/shawarma-chef</loc>
+    <loc>https://www.halalottawa.ca/grocery/nehles-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Organizations/hci-musalla</loc>
+    <loc>https://www.halalottawa.ca/mosques/mac-qurtuba-islamic-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/al-batoul-market-butchery</loc>
+    <loc>https://www.halalottawa.ca/butchers/al-furat-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Butchers,Restaurants/the-spring-butchery</loc>
+    <loc>https://www.halalottawa.ca/grocery/albion-meat-shop</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/shawarma-de-roza</loc>
+    <loc>https://www.halalottawa.ca/mosques/alshareef-islamic-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/mr-kaak</loc>
+    <loc>https://www.halalottawa.ca/grocery/north-af-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/tia-mart</loc>
+    <loc>https://www.halalottawa.ca/restaurants/baklawa-king</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Grocery,Butchers/ameer-grocery-and-meat-shop</loc>
+    <loc>https://www.halalottawa.ca/restaurants/thai-panda</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/cheese-and-olives</loc>
+    <loc>https://www.halalottawa.ca/grocery/wissam-fruits</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/altay-flame-uyghur-cuisine</loc>
+    <loc>https://www.halalottawa.ca/restaurants/bab-marrakech</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/kumpir-house</loc>
+    <loc>https://www.halalottawa.ca/restaurants/sultan-ahmet-turkish-cuisine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/a-la-istanbul-turkish-cuisine</loc>
+    <loc>https://www.halalottawa.ca/restaurants/laheeb-grill</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/mocha-mirage-caf</loc>
+    <loc>https://www.halalottawa.ca/mosques/darul-ummah</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/haus-of-chaa</loc>
+    <loc>https://www.halalottawa.ca/schools/ottawa-islamic-school</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/wok-chop</loc>
+    <loc>https://www.halalottawa.ca/mosques/ottawa-uyghur-centre</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/pita-bell-kabab</loc>
+    <loc>https://www.halalottawa.ca/restaurants/turkish-anatolia-restaurant</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/pak-india-restaurant</loc>
+    <loc>https://www.halalottawa.ca/restaurants/meat-me-outside-halal</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/Restaurants/big-h-shawarma-poutine</loc>
+    <loc>https://www.halalottawa.ca/schools/ummaty-school</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/fat-sisters-falafels-1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/ali-baba-bakery</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/gacan-macaan-snack-caf</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/tayba-mart</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/hermas-fruits</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/clothing/hoda-fashion-store</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/alkadour-sweets</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/kara-mia</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/istanbul-cultural-house-caf</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/mosques/centretown-mosque</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/al-oumara-butcher-grill</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/schools/izzah-learning-center</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/student-tasty-biryani-by-otaaq-cuisine</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/purplex</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/grilled-shawarma</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-byte</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/mosques/ottawa-muslim-association</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/supreme-kabob-house</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/baghlan-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/expresso-cafe</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/ottawa-halal-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/la-zone-23</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/lebanese-food-centre-bakery</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/les-saveurs-du-maghreb</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/mosques/snmc</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/ar-food-mart</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-maestro</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/march-al-andalous-1</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/mermaids-seafood-restaurant</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/moroccan-market-centre</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/barrhaven-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/istanbul-food-mart</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/jajy-chicken-grill</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/mosques/bukhari-community-centre</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/khalil-seafood</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/schools/jamia-islamia</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/karahi-boys</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/sahara</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/new-middle-east-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/butchers/boucherie-mditerranenne</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/boustan</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/boucherie-atlas</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/al-mokhtar-food-centre</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/schools/darun-noor</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/hadhramout-restaurant</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/mosques/assalam-mosque</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/uncle-alis-super-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/sam-a-fruits</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-time-place</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/sindbad-grill-bakery</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-chef</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/organizations/hci-musalla</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/organizations/sadaqa-food-bank</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/al-batoul-market</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/killer-buns</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/syrianas-sweets</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/butchers/the-spring-butchery</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/shawarma-de-roza</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/mr-kaak</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/caspian-pizza</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/lagora-des-saveurs</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/tia-mart</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/grocery/ameer-grocery-and-meat-shop</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/cheese-and-olives</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/altay-flame-uyghur-cuisine</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/kumpir-house</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/a-la-istanbul-turkish-cuisine</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/mocha-mirage-caf</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/mr-laziz</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/haus-of-chaa</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/happy-rolls</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/wok-chop</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/pita-bell-kabab</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/pak-india-restaurant</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/big-h-shawarma-poutine</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -736,6 +1111,11 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/news/kadoushi-celebrates-its-grand-opening-tomorrow-with-499-falafel-sandwiches</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/events/ama-garden-club-launch</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -751,7 +1131,17 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/events/under-his-shade</loc>
+    <loc>https://www.halalottawa.ca/events/ottawa-kitab-book-fair-2026</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/events/arafah-street-iftar</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/events/eid-night-market</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>

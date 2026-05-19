@@ -38,20 +38,25 @@ async function startServer() {
          return res.status(400).json({ error: "No file content received" });
       }
       
-      // If Vercel Blob is configured locally, upload there
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
-        const { put } = await import('@vercel/blob');
-        const procBuffer = await sharp(buffer)
-          .webp({ quality: 90, effort: 6 })
-          .toBuffer();
+      // Upload to Netlify Blobs
+      try {
+        if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+          const { getStore } = await import("@netlify/blobs");
+          const store = getStore({ name: "uploads" });
           
-        const blob = await put(`${cleanName}.webp`, procBuffer, { 
-          access: 'public',
-          contentType: 'image/webp',
-          addRandomSuffix: false,
-          allowOverwrite: true
-        });
-        return res.json({ url: blob.url });
+          const procBuffer = await sharp(buffer)
+            .webp({ quality: 90, effort: 6 })
+            .toBuffer();
+          
+          const finalName = `${Date.now()}-${cleanName}.webp`;
+          await store.set(finalName, procBuffer, {
+            metadata: { contentType: "image/webp" }
+          });
+          
+          return res.json({ url: `/api/images/${finalName}` });
+        }
+      } catch (blobError) {
+        console.error("Netlify Blobs upload error:", blobError);
       }
 
       // Fallback: local disk upload
@@ -115,20 +120,25 @@ async function startServer() {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // If Vercel Blob is configured locally, upload there
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
-        const { put } = await import('@vercel/blob');
-        const procBuffer = await sharp(buffer)
-          .webp({ quality: 90, effort: 6 })
-          .toBuffer();
+      // Upload to Netlify Blobs
+      try {
+        if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+          const { getStore } = await import("@netlify/blobs");
+          const store = getStore({ name: "uploads" });
           
-        const blob = await put(`${cleanName}.webp`, procBuffer, { 
-          access: 'public',
-          contentType: 'image/webp',
-          addRandomSuffix: false,
-          allowOverwrite: true
-        });
-        return res.json({ url: blob.url });
+          const procBuffer = await sharp(buffer)
+            .webp({ quality: 90, effort: 6 })
+            .toBuffer();
+          
+          const finalName = `${Date.now()}-${cleanName}.webp`;
+          await store.set(finalName, procBuffer, {
+            metadata: { contentType: "image/webp" }
+          });
+          
+          return res.json({ url: `/api/images/${finalName}` });
+        }
+      } catch (blobError) {
+        console.error("Netlify Blobs upload error:", blobError);
       }
 
       // Fallback: local disk upload
@@ -144,6 +154,45 @@ async function startServer() {
       console.error("Error processing image from URL:", error);
       res.status(500).json({ error: "Failed to process image from URL" });
     }
+  });
+
+  // Serve images from Netlify Blobs
+  app.get("/api/images/:key", async (req, res) => {
+    try {
+      if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+        const { getStore } = await import("@netlify/blobs");
+        const store = getStore({ name: "uploads" });
+        
+        const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
+        
+        if (!blobInfo || !blobInfo.data) {
+          return res.status(404).send("Image not found in Blobs");
+        }
+        
+        res.setHeader("Content-Type", Object(blobInfo.metadata).contentType || "image/webp");
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        
+        const stream = blobInfo.data as any; // ReadableStream
+        
+        // Node's Web Streams standard handling or fallback
+        if (stream.pipe) {
+           stream.pipe(res);
+        } else {
+           // Conversion logic roughly equivalent to standard streams 
+           const reader = stream.getReader();
+           while (true) {
+             const { done, value } = await reader.read();
+             if (done) break;
+             res.write(value);
+           }
+           res.end();
+        }
+        return;
+      }
+    } catch (e) {
+      console.error("Error serving blob:", e);
+    }
+    return res.status(404).send("Not found");
   });
 
   // API routes can be added here

@@ -142,4 +142,7 @@ async function generateSitemap() {
   console.log(`Sitemap written to ${outputPath}`);
 }
 
-generateSitemap().catch(console.error);
+generateSitemap().then(() => process.exit(0)).catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

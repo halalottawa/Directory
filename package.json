@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
+    "@netlify/blobs": "^10.7.8",
     "@tailwindcss/vite": "^4.1.14",
-    "@vercel/blob": "^2.3.3",
     "@vitejs/plugin-react": "^5.0.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
@@ -36,6 +36,7 @@
     "react-router-dom": "^7.13.1",
     "recharts": "^3.8.1",
     "resend": "^6.9.4",
+    "serverless-http": "^4.0.0",
     "sharp": "^0.34.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
