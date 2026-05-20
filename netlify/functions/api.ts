@@ -45,8 +45,8 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
         .toBuffer();
       
       const finalName = `${cleanName}.webp`;
-      const blobData = new Blob([procBuffer], { type: 'image/webp' });
-      await store.set(finalName, blobData, {
+      const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
+      await store.set(finalName, arrayBuf, {
         metadata: { contentType: "image/webp" }
       });
       
@@ -102,8 +102,8 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
         .toBuffer();
       
       const finalName = `${cleanName}.webp`;
-      const blobData = new Blob([procBuffer], { type: 'image/webp' });
-      await store.set(finalName, blobData, {
+      const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
+      await store.set(finalName, arrayBuf, {
         metadata: { contentType: "image/webp" }
       });
       
