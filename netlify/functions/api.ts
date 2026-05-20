@@ -45,7 +45,8 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
         .toBuffer();
       
       const finalName = `${cleanName}.webp`;
-      await store.set(finalName, procBuffer, {
+      const blobData = new Uint8Array(procBuffer).buffer;
+      await store.set(finalName, blobData, {
         metadata: { contentType: "image/webp" }
       });
       
@@ -101,7 +102,8 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
         .toBuffer();
       
       const finalName = `${cleanName}.webp`;
-      await store.set(finalName, procBuffer, {
+      const blobData = new Uint8Array(procBuffer).buffer;
+      await store.set(finalName, blobData, {
         metadata: { contentType: "image/webp" }
       });
       
@@ -130,7 +132,7 @@ app.get("/api/images/:key", async (req, res) => {
       }
       const store = getStore(storeOptions);
       
-      const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
+      const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
       
       if (!blobInfo || !blobInfo.data) {
         return res.status(404).send("Image not found in Blobs");
@@ -139,16 +141,7 @@ app.get("/api/images/:key", async (req, res) => {
       res.setHeader("Content-Type", Object(blobInfo.metadata).contentType || "image/webp");
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
       
-      const stream = blobInfo.data as any; // ReadableStream
-      
-      // Conversion logic for web streams to node response
-      const reader = stream.getReader();
-      while (true) {
-         const { done, value } = await reader.read();
-         if (done) break;
-         res.write(value);
-      }
-      return res.end();
+      return res.end(Buffer.from(blobInfo.data));
     }
   } catch (e) {
     console.error("Error serving blob:", e);
