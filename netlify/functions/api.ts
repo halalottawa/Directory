@@ -10,6 +10,63 @@ const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+interface FormatDetails {
+  ext: string;
+  mime: string;
+}
+
+function getFormatDetails(format: string): FormatDetails {
+  const f = format.toLowerCase();
+  switch (f) {
+    case "png":
+      return { ext: "png", mime: "image/png" };
+    case "jpeg":
+    case "jpg":
+      return { ext: "jpg", mime: "image/jpeg" };
+    case "gif":
+      return { ext: "gif", mime: "image/gif" };
+    case "webp":
+      return { ext: "webp", mime: "image/webp" };
+    case "svg":
+      return { ext: "svg", mime: "image/svg+xml" };
+    default:
+      return { ext: "jpg", mime: "image/jpeg" };
+  }
+}
+
+function getContentTypeFromKey(key: string): string {
+  const ext = path.extname(key).toLowerCase();
+  switch (ext) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".gif":
+      return "image/gif";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "image/webp";
+  }
+}
+
+// Utility to get Netlify store securely
+// If we have API token credentials (like in dev / local environment), we supply them.
+// In actual Netlify production, we leave options blank so Netlify automatically resolves local site credentials correctly.
+function getStoreSafe() {
+  const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+  if (hasCredentials) {
+    return getStore("uploads", {
+      siteID: process.env.NETLIFY_SITE_ID,
+      token: process.env.NETLIFY_API_TOKEN
+    });
+  }
+  return getStore("uploads");
+}
+
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
@@ -26,34 +83,50 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
        return res.status(400).json({ error: "No file content received" });
     }
     
-    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
-
-    if (isNetlifyEnv || hasCredentials || hasOther) {
-      const storeOptions: any = { name: "uploads" };
-      if (hasCredentials) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-        storeOptions.token = process.env.NETLIFY_API_TOKEN;
-      } else if (process.env.NETLIFY_SITE_ID) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-      }
-      const store = getStore(storeOptions);
-      
-      const procBuffer = await sharp(buffer)
-        .webp({ quality: 90, effort: 6 })
-        .toBuffer();
-      
-      const finalName = `${cleanName}.webp`;
-      const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
-      await store.set(finalName, arrayBuf, {
-        metadata: { contentType: "image/webp" }
-      });
-      
-      return res.json({ url: `/api/images/${finalName}` });
+    // Detect format
+    let format = "";
+    try {
+      const metadata = await sharp(buffer).metadata();
+      format = metadata.format || "";
+    } catch (e) {
+      console.warn("Sharp metadata readout failed, trying filename ext:", e);
     }
+
+    if (!format) {
+      const ext = path.extname(filenameStr).toLowerCase();
+      if (ext === ".png") format = "png";
+      else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
+      else if (ext === ".gif") format = "gif";
+      else if (ext === ".webp") format = "webp";
+      else if (ext === ".svg") format = "svg";
+    }
+
+    const details = getFormatDetails(format || "jpg");
+
+    // Dynamic Optimization (Keeping the Original Format!)
+    let procBuffer = buffer;
+    try {
+      if (details.ext === "jpg" || details.ext === "jpeg") {
+        procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
+      } else if (details.ext === "png") {
+        procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
+      } else if (details.ext === "webp") {
+        procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
+      }
+    } catch (err) {
+      console.error("Error optimizing image with sharp, using raw buffer instead:", err);
+      procBuffer = buffer;
+    }
+
+    const store = getStoreSafe();
+    const finalName = `${cleanName}.${details.ext}`;
+    const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
     
-    res.status(500).json({ error: "Netlify Blobs is not configured." });
+    await store.set(finalName, arrayBuf, {
+      metadata: { contentType: details.mime }
+    });
+    
+    return res.json({ url: `/api/images/${finalName}` });
   } catch (error) {
     console.error("Error processing image:", error);
     res.status(500).json({ error: "Failed to process image", details: error instanceof Error ? error.message : String(error) });
@@ -83,33 +156,52 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
-
-    if (isNetlifyEnv || hasCredentials || hasOther) {
-      const storeOptions: any = { name: "uploads" };
-      if (hasCredentials) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-        storeOptions.token = process.env.NETLIFY_API_TOKEN;
-      } else if (process.env.NETLIFY_SITE_ID) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-      }
-      const store = getStore(storeOptions);
-      
-      const procBuffer = await sharp(buffer)
-        .webp({ quality: 90, effort: 6 })
-        .toBuffer();
-      
-      const finalName = `${cleanName}.webp`;
-      const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
-      await store.set(finalName, arrayBuf, {
-        metadata: { contentType: "image/webp" }
-      });
-      
-      return res.json({ url: `/api/images/${finalName}` });
+    // Detect format
+    let format = "";
+    try {
+      const metadata = await sharp(buffer).metadata();
+      format = metadata.format || "";
+    } catch (e) {
+      console.warn("Sharp metadata readout failed:", e);
     }
-    res.status(500).json({ error: "Netlify Blobs is not configured." });
+
+    // Fallback to fetch URL extension
+    if (!format) {
+      const parsedUrl = new URL(url);
+      const ext = path.extname(parsedUrl.pathname).toLowerCase();
+      if (ext === ".png") format = "png";
+      else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
+      else if (ext === ".gif") format = "gif";
+      else if (ext === ".webp") format = "webp";
+      else if (ext === ".svg") format = "svg";
+    }
+
+    const details = getFormatDetails(format || "jpg");
+
+    // Dynamic Optimization (Keeping the Original Format!)
+    let procBuffer = buffer;
+    try {
+      if (details.ext === "jpg" || details.ext === "jpeg") {
+        procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
+      } else if (details.ext === "png") {
+        procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
+      } else if (details.ext === "webp") {
+        procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
+      }
+    } catch (err) {
+      console.error("Error optimizing downloaded image with sharp, using raw buffer instead:", err);
+      procBuffer = buffer;
+    }
+
+    const store = getStoreSafe();
+    const finalName = `${cleanName}.${details.ext}`;
+    const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
+    
+    await store.set(finalName, arrayBuf, {
+      metadata: { contentType: details.mime }
+    });
+    
+    return res.json({ url: `/api/images/${finalName}` });
   } catch (error) {
     console.error("Error processing image from URL:", error);
     res.status(500).json({ error: "Failed to process image from URL", details: error instanceof Error ? error.message : String(error) });
@@ -118,35 +210,22 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
 
 app.get("/api/images/:key", async (req, res) => {
   try {
-    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
-
-    if (isNetlifyEnv || hasCredentials || hasOther) {
-      const storeOptions: any = { name: "uploads" };
-      if (hasCredentials) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-        storeOptions.token = process.env.NETLIFY_API_TOKEN;
-      } else if (process.env.NETLIFY_SITE_ID) {
-        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-      }
-      const store = getStore(storeOptions);
-      
-      const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
-      
-      if (!blobInfo || !blobInfo.data) {
-        return res.status(404).send("Image not found in Blobs");
-      }
-      
-      res.setHeader("Content-Type", Object(blobInfo.metadata).contentType || "image/webp");
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-      
-      return res.end(Buffer.from(blobInfo.data));
+    const store = getStoreSafe();
+    const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
+    
+    if (!blobInfo || !blobInfo.data) {
+      return res.status(404).send("Image not found in Blobs");
     }
+    
+    const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(req.params.key);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    
+    return res.end(Buffer.from(blobInfo.data));
   } catch (e) {
     console.error("Error serving blob:", e);
   }
   return res.status(404).send("Not found");
 });
 
-export const handler = serverless(app);
+export const handler = serverless(app, { binary: ["image/*"] });

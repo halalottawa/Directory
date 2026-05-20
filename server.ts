@@ -7,6 +7,49 @@ import multer from "multer";
 import fs from "fs";
 import sharp from "sharp";
 
+interface FormatDetails {
+  ext: string;
+  mime: string;
+}
+
+function getFormatDetails(format: string): FormatDetails {
+  const f = format.toLowerCase();
+  switch (f) {
+    case "png":
+      return { ext: "png", mime: "image/png" };
+    case "jpeg":
+    case "jpg":
+      return { ext: "jpg", mime: "image/jpeg" };
+    case "gif":
+      return { ext: "gif", mime: "image/gif" };
+    case "webp":
+      return { ext: "webp", mime: "image/webp" };
+    case "svg":
+      return { ext: "svg", mime: "image/svg+xml" };
+    default:
+      return { ext: "jpg", mime: "image/jpeg" };
+  }
+}
+
+function getContentTypeFromKey(key: string): string {
+  const ext = path.extname(key).toLowerCase();
+  switch (ext) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".gif":
+      return "image/gif";
+    case ".svg":
+      return "image/svg+xml";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "image/webp";
+  }
+}
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -29,17 +72,50 @@ async function startServer() {
       const filenameStr = typeof req.query.filename === 'string' ? req.query.filename : `upload-${Date.now()}.jpg`;
       const providedName = filenameStr.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
       
-      const extMatch = providedName.match(/\.([a-z0-9]+)$/i);
-      const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
       const cleanName = providedName.replace(/\.[^/.]+$/, "");
-      const filename = `${cleanName}.webp`;
-
       const buffer = req.body;
       
       if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
          return res.status(400).json({ error: "No file content received" });
       }
       
+      // Detect format
+      let format = "";
+      try {
+        const metadata = await sharp(buffer).metadata();
+        format = metadata.format || "";
+      } catch (e) {
+        console.warn("Sharp metadata readout failed, trying filename ext:", e);
+      }
+
+      if (!format) {
+        const ext = path.extname(filenameStr).toLowerCase();
+        if (ext === ".png") format = "png";
+        else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
+        else if (ext === ".gif") format = "gif";
+        else if (ext === ".webp") format = "webp";
+        else if (ext === ".svg") format = "svg";
+      }
+
+      const details = getFormatDetails(format || "jpg");
+
+      // Dynamic Optimization (Keeping the Original Format!)
+      let procBuffer = buffer;
+      try {
+        if (details.ext === "jpg" || details.ext === "jpeg") {
+          procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
+        } else if (details.ext === "png") {
+          procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
+        } else if (details.ext === "webp") {
+          procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
+        }
+      } catch (err) {
+        console.error("Error optimizing image with sharp, using raw buffer instead:", err);
+        procBuffer = buffer;
+      }
+
+      const finalName = `${cleanName}.${details.ext}`;
+
       // Upload to Netlify Blobs
       try {
         const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
@@ -53,13 +129,10 @@ async function startServer() {
           }
           const store = getStore(storeOptions);
           
-          const procBuffer = await sharp(buffer)
-            .webp({ quality: 90, effort: 6 })
-            .toBuffer();
+          const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
           
-          const finalName = `${cleanName}.webp`;
-          await store.set(finalName, procBuffer, {
-            metadata: { contentType: "image/webp" }
+          await store.set(finalName, arrayBuf, {
+            metadata: { contentType: details.mime }
           });
           
           return res.json({ url: `/api/images/${finalName}` });
@@ -69,15 +142,11 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      const procBuffer = await sharp(buffer)
-        .webp({ quality: 90, effort: 6 })
-        .toBuffer();
-      const wFilename = `${cleanName}.webp`;
-      const outputPath = path.join(uploadDir, wFilename);
+      const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
       // Return the relative URL to access the file
-      const url = `/uploads/${wFilename}`;
+      const url = `/uploads/${finalName}`;
       res.json({ url });
     } catch (error) {
       console.error("Error processing image:", error);
@@ -96,19 +165,18 @@ async function startServer() {
       const cleanName = name ? name.toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
       
       const urlWithoutQuery = url.split('?')[0];
-      const extMatch = urlWithoutQuery.match(/\.([a-z0-9]+)$/i);
-      let initialExt = extMatch ? extMatch[1].toLowerCase() : 'jpg';
-      let filename = `${cleanName}.${initialExt}`;
 
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
         const srcPath = path.join(process.cwd(), 'public', url);
-        const outputPath = path.join(uploadDir, filename);
+        const urlExt = path.extname(urlWithoutQuery).toLowerCase() || '.jpg';
+        const finalName = `${cleanName}${urlExt}`;
+        const outputPath = path.join(uploadDir, finalName);
         if (fs.existsSync(srcPath)) {
           if (srcPath !== outputPath) {
             fs.copyFileSync(srcPath, outputPath);
           }
-          return res.json({ url: `/uploads/${filename}` });
+          return res.json({ url: `/uploads/${finalName}` });
         }
         return res.json({ url });
       }
@@ -129,6 +197,44 @@ async function startServer() {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
+      // Detect format
+      let format = "";
+      try {
+        const metadata = await sharp(buffer).metadata();
+        format = metadata.format || "";
+      } catch (e) {
+        console.warn("Sharp metadata readout failed:", e);
+      }
+
+      // Fallback to fetch URL extension
+      if (!format) {
+        const ext = path.extname(urlWithoutQuery).toLowerCase();
+        if (ext === ".png") format = "png";
+        else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
+        else if (ext === ".gif") format = "gif";
+        else if (ext === ".webp") format = "webp";
+        else if (ext === ".svg") format = "svg";
+      }
+
+      const details = getFormatDetails(format || "jpg");
+
+      // Dynamic Optimization (Keeping the Original Format!)
+      let procBuffer = buffer;
+      try {
+        if (details.ext === "jpg" || details.ext === "jpeg") {
+          procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
+        } else if (details.ext === "png") {
+          procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
+        } else if (details.ext === "webp") {
+          procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
+        }
+      } catch (err) {
+        console.error("Error optimizing downloaded image with sharp, using raw buffer instead:", err);
+        procBuffer = buffer;
+      }
+
+      const finalName = `${cleanName}.${details.ext}`;
+
       // Upload to Netlify Blobs
       try {
         const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
@@ -142,13 +248,10 @@ async function startServer() {
           }
           const store = getStore(storeOptions);
           
-          const procBuffer = await sharp(buffer)
-            .webp({ quality: 90, effort: 6 })
-            .toBuffer();
+          const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
           
-          const finalName = `${cleanName}.webp`;
-          await store.set(finalName, procBuffer, {
-            metadata: { contentType: "image/webp" }
+          await store.set(finalName, arrayBuf, {
+            metadata: { contentType: details.mime }
           });
           
           return res.json({ url: `/api/images/${finalName}` });
@@ -158,14 +261,10 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      const procBuffer = await sharp(buffer)
-        .webp({ quality: 90, effort: 6 })
-        .toBuffer();
-      const wFilename = `${cleanName}.webp`;
-      const outputPath = path.join(uploadDir, wFilename);
+      const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
-      res.json({ url: `/uploads/${wFilename}` });
+      res.json({ url: `/uploads/${finalName}` });
     } catch (error) {
       console.error("Error processing image from URL:", error);
       res.status(500).json({ error: "Failed to process image from URL" });
@@ -186,31 +285,17 @@ async function startServer() {
         }
         const store = getStore(storeOptions);
         
-        const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
+        const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
         
         if (!blobInfo || !blobInfo.data) {
           return res.status(404).send("Image not found in Blobs");
         }
         
-        res.setHeader("Content-Type", Object(blobInfo.metadata).contentType || "image/webp");
+        const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(req.params.key);
+        res.setHeader("Content-Type", contentType);
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         
-        const stream = blobInfo.data as any; // ReadableStream
-        
-        // Node's Web Streams standard handling or fallback
-        if (stream.pipe) {
-           stream.pipe(res);
-        } else {
-           // Conversion logic roughly equivalent to standard streams 
-           const reader = stream.getReader();
-           while (true) {
-             const { done, value } = await reader.read();
-             if (done) break;
-             res.write(value);
-           }
-           res.end();
-        }
-        return;
+        return res.end(Buffer.from(blobInfo.data));
       }
     } catch (e) {
       console.error("Error serving blob:", e);
