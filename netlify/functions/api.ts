@@ -2,6 +2,8 @@ import serverless from "serverless-http";
 import express from "express";
 import path from "path";
 import multer from "multer";
+import sharp from "sharp";
+import { getStore } from "@netlify/blobs";
 
 const app = express();
 
@@ -29,8 +31,6 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
     const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
 
     if (isNetlifyEnv || hasCredentials || hasOther) {
-      const { getStore } = await import("@netlify/blobs");
-      const sharp = (await import("sharp")).default;
       const storeOptions: any = { name: "uploads" };
       if (hasCredentials) {
         storeOptions.siteID = process.env.NETLIFY_SITE_ID;
@@ -55,7 +55,7 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
     res.status(500).json({ error: "Netlify Blobs is not configured." });
   } catch (error) {
     console.error("Error processing image:", error);
-    res.status(500).json({ error: "Failed to process image" });
+    res.status(500).json({ error: "Failed to process image", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -87,8 +87,6 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
     const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
 
     if (isNetlifyEnv || hasCredentials || hasOther) {
-      const { getStore } = await import("@netlify/blobs");
-      const sharp = (await import("sharp")).default;
       const storeOptions: any = { name: "uploads" };
       if (hasCredentials) {
         storeOptions.siteID = process.env.NETLIFY_SITE_ID;
@@ -112,7 +110,7 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
     res.status(500).json({ error: "Netlify Blobs is not configured." });
   } catch (error) {
     console.error("Error processing image from URL:", error);
-    res.status(500).json({ error: "Failed to process image from URL" });
+    res.status(500).json({ error: "Failed to process image from URL", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
@@ -123,7 +121,6 @@ app.get("/api/images/:key", async (req, res) => {
     const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
 
     if (isNetlifyEnv || hasCredentials || hasOther) {
-      const { getStore } = await import("@netlify/blobs");
       const storeOptions: any = { name: "uploads" };
       if (hasCredentials) {
         storeOptions.siteID = process.env.NETLIFY_SITE_ID;
