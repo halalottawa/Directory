@@ -146,10 +146,10 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
               {isProfileDropdownOpen && (
                 <>
                   <div 
-                    className="fixed inset-0 z-40 hidden md:block" 
+                    className="fixed inset-0 z-40" 
                     onClick={() => setIsProfileDropdownOpen(false)}
                   />
-                  <div className="absolute right-0 mt-4 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in slide-in-from-top-4 duration-200 hidden md:block">
+                  <div className="absolute right-0 mt-4 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-3 z-50 animate-in fade-in slide-in-from-top-4 duration-200">
                     <div className="px-5 py-3 border-b border-gray-50 mb-2">
                       <p className="text-sm font-black text-gray-900 truncate">{user.name || user.email}</p>
                       <p className="text-xs text-gray-400 truncate">{user.email}</p>
@@ -239,74 +239,6 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             </div>
             
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
-              {user ? (
-                <nav className="">
-                  <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Account</p>
-                  <Link 
-                    to="/profile" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/profile') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/profile') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <User className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold">My Profile</span>
-                  </Link>
-                  <Link 
-                    to="/saved" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/saved') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/saved') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <Bookmark className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold">Saved Items</span>
-                  </Link>
-                  <Link 
-                    to="/settings" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/settings') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/settings') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <Settings className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold">Settings</span>
-                  </Link>
-                  {user.role === 'admin' && (
-                    <Link 
-                      to="/admin" 
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                        isActive('/admin') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                        isActive('/admin') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                      }`}>
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold">Admin Dashboard</span>
-                    </Link>
-                  )}
-                </nav>
-              ) : (
-                <div className="px-4 py-8 text-center bg-gray-50 rounded-2xl">
-                  <p className="text-gray-500 text-sm font-medium">Please login to access your account menu.</p>
-                </div>
-              )}
-
               <nav>
                 <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Tools</p>
                 <Link 
@@ -324,53 +256,70 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   <span className="font-bold">Qibla Direction</span>
                 </Link>
               </nav>
+
+              <nav>
+                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2 mt-4">Support</p>
+                <div className="space-y-1">
+                  <Link 
+                    to="/faq" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                      isActive('/faq') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                      isActive('/faq') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                    }`}>
+                      <HelpCircle className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold">FAQ</span>
+                  </Link>
+
+                  <Link 
+                    to="/terms" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                      isActive('/terms') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                      isActive('/terms') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                    }`}>
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold">Terms of Service</span>
+                  </Link>
+                  
+                  <Link 
+                    to="/privacy-policy" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                      isActive('/privacy-policy') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                      isActive('/privacy-policy') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                    }`}>
+                      <Shield className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold">Privacy Policy</span>
+                  </Link>
+                </div>
+              </nav>
             </div>
 
-            <div className="p-6 border-t border-gray-50 space-y-4">
-              <div className="flex flex-col gap-2 mb-4">
-                <Link 
-                  to="/privacy-policy" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center justify-start gap-2 py-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:text-[#e90b35] transition-colors"
-                >
-                  <Shield className="w-3 h-3" />
-                  <span>Privacy Policy</span>
-                </Link>
-                <Link 
-                  to="/terms" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center justify-start gap-2 py-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:text-[#e90b35] transition-colors"
-                >
-                  <FileText className="w-3 h-3" />
-                  <span>Terms Of Service</span>
-                </Link>
-                <Link 
-                  to="/faq" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center justify-start gap-2 py-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest hover:text-[#e90b35] transition-colors"
-                >
-                  <HelpCircle className="w-3 h-3" />
-                  <span>FAQ</span>
-                </Link>
-              </div>
-
-              {user ? (
-                <button 
-                  onClick={() => { logout(); setIsMenuOpen(false); }}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-gray-50 text-gray-600 font-bold rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all active:scale-95"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              ) : (
-                <Link 
-                  to="/login" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Login</span>
-                </Link>
+            <div className="p-6 border-t border-gray-50">
+              {!user && (
+                <div className="mt-4">
+                  <Link 
+                    to="/login" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>Login</span>
+                  </Link>
+                </div>
               )}
             </div>
           </div>
