@@ -24,16 +24,27 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
        return res.status(400).json({ error: "No file content received" });
     }
     
-    if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
+
+    if (isNetlifyEnv || hasCredentials || hasOther) {
       const { getStore } = await import("@netlify/blobs");
       const sharp = (await import("sharp")).default;
-      const store = getStore({ name: "uploads" });
+      const storeOptions: any = { name: "uploads" };
+      if (hasCredentials) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+        storeOptions.token = process.env.NETLIFY_API_TOKEN;
+      } else if (process.env.NETLIFY_SITE_ID) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+      }
+      const store = getStore(storeOptions);
       
       const procBuffer = await sharp(buffer)
         .webp({ quality: 90, effort: 6 })
         .toBuffer();
       
-      const finalName = `${Date.now()}-${cleanName}.webp`;
+      const finalName = `${cleanName}.webp`;
       await store.set(finalName, procBuffer, {
         metadata: { contentType: "image/webp" }
       });
@@ -71,16 +82,27 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
+
+    if (isNetlifyEnv || hasCredentials || hasOther) {
       const { getStore } = await import("@netlify/blobs");
       const sharp = (await import("sharp")).default;
-      const store = getStore({ name: "uploads" });
+      const storeOptions: any = { name: "uploads" };
+      if (hasCredentials) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+        storeOptions.token = process.env.NETLIFY_API_TOKEN;
+      } else if (process.env.NETLIFY_SITE_ID) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+      }
+      const store = getStore(storeOptions);
       
       const procBuffer = await sharp(buffer)
         .webp({ quality: 90, effort: 6 })
         .toBuffer();
       
-      const finalName = `${Date.now()}-${cleanName}.webp`;
+      const finalName = `${cleanName}.webp`;
       await store.set(finalName, procBuffer, {
         metadata: { contentType: "image/webp" }
       });
@@ -96,9 +118,20 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
 
 app.get("/api/images/:key", async (req, res) => {
   try {
-    if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+    const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+    const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+    const hasOther = !!(process.env.CONTEXT || process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN);
+
+    if (isNetlifyEnv || hasCredentials || hasOther) {
       const { getStore } = await import("@netlify/blobs");
-      const store = getStore({ name: "uploads" });
+      const storeOptions: any = { name: "uploads" };
+      if (hasCredentials) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+        storeOptions.token = process.env.NETLIFY_API_TOKEN;
+      } else if (process.env.NETLIFY_SITE_ID) {
+        storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+      }
+      const store = getStore(storeOptions);
       
       const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
       
