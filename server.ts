@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config({ override: true });
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
@@ -42,13 +44,13 @@ async function startServer() {
       try {
         if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
           const { getStore } = await import("@netlify/blobs");
-          const store = getStore({ name: "uploads" });
+          const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 90, effort: 6 })
             .toBuffer();
           
-          const finalName = `${Date.now()}-${cleanName}.webp`;
+          const finalName = `${cleanName}.webp`;
           await store.set(finalName, procBuffer, {
             metadata: { contentType: "image/webp" }
           });
@@ -124,13 +126,13 @@ async function startServer() {
       try {
         if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
           const { getStore } = await import("@netlify/blobs");
-          const store = getStore({ name: "uploads" });
+          const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 90, effort: 6 })
             .toBuffer();
           
-          const finalName = `${Date.now()}-${cleanName}.webp`;
+          const finalName = `${cleanName}.webp`;
           await store.set(finalName, procBuffer, {
             metadata: { contentType: "image/webp" }
           });
@@ -161,7 +163,7 @@ async function startServer() {
     try {
       if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
         const { getStore } = await import("@netlify/blobs");
-        const store = getStore({ name: "uploads" });
+        const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
         
         const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
         
