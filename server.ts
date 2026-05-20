@@ -44,7 +44,12 @@ async function startServer() {
       try {
         if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
           const { getStore } = await import("@netlify/blobs");
-          const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
+          const storeOptions: any = { name: "uploads" };
+          if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+            storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+            storeOptions.token = process.env.NETLIFY_API_TOKEN;
+          }
+          const store = getStore(storeOptions);
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 90, effort: 6 })
@@ -126,7 +131,12 @@ async function startServer() {
       try {
         if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
           const { getStore } = await import("@netlify/blobs");
-          const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
+          const storeOptions: any = { name: "uploads" };
+          if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+            storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+            storeOptions.token = process.env.NETLIFY_API_TOKEN;
+          }
+          const store = getStore(storeOptions);
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 90, effort: 6 })
@@ -163,7 +173,12 @@ async function startServer() {
     try {
       if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
         const { getStore } = await import("@netlify/blobs");
-        const store = getStore({ name: "uploads", siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_API_TOKEN });
+        const storeOptions: any = { name: "uploads" };
+        if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+          storeOptions.siteID = process.env.NETLIFY_SITE_ID;
+          storeOptions.token = process.env.NETLIFY_API_TOKEN;
+        }
+        const store = getStore(storeOptions);
         
         const blobInfo = await store.getWithMetadata(req.params.key, { type: "stream" });
         
