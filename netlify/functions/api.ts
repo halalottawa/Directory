@@ -10,30 +10,6 @@ const app = express();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-interface FormatDetails {
-  ext: string;
-  mime: string;
-}
-
-function getFormatDetails(format: string): FormatDetails {
-  const f = format.toLowerCase();
-  switch (f) {
-    case "png":
-      return { ext: "png", mime: "image/png" };
-    case "jpeg":
-    case "jpg":
-      return { ext: "jpg", mime: "image/jpeg" };
-    case "gif":
-      return { ext: "gif", mime: "image/gif" };
-    case "webp":
-      return { ext: "webp", mime: "image/webp" };
-    case "svg":
-      return { ext: "svg", mime: "image/svg+xml" };
-    default:
-      return { ext: "jpg", mime: "image/jpeg" };
-  }
-}
-
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
   switch (ext) {
@@ -83,50 +59,25 @@ app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req,
        return res.status(400).json({ error: "No file content received" });
     }
     
-    // Detect format
-    let format = "";
-    try {
-      const metadata = await sharp(buffer).metadata();
-      format = metadata.format || "";
-    } catch (e) {
-      console.warn("Sharp metadata readout failed, trying filename ext:", e);
-    }
+    const finalName = `${cleanName}.webp`;
 
-    if (!format) {
-      const ext = path.extname(filenameStr).toLowerCase();
-      if (ext === ".png") format = "png";
-      else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
-      else if (ext === ".gif") format = "gif";
-      else if (ext === ".webp") format = "webp";
-      else if (ext === ".svg") format = "svg";
-    }
-
-    const details = getFormatDetails(format || "jpg");
-
-    // Dynamic Optimization (Keeping the Original Format!)
     let procBuffer = buffer;
     try {
-      if (details.ext === "jpg" || details.ext === "jpeg") {
-        procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
-      } else if (details.ext === "png") {
-        procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
-      } else if (details.ext === "webp") {
-        procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
-      }
+      procBuffer = await sharp(buffer)
+        .webp({ quality: 85, effort: 6 })
+        .toBuffer();
     } catch (err) {
-      console.error("Error optimizing image with sharp, using raw buffer instead:", err);
-      procBuffer = buffer;
+      console.error("Error optimizing image to webp:", err);
     }
 
     const store = getStoreSafe();
-    const finalName = `${cleanName}.${details.ext}`;
     const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
     
     await store.set(finalName, arrayBuf, {
-      metadata: { contentType: details.mime }
+      metadata: { contentType: "image/webp" }
     });
     
-    return res.json({ url: `/api/images/${finalName}` });
+    return res.json({ url: `/uploads/${finalName}` });
   } catch (error) {
     console.error("Error processing image:", error);
     res.status(500).json({ error: "Failed to process image", details: error instanceof Error ? error.message : String(error) });
@@ -156,59 +107,32 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Detect format
-    let format = "";
-    try {
-      const metadata = await sharp(buffer).metadata();
-      format = metadata.format || "";
-    } catch (e) {
-      console.warn("Sharp metadata readout failed:", e);
-    }
+    const finalName = `${cleanName}.webp`;
 
-    // Fallback to fetch URL extension
-    if (!format) {
-      const parsedUrl = new URL(url);
-      const ext = path.extname(parsedUrl.pathname).toLowerCase();
-      if (ext === ".png") format = "png";
-      else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
-      else if (ext === ".gif") format = "gif";
-      else if (ext === ".webp") format = "webp";
-      else if (ext === ".svg") format = "svg";
-    }
-
-    const details = getFormatDetails(format || "jpg");
-
-    // Dynamic Optimization (Keeping the Original Format!)
     let procBuffer = buffer;
     try {
-      if (details.ext === "jpg" || details.ext === "jpeg") {
-        procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
-      } else if (details.ext === "png") {
-        procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
-      } else if (details.ext === "webp") {
-        procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
-      }
+      procBuffer = await sharp(buffer)
+        .webp({ quality: 85, effort: 6 })
+        .toBuffer();
     } catch (err) {
-      console.error("Error optimizing downloaded image with sharp, using raw buffer instead:", err);
-      procBuffer = buffer;
+      console.error("Error optimizing downloaded image to webp:", err);
     }
 
     const store = getStoreSafe();
-    const finalName = `${cleanName}.${details.ext}`;
     const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
     
     await store.set(finalName, arrayBuf, {
-      metadata: { contentType: details.mime }
+      metadata: { contentType: "image/webp" }
     });
     
-    return res.json({ url: `/api/images/${finalName}` });
+    return res.json({ url: `/uploads/${finalName}` });
   } catch (error) {
     console.error("Error processing image from URL:", error);
     res.status(500).json({ error: "Failed to process image from URL", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
-app.get("/api/images/:key", async (req, res) => {
+app.get("/api/uploads/:key", async (req, res) => {
   try {
     const store = getStoreSafe();
     const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });

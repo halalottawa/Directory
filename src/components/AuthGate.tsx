@@ -5,7 +5,8 @@ import { Mail, Lock, User, Phone, CheckCircle2, AlertCircle, ChevronLeft } from 
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
-  updateProfile
+  updateProfile,
+  sendEmailVerification
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -19,6 +20,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
   const [password, setPassword] = useState('');
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (user) {
@@ -39,6 +41,8 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: defaultName });
         
+        await sendEmailVerification(userCredential.user);
+        
         const newProfile: any = {
           uid: userCredential.user.uid,
           name: defaultName,
@@ -49,8 +53,20 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
           pushNotifications: consent,
         };
         await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
+        
+        await auth.signOut();
+        setSuccess('Account created! Please check your email to verify your address.');
+        setTimeout(() => {
+          setIsRegister(false);
+        }, 2000);
+        setLoading(false);
+        return;
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (!userCredential.user.emailVerified) {
+          await auth.signOut();
+          throw new Error('Please verify your email address to log in. Check your inbox.');
+        }
       }
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
@@ -102,6 +118,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
             <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 text-red-600 text-xs">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-xl flex items-start gap-2 text-green-600 text-xs">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>{success}</span>
             </div>
           )}
 

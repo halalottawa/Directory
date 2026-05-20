@@ -89,6 +89,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        // Enforce email verification for email/password users
+        const isPasswordProvider = firebaseUser.providerData.some(p => p.providerId === 'password');
+        if (isPasswordProvider && !firebaseUser.emailVerified) {
+          await signOut(auth);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         // Listen to user document changes
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         

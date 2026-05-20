@@ -5,7 +5,8 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   updateProfile,
-  signInWithPopup
+  signInWithPopup,
+  sendEmailVerification
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -104,6 +105,8 @@ export const Login: React.FC = () => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName: defaultName });
         
+        await sendEmailVerification(userCredential.user);
+        
         const newProfile: any = {
           uid: userCredential.user.uid,
           name: defaultName,
@@ -114,13 +117,22 @@ export const Login: React.FC = () => {
           pushNotifications: consent,
         };
         await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
+        
+        await auth.signOut();
+        setSuccess('Account created! Please check your email to verify your address.');
+        setTimeout(() => setIsRegister(false), 2000);
+        setLoading(false);
+        return;
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (!userCredential.user.emailVerified) {
+          await auth.signOut();
+          throw new Error('Please verify your email address to log in. Check your inbox.');
+        }
+        setSuccess('Logged in successfully! Redirecting...');
+        setTimeout(() => navigate(from, { replace: true }), 1500);
       }
-      setSuccess(isRegister ? 'Account created successfully! Redirecting...' : 'Logged in successfully! Redirecting...');
-      setTimeout(() => navigate(from, { replace: true }), 1500);
     } catch (err: any) {
-      console.error('Auth Error:', err);
       if (err.code === 'auth/operation-not-allowed') {
         setError('Email/Password sign-in is not enabled in your Firebase Console. Please enable it in the Authentication tab.');
       } else if (err.code === 'auth/invalid-action-code' || err.message?.includes('invalid-action')) {
@@ -134,6 +146,9 @@ export const Login: React.FC = () => {
       } else if (err.code === '10' || err.message?.includes('10')) {
         setError('Developer Error (Code 10). This usually means the domain or app is not authorized in Firebase Console, or the Google Client ID is misconfigured.');
       } else {
+        if (err.message !== 'Please verify your email address to log in. Check your inbox.') {
+          console.error('Auth Error:', err);
+        }
         if (err.message && err.message.includes('permission')) {
           handleFirestoreError(err, OperationType.WRITE, 'users');
         }

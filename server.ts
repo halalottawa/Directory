@@ -7,30 +7,6 @@ import multer from "multer";
 import fs from "fs";
 import sharp from "sharp";
 
-interface FormatDetails {
-  ext: string;
-  mime: string;
-}
-
-function getFormatDetails(format: string): FormatDetails {
-  const f = format.toLowerCase();
-  switch (f) {
-    case "png":
-      return { ext: "png", mime: "image/png" };
-    case "jpeg":
-    case "jpg":
-      return { ext: "jpg", mime: "image/jpeg" };
-    case "gif":
-      return { ext: "gif", mime: "image/gif" };
-    case "webp":
-      return { ext: "webp", mime: "image/webp" };
-    case "svg":
-      return { ext: "svg", mime: "image/svg+xml" };
-    default:
-      return { ext: "jpg", mime: "image/jpeg" };
-  }
-}
-
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
   switch (ext) {
@@ -97,24 +73,7 @@ async function startServer() {
         else if (ext === ".svg") format = "svg";
       }
 
-      const details = getFormatDetails(format || "jpg");
-
-      // Dynamic Optimization (Keeping the Original Format!)
-      let procBuffer = buffer;
-      try {
-        if (details.ext === "jpg" || details.ext === "jpeg") {
-          procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
-        } else if (details.ext === "png") {
-          procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
-        } else if (details.ext === "webp") {
-          procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
-        }
-      } catch (err) {
-        console.error("Error optimizing image with sharp, using raw buffer instead:", err);
-        procBuffer = buffer;
-      }
-
-      const finalName = `${cleanName}.${details.ext}`;
+      const finalName = `${cleanName}.webp`;
 
       // Upload to Netlify Blobs
       try {
@@ -129,19 +88,28 @@ async function startServer() {
           }
           const store = getStore(storeOptions);
           
-          const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
+          const procBuffer = await sharp(buffer)
+            .webp({ quality: 85, effort: 6 })
+            .toBuffer();
           
-          await store.set(finalName, arrayBuf, {
-            metadata: { contentType: details.mime }
+          await store.set(finalName, procBuffer, {
+            metadata: { contentType: "image/webp" }
           });
           
-          return res.json({ url: `/api/images/${finalName}` });
+          return res.json({ url: `/uploads/${finalName}` });
         }
       } catch (blobError) {
         console.error("Netlify Blobs upload error:", blobError);
       }
 
       // Fallback: local disk upload
+      let procBuffer = buffer;
+      try {
+        procBuffer = await sharp(buffer).webp({ quality: 85, effort: 6 }).toBuffer();
+      } catch (err) {
+        console.error("Error optimizing image to webp:", err);
+      }
+      
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
@@ -197,43 +165,7 @@ async function startServer() {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      // Detect format
-      let format = "";
-      try {
-        const metadata = await sharp(buffer).metadata();
-        format = metadata.format || "";
-      } catch (e) {
-        console.warn("Sharp metadata readout failed:", e);
-      }
-
-      // Fallback to fetch URL extension
-      if (!format) {
-        const ext = path.extname(urlWithoutQuery).toLowerCase();
-        if (ext === ".png") format = "png";
-        else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
-        else if (ext === ".gif") format = "gif";
-        else if (ext === ".webp") format = "webp";
-        else if (ext === ".svg") format = "svg";
-      }
-
-      const details = getFormatDetails(format || "jpg");
-
-      // Dynamic Optimization (Keeping the Original Format!)
-      let procBuffer = buffer;
-      try {
-        if (details.ext === "jpg" || details.ext === "jpeg") {
-          procBuffer = await sharp(buffer).jpeg({ quality: 85, progressive: true }).toBuffer();
-        } else if (details.ext === "png") {
-          procBuffer = await sharp(buffer).png({ palette: true, quality: 85 }).toBuffer();
-        } else if (details.ext === "webp") {
-          procBuffer = await sharp(buffer).webp({ quality: 85 }).toBuffer();
-        }
-      } catch (err) {
-        console.error("Error optimizing downloaded image with sharp, using raw buffer instead:", err);
-        procBuffer = buffer;
-      }
-
-      const finalName = `${cleanName}.${details.ext}`;
+      const finalName = `${cleanName}.webp`;
 
       // Upload to Netlify Blobs
       try {
@@ -248,19 +180,28 @@ async function startServer() {
           }
           const store = getStore(storeOptions);
           
-          const arrayBuf = procBuffer.buffer.slice(procBuffer.byteOffset, procBuffer.byteOffset + procBuffer.byteLength);
+          const procBuffer = await sharp(buffer)
+            .webp({ quality: 85, effort: 6 })
+            .toBuffer();
           
-          await store.set(finalName, arrayBuf, {
-            metadata: { contentType: details.mime }
+          await store.set(finalName, procBuffer, {
+            metadata: { contentType: "image/webp" }
           });
           
-          return res.json({ url: `/api/images/${finalName}` });
+          return res.json({ url: `/uploads/${finalName}` });
         }
       } catch (blobError) {
         console.error("Netlify Blobs upload error:", blobError);
       }
 
       // Fallback: local disk upload
+      let procBuffer = buffer;
+      try {
+        procBuffer = await sharp(buffer).webp({ quality: 85, effort: 6 }).toBuffer();
+      } catch (err) {
+        console.error("Error optimizing downloaded image to webp:", err);
+      }
+
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
@@ -271,8 +212,8 @@ async function startServer() {
     }
   });
 
-  // Serve images from Netlify Blobs
-  app.get("/api/images/:key", async (req, res) => {
+  // Serve images from Netlify Blobs if not found in static folder
+  app.get("/uploads/:key", async (req, res, next) => {
     try {
       const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
       const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
