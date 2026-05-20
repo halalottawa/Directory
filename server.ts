@@ -42,10 +42,12 @@ async function startServer() {
       
       // Upload to Netlify Blobs
       try {
-        if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+        const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+        const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+        if (isNetlifyEnv || hasCredentials) {
           const { getStore } = await import("@netlify/blobs");
           const storeOptions: any = { name: "uploads" };
-          if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+          if (hasCredentials) {
             storeOptions.siteID = process.env.NETLIFY_SITE_ID;
             storeOptions.token = process.env.NETLIFY_API_TOKEN;
           }
@@ -129,10 +131,12 @@ async function startServer() {
 
       // Upload to Netlify Blobs
       try {
-        if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+        const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+        const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+        if (isNetlifyEnv || hasCredentials) {
           const { getStore } = await import("@netlify/blobs");
           const storeOptions: any = { name: "uploads" };
-          if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+          if (hasCredentials) {
             storeOptions.siteID = process.env.NETLIFY_SITE_ID;
             storeOptions.token = process.env.NETLIFY_API_TOKEN;
           }
@@ -171,10 +175,12 @@ async function startServer() {
   // Serve images from Netlify Blobs
   app.get("/api/images/:key", async (req, res) => {
     try {
-      if (process.env.NETLIFY_SITE_ID || process.env.NETLIFY_API_TOKEN || process.env.CONTEXT || process.env.NETLIFY_BLOBS_CONTEXT) {
+      const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
+      const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
+      if (isNetlifyEnv || hasCredentials) {
         const { getStore } = await import("@netlify/blobs");
         const storeOptions: any = { name: "uploads" };
-        if (process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN) {
+        if (hasCredentials) {
           storeOptions.siteID = process.env.NETLIFY_SITE_ID;
           storeOptions.token = process.env.NETLIFY_API_TOKEN;
         }
