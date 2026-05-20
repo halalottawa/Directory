@@ -137,11 +137,11 @@ export const Login: React.FC = () => {
         setError('Email/Password sign-in is not enabled in your Firebase Console. Please enable it in the Authentication tab.');
       } else if (err.code === 'auth/invalid-action-code' || err.message?.includes('invalid-action')) {
         setError('Invalid request. This often happens if your domain is not authorized in Firebase or if the SHA-1 fingerprint is missing for your APK.');
-      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || (err.message && err.message.includes('auth/invalid-credential'))) {
         setError('Incorrect email or password. Please check your details and try again.');
-      } else if (err.code === 'auth/email-already-in-use') {
+      } else if (err.code === 'auth/email-already-in-use' || (err.message && err.message.includes('auth/email-already-in-use'))) {
         setError('This email is already registered. Please sign in instead.');
-      } else if (err.code === 'auth/weak-password') {
+      } else if (err.code === 'auth/weak-password' || (err.message && err.message.includes('auth/weak-password'))) {
         setError('Password should be at least 6 characters.');
       } else if (err.code === '10' || err.message?.includes('10')) {
         setError('Developer Error (Code 10). This usually means the domain or app is not authorized in Firebase Console, or the Google Client ID is misconfigured.');

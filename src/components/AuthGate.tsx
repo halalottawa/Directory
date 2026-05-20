@@ -71,15 +71,15 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
     } catch (err: any) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         setError('Incorrect email or password. Please check your details and try again.');
-      } else if (err.code === 'auth/email-already-in-use') {
+      } else if (err.code === 'auth/email-already-in-use' || (err.message && err.message.includes('auth/email-already-in-use'))) {
         setError('This email is already registered. Please sign in instead.');
-      } else if (err.code === 'auth/weak-password') {
+      } else if (err.code === 'auth/weak-password' || (err.message && err.message.includes('auth/weak-password'))) {
         setError('Password should be at least 6 characters.');
       } else {
         if (err.message && err.message.includes('permission')) {
           handleFirestoreError(err, OperationType.WRITE, 'users');
         }
-        setError(err.message);
+        setError(err.message === 'Please verify your email address to log in. Check your inbox.' ? err.message : `Auth Error: ${err.message}`);
       }
     } finally {
       setLoading(false);

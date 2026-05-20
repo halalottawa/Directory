@@ -212,9 +212,21 @@ async function startServer() {
     }
   });
 
+  // Backwards compatibility for old image paths
+  app.get("/api/images/*", (req, res) => {
+    let key = req.params[0];
+    if (key) {
+      key = key.replace(/\.[^/.]+$/, ".webp");
+    }
+    res.redirect(`/uploads/${key}`);
+  });
+
   // Serve images from Netlify Blobs if not found in static folder
-  app.get("/uploads/:key", async (req, res, next) => {
+  app.get(["/uploads/*", "/api/uploads/*"], async (req, res, next) => {
     try {
+      const key = req.params[0];
+      if (!key) return next();
+      
       const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
       const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
       if (isNetlifyEnv || hasCredentials) {
@@ -226,13 +238,13 @@ async function startServer() {
         }
         const store = getStore(storeOptions);
         
-        const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
+        const blobInfo = await store.getWithMetadata(key, { type: "arrayBuffer" });
         
         if (!blobInfo || !blobInfo.data) {
           return res.status(404).send("Image not found in Blobs");
         }
         
-        const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(req.params.key);
+        const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(key);
         res.setHeader("Content-Type", contentType);
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         

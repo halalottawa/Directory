@@ -132,16 +132,28 @@ app.post("/api/upload-url", express.json(), async (req, res) => {
   }
 });
 
-app.get("/api/uploads/:key", async (req, res) => {
+// Backwards compatibility for old image paths
+app.get("/api/images/*", async (req, res) => {
+  let key = req.params[0];
+  if (key) {
+    key = key.replace(/\.[^/.]+$/, ".webp");
+  }
+  res.redirect(`/uploads/${key}`);
+});
+
+app.get(["/api/uploads/*", "/uploads/*"], async (req, res, next) => {
   try {
+    const key = req.params[0];
+    if (!key) return next();
+    
     const store = getStoreSafe();
-    const blobInfo = await store.getWithMetadata(req.params.key, { type: "arrayBuffer" });
+    const blobInfo = await store.getWithMetadata(key, { type: "arrayBuffer" });
     
     if (!blobInfo || !blobInfo.data) {
       return res.status(404).send("Image not found in Blobs");
     }
     
-    const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(req.params.key);
+    const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(key);
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
     
