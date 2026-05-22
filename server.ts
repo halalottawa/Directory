@@ -670,9 +670,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           html = html.replace('</head>', `${extraTags}\n  </head>`);
         }
 
-        if (isNotFound) {
-          res.status(404);
-        }
+        // if (isNotFound) {
+        //   res.status(404);
+        // }
         res.send(html);
       } catch (err) {
         console.error("Error serving index.html:", err);
