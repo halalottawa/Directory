@@ -110,7 +110,7 @@ export const Profile: React.FC = () => {
     };
 
     return (
-      <div key={item.id} className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${!isLast ? 'border-b border-gray-50' : ''}`}>
+      <div key={item.id} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:border-gray-200 transition-all duration-200">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center">
             {type === 'jobs' && !item.companyLogo ? (
@@ -165,79 +165,97 @@ export const Profile: React.FC = () => {
         description={`Profile page for ${user.name} on Halal Ottawa.`} 
       />
 
-      {/* Profile Hero */}
+      {/* Profile Hero / Header (Unboxed, clean, matching other page styles) */}
       <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-6 py-10">
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-2xl shadow-gray-200 bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-4xl font-black">
-                <span>{(user?.firstName?.[0] || user?.name?.[0] || '?').toUpperCase()}</span>
+        <div className="max-w-5xl mx-auto px-6 py-8 md:py-10 flex flex-col md:flex-row items-center md:items-start justify-between gap-6 md:gap-8">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left w-full md:w-auto">
+            <div className="relative group flex-shrink-0">
+              <div className="w-24 h-24 rounded-[2rem] overflow-hidden border border-gray-100 shadow-md bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-3xl font-bold">
+                {user.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt={user.name} 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span>{(user?.firstName?.[0] || user?.name?.[0] || '?').toUpperCase()}</span>
+                )}
               </div>
             </div>
 
-            <div className="flex-1 text-center md:text-left space-y-4">
-              <div className="space-y-1">
-                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                  <h1 className="text-3xl font-black text-gray-900 tracking-tight">{user.name}</h1>
-                  <span className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase tracking-widest rounded-full w-fit mx-auto md:mx-0">
+            <div className="space-y-4">
+              <div className="space-y-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex flex-col md:flex-row md:items-center justify-center md:justify-start gap-2 md:gap-3">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">{user.name}</h1>
+                  <span className="inline-flex items-center px-2.5 py-0.5 bg-red-50 text-[#e90b35] text-[9px] font-bold uppercase tracking-wider rounded-full w-fit mx-auto md:mx-0 border border-red-100">
                     {user.role || 'Member'}
                   </span>
                 </div>
-                <p className="text-gray-500 font-medium">{user.email}</p>
+                <p className="text-sm text-gray-500 font-medium">{user.email}</p>
               </div>
 
-              <div className="flex flex-wrap justify-center md:justify-start gap-6">
-                <div className="flex items-center gap-2 text-gray-400">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-xs font-bold">{user.location || 'Ottawa, ON'}</span>
+              <div className="flex flex-wrap justify-center md:justify-start gap-x-6 gap-y-2 text-gray-400">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs font-semibold text-gray-600">{user.location || 'Ottawa, ON'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-400">
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-xs font-bold">Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                <div className="flex items-center gap-1.5 border-l border-gray-100 pl-6 hidden sm:flex">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs font-semibold text-gray-600">Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                </div>
+                {/* On mobile show joined without left border */}
+                <div className="flex items-center gap-1.5 sm:hidden">
+                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <span className="text-xs font-semibold text-gray-600">Joined {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
                 </div>
               </div>
 
-              <div className="flex flex-wrap justify-center md:justify-start gap-x-8 gap-y-4 pt-4 border-t border-gray-50">
-                <div className="text-center md:text-left">
-                  <p className="text-xl font-black text-gray-900">{userListings.length}</p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Listings</p>
+              <div className="flex flex-row flex-nowrap items-center justify-center md:justify-start gap-x-1.5 pt-2 text-xs whitespace-nowrap overflow-x-auto scrollbar-hide">
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="font-bold text-gray-900">{userListings.length}</span>
+                  <span className="text-gray-500 font-medium">listings</span>
                 </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl font-black text-gray-900">{userEvents.length}</p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Events</p>
+                <span className="text-gray-300 select-none px-0.5">•</span>
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="font-bold text-gray-900">{userEvents.length}</span>
+                  <span className="text-gray-500 font-medium">events</span>
                 </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl font-black text-gray-900">{userJobs.length}</p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Jobs</p>
+                <span className="text-gray-300 select-none px-0.5">•</span>
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="font-bold text-gray-900">{userJobs.length}</span>
+                  <span className="text-gray-500 font-medium">jobs</span>
                 </div>
-                <div className="text-center md:text-left">
-                  <p className="text-xl font-black text-gray-900">{userReviews.length}</p>
-                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Reviews</p>
+                <span className="text-gray-300 select-none px-0.5">•</span>
+                <div className="flex items-center gap-0.5 flex-shrink-0">
+                  <span className="font-bold text-gray-900">{userReviews.length}</span>
+                  <span className="text-gray-500 font-medium">reviews</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-row gap-2 w-full md:w-auto">
-              <button 
-                onClick={() => navigate('/profile/edit')}
-                className="flex-1 md:flex-none px-6 py-3 bg-gray-900 text-white font-bold text-sm rounded-2xl shadow-lg shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Settings className="w-4 h-4" />
-                Edit Profile
-              </button>
-              <Link 
-                to="/saved"
-                className="flex-1 md:flex-none px-6 py-3 bg-gray-900 text-white font-bold text-sm rounded-2xl shadow-lg shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Bookmark className="w-4 h-4" />
-                Saved Items
-              </Link>
-            </div>
+          <div className="flex flex-row flex-nowrap gap-2 w-full md:w-auto self-stretch md:self-auto justify-center md:justify-start pt-2 md:pt-0">
+            <button 
+              onClick={() => navigate('/profile/edit')}
+              className="flex-1 md:flex-none px-4 py-2.5 bg-gray-900 text-white font-bold text-xs rounded-xl shadow-md shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer duration-200 whitespace-nowrap"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">Edit Profile</span>
+            </button>
+            <Link 
+              to="/saved"
+              className="flex-1 md:flex-none px-4 py-2.5 bg-gray-900 text-white font-bold text-xs rounded-xl shadow-md shadow-gray-200 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer duration-200 whitespace-nowrap"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              <span className="whitespace-nowrap">Saved Items</span>
+            </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-12 space-y-8">
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <div className="space-y-8">
         
         {/* Activity Section */}
         <section className="space-y-3">
@@ -273,16 +291,18 @@ export const Profile: React.FC = () => {
             })}
           </div>
 
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex flex-col gap-3">
             {loading ? (
-              <div className="p-12 flex justify-center">
+              <div className="p-12 flex justify-center bg-white rounded-2xl border border-gray-100 shadow-xs">
                 <div className="w-8 h-8 border-4 border-gray-100 border-t-gray-400 rounded-full animate-spin" />
               </div>
             ) : (
               <>
                 {activeActivityTab === 'listings' && (
                   <>
-                    {userListings.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'listings', true, idx === arr.length - 1))}
+                    <div className="flex flex-col gap-3">
+                      {userListings.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'listings', true, idx === arr.length - 1))}
+                    </div>
                     {userListings.length > ITEMS_PER_PAGE && (
                       <Pagination
                         currentPage={currentActivityPage}
@@ -291,7 +311,7 @@ export const Profile: React.FC = () => {
                       />
                     )}
                     {userListings.length === 0 && (
-                      <div className="p-8 text-center">
+                      <div className="p-10 text-center bg-white rounded-2xl border border-gray-100 shadow-xs">
                         <p className="text-gray-400 text-sm font-medium italic">No listings found.</p>
                       </div>
                     )}
@@ -299,7 +319,9 @@ export const Profile: React.FC = () => {
                 )}
                 {activeActivityTab === 'events' && (
                   <>
-                    {userEvents.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'events', true, idx === arr.length - 1))}
+                    <div className="flex flex-col gap-3">
+                      {userEvents.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'events', true, idx === arr.length - 1))}
+                    </div>
                     {userEvents.length > ITEMS_PER_PAGE && (
                       <Pagination
                         currentPage={currentActivityPage}
@@ -308,7 +330,7 @@ export const Profile: React.FC = () => {
                       />
                     )}
                     {userEvents.length === 0 && (
-                      <div className="p-8 text-center">
+                      <div className="p-10 text-center bg-white rounded-2xl border border-gray-100 shadow-xs">
                         <p className="text-gray-400 text-sm font-medium italic">No events found.</p>
                       </div>
                     )}
@@ -316,7 +338,9 @@ export const Profile: React.FC = () => {
                 )}
                 {activeActivityTab === 'jobs' && (
                   <>
-                    {userJobs.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'jobs', true, idx === arr.length - 1))}
+                    <div className="flex flex-col gap-3">
+                      {userJobs.slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((item, idx, arr) => renderItemCard(item, 'jobs', true, idx === arr.length - 1))}
+                    </div>
                     {userJobs.length > ITEMS_PER_PAGE && (
                       <Pagination
                         currentPage={currentActivityPage}
@@ -325,14 +349,14 @@ export const Profile: React.FC = () => {
                       />
                     )}
                     {userJobs.length === 0 && (
-                      <div className="p-8 text-center">
+                      <div className="p-10 text-center bg-white rounded-2xl border border-gray-100 shadow-xs">
                         <p className="text-gray-400 text-sm font-medium italic">No jobs found.</p>
                       </div>
                     )}
                   </>
                 )}
                 {activeActivityTab === 'insights' as any && (
-                  <div className="p-6 divide-y divide-gray-100">
+                  <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-xs divide-y divide-gray-100">
                     {userListings.filter(l => l.plan === 'premium' && l.isApproved).slice((currentActivityPage - 1) * ITEMS_PER_PAGE, currentActivityPage * ITEMS_PER_PAGE).map((listing, idx) => (
                       <div key={listing.id} className={idx > 0 ? "pt-6 mt-6" : ""}>
                         <div className="flex items-center gap-3 mb-4">
@@ -491,6 +515,7 @@ export const Profile: React.FC = () => {
             </button>
           </div>
         </section>
+      </div>
       </div>
     </main>
   );

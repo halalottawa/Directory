@@ -10,6 +10,7 @@ import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
+import { getSuburbFromAddress } from '../utils/geo';
 
 export const AddListing: React.FC = () => {
   const navigate = useNavigate();
@@ -17,10 +18,12 @@ export const AddListing: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isDetectingSuburb, setIsDetectingSuburb] = useState(false);
   const [menuInputType, setMenuInputType] = useState<'pdf' | 'items'>('pdf');
   const [formData, setFormData] = useState({
     name: '',
     address: '',
+    suburb: '',
     category: [] as string[],
     description: '',
     phoneNumber: '',
@@ -78,6 +81,18 @@ export const AddListing: React.FC = () => {
 
     setLoading(true);
     try {
+      let finalSuburb = formData.suburb;
+      if (!finalSuburb && formData.address.trim()) {
+        try {
+          const detected = await getSuburbFromAddress(formData.address);
+          if (detected) {
+            finalSuburb = detected;
+          }
+        } catch (subErr) {
+          console.warn('On submit suburb detection failed:', subErr);
+        }
+      }
+
       const isAdmin = user.role === 'admin';
       const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
@@ -96,6 +111,7 @@ export const AddListing: React.FC = () => {
 
       await setDoc(doc(db, 'listings', uniqueSlug), {
         ...formData,
+        suburb: finalSuburb,
         types: formData.category.includes('Restaurants') ? formData.types : [],
         cuisine: formData.category.includes('Restaurants') ? formData.cuisine : [],
         slug: uniqueSlug,
@@ -168,7 +184,29 @@ export const AddListing: React.FC = () => {
                 className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                onBlur={async () => {
+                  if (formData.address.trim()) {
+                    setIsDetectingSuburb(true);
+                    try {
+                      const detected = await getSuburbFromAddress(formData.address);
+                      if (detected) {
+                        setFormData(prev => ({ ...prev, suburb: detected }));
+                        toast.success(`Automatically detected suburb: ${detected}`);
+                      }
+                    } catch (e) {
+                      console.warn(e);
+                    } finally {
+                      setIsDetectingSuburb(false);
+                    }
+                  }
+                }}
               />
+              {isDetectingSuburb && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin text-[#e90b35]" />
+                  <span>Detecting suburb...</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4 md:col-span-2">

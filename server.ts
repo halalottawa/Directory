@@ -6,6 +6,7 @@ import path from "path";
 import multer from "multer";
 import fs from "fs";
 import sharp from "sharp";
+import compression from "compression";
 
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
@@ -28,6 +29,7 @@ function getContentTypeFromKey(key: string): string {
 
 async function startServer() {
   const app = express();
+  app.use(compression());
   const PORT = 3000;
 
   // Set up upload dir
@@ -75,31 +77,27 @@ async function startServer() {
 
       const finalName = `${cleanName}.webp`;
 
-      // Upload to Netlify Blobs
+      // Upload to Vercel Blob
       try {
-        const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-        const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-        if (isNetlifyEnv || hasCredentials) {
-          const { getStore } = await import("@netlify/blobs");
-          const storeOptions: any = { name: "uploads" };
-          if (hasCredentials) {
-            storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-            storeOptions.token = process.env.NETLIFY_API_TOKEN;
-          }
-          const store = getStore(storeOptions);
+        const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+        if (hasVercelToken) {
+          const { put } = await import("@vercel/blob");
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 85, effort: 6 })
             .toBuffer();
           
-          await store.set(finalName, procBuffer, {
-            metadata: { contentType: "image/webp" }
+          const { url } = await put(`uploads/${finalName}`, procBuffer, {
+            access: 'public',
+            contentType: 'image/webp',
+            addRandomSuffix: false,
+            allowOverwrite: true
           });
           
-          return res.json({ url: `/uploads/${finalName}` });
+          return res.json({ url });
         }
       } catch (blobError) {
-        console.error("Netlify Blobs upload error:", blobError);
+        console.error("Vercel Blob upload error:", blobError);
       }
 
       // Fallback: local disk upload
@@ -167,31 +165,27 @@ async function startServer() {
 
       const finalName = `${cleanName}.webp`;
 
-      // Upload to Netlify Blobs
+      // Upload to Vercel Blob
       try {
-        const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-        const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-        if (isNetlifyEnv || hasCredentials) {
-          const { getStore } = await import("@netlify/blobs");
-          const storeOptions: any = { name: "uploads" };
-          if (hasCredentials) {
-            storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-            storeOptions.token = process.env.NETLIFY_API_TOKEN;
-          }
-          const store = getStore(storeOptions);
+        const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+        if (hasVercelToken) {
+          const { put } = await import("@vercel/blob");
           
           const procBuffer = await sharp(buffer)
             .webp({ quality: 85, effort: 6 })
             .toBuffer();
           
-          await store.set(finalName, procBuffer, {
-            metadata: { contentType: "image/webp" }
+          const { url: vercelUrl } = await put(`uploads/${finalName}`, procBuffer, {
+            access: 'public',
+            contentType: 'image/webp',
+            addRandomSuffix: false,
+            allowOverwrite: true
           });
           
-          return res.json({ url: `/uploads/${finalName}` });
+          return res.json({ url: vercelUrl });
         }
       } catch (blobError) {
-        console.error("Netlify Blobs upload error:", blobError);
+        console.error("Vercel Blob upload error:", blobError);
       }
 
       // Fallback: local disk upload
@@ -212,43 +206,29 @@ async function startServer() {
     }
   });
 
-  // Backwards compatibility for old image paths
-  app.get("/api/images/*", (req, res) => {
-    let key = req.params[0];
-    if (key) {
-      key = key.replace(/\.[^/.]+$/, ".webp");
-    }
-    res.redirect(`/uploads/${key}`);
-  });
-
-  // Serve images from Netlify Blobs if not found in static folder
-  app.get(["/uploads/*", "/api/uploads/*"], async (req, res, next) => {
+  app.get(["/uploads/:key", "/api/images/:key", "/api/uploads/:key"], async (req, res, next) => {
     try {
-      const key = req.params[0];
-      if (!key) return next();
+      const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
+      if (hasVercelToken) {
+        // With Vercel Blob, public files are usually served directly from their CDN via absolute URL.
+        // If we are proxying, we can fetch, but we need to know the Blob store base URL, which isn't standard.
+        // It's better if we just redirect to it or fetch if we know the URL. 
+        // Vercel Blob URLs look like: https://[store-id].public.blob.vercel-storage.com/[path]
+        // But the vercel blob list API could find it.
+        const { list } = await import("@vercel/blob");
+        const { blobs } = await list({ prefix: `uploads/${req.params.key}` });
+        const blob = blobs.find(b => b.pathname === `uploads/${req.params.key}`);
+        if (blob) {
+          return res.redirect(blob.url);
+        }
+      }
       
-      const isNetlifyEnv = !!process.env.NETLIFY_BLOBS_CONTEXT;
-      const hasCredentials = !!(process.env.NETLIFY_SITE_ID && process.env.NETLIFY_API_TOKEN);
-      if (isNetlifyEnv || hasCredentials) {
-        const { getStore } = await import("@netlify/blobs");
-        const storeOptions: any = { name: "uploads" };
-        if (hasCredentials) {
-          storeOptions.siteID = process.env.NETLIFY_SITE_ID;
-          storeOptions.token = process.env.NETLIFY_API_TOKEN;
-        }
-        const store = getStore(storeOptions);
-        
-        const blobInfo = await store.getWithMetadata(key, { type: "arrayBuffer" });
-        
-        if (!blobInfo || !blobInfo.data) {
-          return res.status(404).send("Image not found in Blobs");
-        }
-        
-        const contentType = Object(blobInfo.metadata).contentType || getContentTypeFromKey(key);
-        res.setHeader("Content-Type", contentType);
-        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        
-        return res.end(Buffer.from(blobInfo.data));
+      // Fallback to local file system serving from public/uploads
+      const fs = await import("fs");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), "public", "uploads", req.params.key);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
       }
     } catch (e) {
       console.error("Error serving blob:", e);
@@ -436,7 +416,17 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath, { index: false }));
+    app.use(express.static(distPath, {
+      index: false,
+      maxAge: "1d",
+      setHeaders: (res, filePath) => {
+        if (filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
+          res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+        }
+      }
+    }));
     
     app.get("*", async (req, res) => {
       try {
@@ -452,18 +442,56 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         
         let initialData: any = null;
         let routeType: string = '';
+        const pathParts = urlPath.split('/').filter(Boolean);
+        let isNotFound = false;
+
+        const isSingleSegmentValid = (segment: string): boolean => {
+          const s = segment.toLowerCase();
+          const knownStatic = new Set([
+            "listings", "news", "events", "jobs", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register"
+          ]);
+          if (knownStatic.has(s)) return true;
+          
+          const knownCategories = new Set([
+            'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
+          ]);
+          const knownTypes = new Set([
+            'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
+          ]);
+          const knownCuisines = new Set([
+            'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
+          ]);
+          
+          return knownCategories.has(s) || knownTypes.has(s) || knownCuisines.has(s);
+        };
+
+        const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
+          const p1 = part1.toLowerCase();
+          const p2 = part2.toLowerCase();
+          if (p1 === "profile" && p2 === "edit") return true;
+          if (p1 === "listings" && p2 === "add") return true;
+          if (p1 === "events" && p2 === "add") return true;
+          if (p1 === "jobs" && p2 === "add") return true;
+          if (p1 === "news" && p2 === "add") return true;
+          if (p1 === "tools" && p2 === "qibla") return true;
+          return false;
+        };
+
+        if (pathParts.length === 1 && !isSingleSegmentValid(pathParts[0])) {
+          isNotFound = true;
+        } else if (pathParts.length > 3) {
+          isNotFound = true;
+        }
 
         // Fetch data for dynamic routes if possible
         const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
         if (fs.existsSync(configPath)) {
           const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
           const { initializeApp, getApps } = await import("firebase/app");
-          const { getFirestore, collection, getDocs, query, where, limit, orderBy } = await import("firebase/firestore");
+          const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
           
           const fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
           const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
-
-          const pathParts = urlPath.split('/').filter(Boolean);
           
           // Home Page Pre-fetch
           if (pathParts.length === 0) {
@@ -500,55 +528,112 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               console.error("Error pre-fetching home data", e);
             }
           }
-          // Listing Detail Page /category/slug or /listings/slug
-          else if (pathParts.length === 2 || (pathParts.length === 2 && pathParts[0] === 'listings')) {
-            const slug = pathParts[1] || pathParts[0];
-            const q = query(collection(db, 'listings'), where('slug', '==', slug), limit(1));
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-              title = `${data.name} | Halal Ottawa`;
-              description = data.description?.substring(0, 160) || description;
-              if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
-              initialData = data;
-              routeType = 'listing';
+          // Dynamic Route Data Pre-fetch and 404 enforcement
+          else if (pathParts.length === 2) {
+            const p0 = pathParts[0].toLowerCase();
+            const p1 = pathParts[1];
+            
+            if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
+              isNotFound = false;
+            } else if (p0 === 'go') {
+              try {
+                const linkRef = doc(db, 'short_links', p1);
+                const linkSnap = await getDoc(linkRef);
+                if (!linkSnap.exists()) {
+                  isNotFound = true;
+                }
+              } catch (e) {
+                console.error("Error fetching short link details", e);
+              }
+            } else if (p0 === 'news') {
+              try {
+                const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                  isNotFound = true;
+                } else {
+                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+                  title = `${data.title} | Halal Ottawa`;
+                  description = data.content?.substring(0, 160) || description;
+                  if (data.coverImage) ogImage = data.coverImage;
+                  initialData = data;
+                  routeType = 'news';
+                }
+              } catch (e) {
+                console.error("Error fetching news details", e);
+              }
+            } else if (p0 === 'events') {
+              try {
+                const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                  isNotFound = true;
+                } else {
+                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+                  title = `${data.title} | Halal Ottawa Events`;
+                  description = data.description?.substring(0, 160) || description;
+                  if (data.coverImage) ogImage = data.coverImage;
+                  initialData = data;
+                  routeType = 'event';
+                }
+              } catch (e) {
+                console.error("Error fetching event details", e);
+              }
+            } else if (p0 === 'jobs') {
+              try {
+                const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                  isNotFound = true;
+                } else {
+                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+                  title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
+                  description = data.description?.substring(0, 160) || description;
+                  if (data.companyLogo) ogImage = data.companyLogo;
+                  initialData = data;
+                  routeType = 'job';
+                }
+              } catch (e) {
+                console.error("Error fetching job details", e);
+              }
+            } else if (p0 === 'listings' || isSingleSegmentValid(p0)) {
+              try {
+                const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                  isNotFound = true;
+                } else {
+                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+                  title = `${data.name} | Halal Ottawa`;
+                  description = data.description?.substring(0, 160) || description;
+                  if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
+                  initialData = data;
+                  routeType = 'listing';
+                }
+              } catch (e) {
+                console.error("Error fetching listing details", e);
+              }
+            } else {
+              isNotFound = true;
             }
-          } else if (pathParts.length === 2 && pathParts[0] === 'news') {
-             const slug = pathParts[1];
-             const q = query(collection(db, 'news'), where('slug', '==', slug), limit(1));
-             const snap = await getDocs(q);
-             if (!snap.empty) {
-               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-               title = `${data.title} | Halal Ottawa`;
-               description = data.content?.substring(0, 160) || description;
-               if (data.coverImage) ogImage = data.coverImage;
-               initialData = data;
-               routeType = 'news';
-             }
-          } else if (pathParts.length === 2 && pathParts[0] === 'events') {
-             const slug = pathParts[1];
-             const q = query(collection(db, 'events'), where('slug', '==', slug), limit(1));
-             const snap = await getDocs(q);
-             if (!snap.empty) {
-               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-               title = `${data.title} | Halal Ottawa Events`;
-               description = data.description?.substring(0, 160) || description;
-               if (data.coverImage) ogImage = data.coverImage;
-               initialData = data;
-               routeType = 'event';
-             }
-          } else if (pathParts.length === 2 && pathParts[0] === 'jobs') {
-             const slug = pathParts[1];
-             const q = query(collection(db, 'jobs'), where('slug', '==', slug), limit(1));
-             const snap = await getDocs(q);
-             if (!snap.empty) {
-               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
-               description = data.description?.substring(0, 160) || description;
-               if (data.companyLogo) ogImage = data.companyLogo;
-               initialData = data;
-               routeType = 'job';
-             }
+          }
+          else if (pathParts.length === 3) {
+            const p0 = pathParts[0].toLowerCase();
+            const p1 = pathParts[1].toLowerCase();
+            const docId = pathParts[2];
+            if (p1 === 'edit' && ['listings', 'events', 'jobs', 'news'].includes(p0)) {
+              try {
+                const collName = p0 === 'jobs' ? 'jobs' : p0;
+                const dSnap = await getDoc(doc(db, collName, docId));
+                if (!dSnap.exists()) {
+                  isNotFound = true;
+                }
+              } catch (err) {
+                console.error("Error checking edit page doc", err);
+              }
+            } else {
+              isNotFound = true;
+            }
           }
         }
 
@@ -567,7 +652,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           `;
 
           // Inject basic Schema if we have data
-          const pathParts = urlPath.split('/').filter(Boolean);
           if (pathParts.length === 2 && initialData) {
              const schemaData = {
                "@context": "https://schema.org",
@@ -586,6 +670,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           html = html.replace('</head>', `${extraTags}\n  </head>`);
         }
 
+        if (isNotFound) {
+          res.status(404);
+        }
         res.send(html);
       } catch (err) {
         console.error("Error serving index.html:", err);

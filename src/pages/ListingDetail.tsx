@@ -551,7 +551,9 @@ export const ListingDetail: React.FC = () => {
                 );
               })()}
             </div>
-            <h1 className="text-2xl font-bold leading-tight">{listing.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold leading-tight">{listing.name}</h1>
+            </div>
             <div className="flex items-center gap-4 mt-2 text-sm">
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />

@@ -278,10 +278,12 @@ export const Home: React.FC = () => {
               </div>
               <div className="p-4">
                 <h3 className="font-bold leading-tight line-clamp-1">{listing.name}</h3>
-                <p className="text-gray-500 text-xs font-semibold mt-2 flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
-                  {listing.address.split(',')[0]}
-                </p>
+                <div className="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
+                  <span className="flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
+                    {listing.address.split(',')[0]}
+                  </span>
+                </div>
               </div>
             </Link>
           ))}
@@ -440,7 +442,10 @@ export const Home: React.FC = () => {
 
               <div className="mt-3 flex items-center gap-4 text-xs text-gray-400 font-medium">
                 {job.salary && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> {job.salary}</span>}
-                <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {job.type}</span>
+                {job.type && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {job.type}</span>}
+                {(!job.salary && !job.type) && job.location && (
+                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {job.location.split(',')[1]?.trim() || job.location.split(',')[0]}</span>
+                )}
               </div>
             </Link>
           ))}

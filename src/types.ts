@@ -32,6 +32,7 @@ export interface Listing {
   name: string;
   photos: string[];
   address: string;
+  suburb?: string;
   lat: number;
   lng: number;
   distance?: number;

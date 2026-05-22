@@ -116,7 +116,7 @@ export const QiblaDirection: React.FC = () => {
   return (
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
       <SEO 
-        title="Qibla Direction" 
+        title="Ottawa Qibla Direction" 
         description="Find the Qibla direction online accurately using your device compass and location in Ottawa." 
         canonicalUrl="https://www.halalottawa.ca/tools/qibla"
         structuredData={{
@@ -147,7 +147,7 @@ export const QiblaDirection: React.FC = () => {
           <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">
             <Compass className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Qibla Direction</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Ottawa Qibla Direction</h1>
           <p className="text-gray-500 max-w-xl mx-auto">
             Align your device with the arrow below to face the Kaaba in Mecca from Ottawa or anywhere else. 
             For best accuracy, hold your device flat and away from magnetic interference.
@@ -230,20 +230,17 @@ export const QiblaDirection: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 w-full max-w-sm text-left">
-          <div className="bg-gray-50 p-4 rounded-2xl space-y-1">
-            <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Your Location</span>
-            <div className="font-bold text-gray-900 flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#e90b35]" />
-              {location ? `${location.lat.toFixed(2)}°, ${location.lng.toFixed(2)}°` : '...'}
-            </div>
+        <div className="bg-gray-50 py-3.5 px-4 rounded-2xl w-full max-w-sm flex items-center justify-between gap-2 text-xs text-gray-700">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <MapPin className="w-3.5 h-3.5 text-[#e90b35] shrink-0" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 shrink-0">Location:</span>
+            <span className="font-bold text-gray-950 truncate">{location ? `${location.lat.toFixed(2)}°, ${location.lng.toFixed(2)}°` : 'Locating...'}</span>
           </div>
-          <div className="bg-gray-50 p-4 rounded-2xl space-y-1">
-            <span className="text-[10px] uppercase tracking-widest font-bold text-gray-400">Qibla Angle</span>
-            <div className="font-bold text-gray-900 flex items-center gap-2">
-              <Compass className="w-4 h-4 text-[#e90b35]" />
-              {qiblaDirection ? `${qiblaDirection.toFixed(1)}°` : '...'}
-            </div>
+          <div className="h-4 w-px bg-gray-200 shrink-0 mx-1"></div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Compass className="w-3.5 h-3.5 text-[#e90b35] shrink-0" />
+            <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400 shrink-0">Angle:</span>
+            <span className="font-bold text-gray-950">{qiblaDirection ? `${qiblaDirection.toFixed(1)}°` : '...'}</span>
           </div>
         </div>
         </div>

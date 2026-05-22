@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
+import { getPreciseLocation } from '../utils/geo';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -107,6 +108,13 @@ export const Login: React.FC = () => {
         
         await sendEmailVerification(userCredential.user);
         
+        let autoLocation = 'Ottawa, ON';
+        try {
+          autoLocation = await getPreciseLocation();
+        } catch (locationErr) {
+          console.warn('Could not auto-fetch location on register:', locationErr);
+        }
+        
         const newProfile: any = {
           uid: userCredential.user.uid,
           name: defaultName,
@@ -115,6 +123,7 @@ export const Login: React.FC = () => {
           createdAt: new Date().toISOString(),
           consentToUpdates: consent,
           pushNotifications: consent,
+          location: autoLocation,
         };
         await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
         

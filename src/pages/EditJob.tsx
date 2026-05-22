@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Save, Trash2, Image as ImageIcon, Send } from 'lucide-react';
+import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Save, Trash2, Image as ImageIcon, Send, Upload } from 'lucide-react';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,8 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { Job, JobType } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { SEO } from '../components/SEO';
-import { uploadFromUrl } from '../utils/storageUtils';
+import { uploadFromUrl, uploadFile } from '../utils/storageUtils';
+import { toast } from 'sonner';
 
 export const EditJob: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -173,11 +174,31 @@ export const EditJob: React.FC = () => {
               <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Company Logo URL (optional)"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                placeholder="Company Logo URL (optional) or upload ->"
+                className="w-full pl-14 pr-12 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.companyLogo}
                 onChange={(e) => setFormData({ ...formData, companyLogo: e.target.value })}
               />
+              <label className="absolute right-4 top-1/2 -translate-y-1/2 p-2 cursor-pointer bg-white rounded-xl shadow-sm text-gray-500 hover:text-[#e90b35] transition-colors border border-gray-100 hover:border-red-100">
+                <Upload className="w-4 h-4" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const toastId = toast.loading('Uploading logo...');
+                    try {
+                      const url = await uploadFile(file, 'jobs');
+                      setFormData(prev => ({ ...prev, companyLogo: url }));
+                      toast.success('Logo uploaded successfully', { id: toastId });
+                    } catch (error: any) {
+                      toast.error(error.message || 'Failed to upload logo', { id: toastId });
+                    }
+                  }}
+                />
+              </label>
             </div>
 
             <div className="relative md:col-span-1">
@@ -206,12 +227,11 @@ export const EditJob: React.FC = () => {
             <div className="relative md:col-span-1">
               <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <select
-                required
                 className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all appearance-none"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
               >
-                <option value="" disabled>Select Job Type</option>
+                <option value="">Select Job Type (Optional)</option>
                 <option value="Full-time">Full-time</option>
                 <option value="Part-time">Part-time</option>
                 <option value="Contract">Contract</option>

@@ -11,6 +11,7 @@ import {
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
+import { getPreciseLocation } from '../utils/geo';
 
 export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loginWithGoogle } = useAuth();
@@ -43,6 +44,13 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
         
         await sendEmailVerification(userCredential.user);
         
+        let autoLocation = 'Ottawa, ON';
+        try {
+          autoLocation = await getPreciseLocation();
+        } catch (locationErr) {
+          console.warn('Could not auto-fetch location on register (AuthGate):', locationErr);
+        }
+        
         const newProfile: any = {
           uid: userCredential.user.uid,
           name: defaultName,
@@ -51,6 +59,7 @@ export const AuthGate: React.FC<{ children: React.ReactNode }> = ({ children }) 
           createdAt: new Date().toISOString(),
           consentToUpdates: consent,
           pushNotifications: consent,
+          location: autoLocation,
         };
         await setDoc(doc(db, 'users', userCredential.user.uid), newProfile);
         

@@ -239,7 +239,7 @@ export const JobDetail: React.FC = () => {
           <div className="bg-gray-50 p-4 rounded-2xl flex flex-col gap-1">
             <Briefcase className="w-4 h-4 text-gray-400" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Job Type</span>
-            <span className="font-bold text-sm">{job.type}</span>
+            <span className="font-bold text-sm">{job.type || 'Not specified'}</span>
           </div>
           <div className="bg-gray-50 p-4 rounded-2xl flex flex-col gap-1">
             <DollarSign className="w-4 h-4 text-gray-400" />
@@ -316,7 +316,10 @@ export const JobDetail: React.FC = () => {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400 font-medium">
                     {related.salary && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> {related.salary}</span>}
-                    <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {related.type}</span>
+                    {related.type && <span className="flex items-center gap-1"><Briefcase className="w-3 h-3" /> {related.type}</span>}
+                    {(!related.salary && !related.type) && related.location && (
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {related.location.split(',')[1]?.trim() || related.location.split(',')[0]}</span>
+                    )}
                   </div>
                 </div>
               </Link>

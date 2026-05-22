@@ -26,6 +26,7 @@
         "name": { "type": "string" },
         "photos": { "type": "array", "items": { "type": "string" } },
         "address": { "type": "string" },
+        "suburb": { "type": "string" },
         "lat": { "type": "number" },
         "lng": { "type": "number" },
         "phoneNumber": { "type": "string" },

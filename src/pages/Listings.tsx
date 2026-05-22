@@ -289,10 +289,12 @@ export const Listings: React.FC = () => {
                       {listing.averageRating}
                     </div>
                   </div>
-                  <p className="text-gray-500 text-sm mt-1 flex items-center gap-3">
-                    <MapPin className="w-4 h-4 text-[#e90b35]" />
-                    {listing.address}
-                  </p>
+                  <div className="text-gray-500 text-sm mt-1 flex items-center justify-between flex-wrap gap-2">
+                    <span className="flex items-center gap-3">
+                      <MapPin className="w-4 h-4 text-[#e90b35]" />
+                      {listing.address}
+                    </span>
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(() => {
                       const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);

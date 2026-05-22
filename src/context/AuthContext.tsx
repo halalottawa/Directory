@@ -13,6 +13,7 @@ import { doc, getDoc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/
 import { auth, db, getMessagingPromise } from '../firebase';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
+import { getPreciseLocation } from '../utils/geo';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -116,6 +117,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } else {
             // Create profile if it doesn't exist
+            let autoLocation = 'Ottawa, ON';
+            try {
+              autoLocation = await getPreciseLocation();
+            } catch (locationErr) {
+              console.warn('Could not auto-fetch location on profile bootstrap:', locationErr);
+            }
+
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Anonymous',
@@ -126,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               emailFrequency: 'weekly',
               pushNotifications: true,
               pushFrequency: 'daily',
+              location: autoLocation,
             };
             if (firebaseUser.photoURL) {
               newProfile.photoURL = firebaseUser.photoURL;

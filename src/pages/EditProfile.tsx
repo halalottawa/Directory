@@ -7,6 +7,7 @@ import { db } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { TopNav } from '../components/TopNav';
 import { SEO } from '../components/SEO';
+import { getPreciseLocation } from '../utils/geo';
 
 export const EditProfile: React.FC = () => {
   const { user } = useAuth();
@@ -20,31 +21,9 @@ export const EditProfile: React.FC = () => {
   const [locationSuggestions, setLocationSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isDetectingGeo, setIsDetectingGeo] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
-  const OTTAWA_GATINEAU_SUGGESTIONS = [
-    { display_name: 'Barrhaven, Ottawa, ON' },
-    { display_name: 'Kanata, Ottawa, ON' },
-    { display_name: 'Orléans, Ottawa, ON' },
-    { display_name: 'Nepean, Ottawa, ON' },
-    { display_name: 'Stittsville, Ottawa, ON' },
-    { display_name: 'Glebe, Ottawa, ON' },
-    { display_name: 'Westboro, Ottawa, ON' },
-    { display_name: 'Centretown, Ottawa, ON' },
-    { display_name: 'Hull, Gatineau, QC' },
-    { display_name: 'Aylmer, Gatineau, QC' },
-    { display_name: 'Gatineau (Sector), Gatineau, QC' },
-    { display_name: 'Rockcliffe Park, Ottawa, ON' },
-    { display_name: 'Sandy Hill, Ottawa, ON' },
-    { display_name: 'Alta Vista, Ottawa, ON' },
-    { display_name: 'Hunt Club, Ottawa, ON' },
-    { display_name: 'Riverside South, Ottawa, ON' },
-    { display_name: 'Findlay Creek, Ottawa, ON' },
-    { display_name: 'Manotick, Ottawa, ON' },
-    { display_name: 'Old Ottawa South, Ottawa, ON' },
-    { display_name: 'Hintonburg, Ottawa, ON' }
-  ];
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -100,16 +79,8 @@ export const EditProfile: React.FC = () => {
         }
       }, 500); // 500ms debounce
       setSearchTimeout(timeout);
-    } else if (val.length > 0) {
-      // Filter local suggestions
-      const filtered = OTTAWA_GATINEAU_SUGGESTIONS.filter(item => 
-        item.display_name.toLowerCase().includes(val.toLowerCase())
-      ).slice(0, 5);
-      setLocationSuggestions(filtered);
-      setShowSuggestions(true);
-      setIsSearching(false);
     } else {
-      setLocationSuggestions(OTTAWA_GATINEAU_SUGGESTIONS.slice(0, 5));
+      setLocationSuggestions([]);
       setShowSuggestions(true);
       setIsSearching(false);
     }
@@ -253,7 +224,33 @@ export const EditProfile: React.FC = () => {
             </div>
 
             <div className="space-y-2 relative">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Location</label>
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Location</label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsDetectingGeo(true);
+                    setError('');
+                    try {
+                      const geoLoc = await getPreciseLocation();
+                      setLocation(geoLoc);
+                    } catch (err) {
+                      console.warn(err);
+                      setError('Could not detect location. Please type manually.');
+                    } finally {
+                      setIsDetectingGeo(false);
+                    }
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-800 font-medium flex items-center gap-1 cursor-pointer transition-colors active:scale-95 duration-150"
+                >
+                  {isDetectingGeo ? (
+                    <div className="w-3 h-3 border-2 border-gray-200 border-t-gray-500 rounded-full animate-spin" />
+                  ) : (
+                    <MapPin className="w-3 h-3 text-gray-400" />
+                  )}
+                  {isDetectingGeo ? 'Detecting...' : 'Use precise location'}
+                </button>
+              </div>
               <div className="relative">
                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -261,12 +258,6 @@ export const EditProfile: React.FC = () => {
                   value={location}
                   onChange={(e) => handleLocationChange(e.target.value)}
                   onFocus={() => {
-                    if (location.length < 3) {
-                      const filtered = OTTAWA_GATINEAU_SUGGESTIONS.filter(item => 
-                        item.display_name.toLowerCase().includes(location.toLowerCase())
-                      ).slice(0, 5);
-                      setLocationSuggestions(filtered);
-                    }
                     setShowSuggestions(true);
                   }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -280,29 +271,29 @@ export const EditProfile: React.FC = () => {
                 )}
               </div>
               
-              {showSuggestions && (locationSuggestions.length > 0 || (location.length > 2 && !isSearching)) && (
+              {showSuggestions && location.trim().length > 0 && (
                 <div className="absolute z-10 w-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 max-h-60 overflow-y-auto">
-                  {location.length < 3 && locationSuggestions.length > 0 && (
-                    <div className="px-5 py-2 bg-gray-50/50 border-b border-gray-50">
-                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Local Suggestions</p>
-                    </div>
-                  )}
                   {locationSuggestions.length > 0 ? (
                     locationSuggestions.map((item, index) => (
                       <button
                         key={index}
                         type="button"
-                        onClick={() => selectLocation(item)}
-                        className="w-full px-5 py-3 text-left text-sm font-medium hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-none"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectLocation(item);
+                        }}
+                        className="w-full px-5 py-3 text-left text-sm font-medium hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-none cursor-pointer"
                       >
                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                         <span className="truncate">{item.display_name}</span>
                       </button>
                     ))
                   ) : (
-                    <div className="px-5 py-4 text-sm text-gray-400 text-center italic">
-                      No suggestions found. You can still type manually.
-                    </div>
+                    !isSearching && (
+                      <div className="px-5 py-4 text-sm text-gray-400 text-center italic">
+                        No suggestions found. You can still type manually.
+                      </div>
+                    )
                   )}
                 </div>
               )}
