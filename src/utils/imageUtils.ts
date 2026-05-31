@@ -43,6 +43,17 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
     }
 
     // Route all other images through our server-side WebP and resizing optimization API
+    // only if the backend is running (typically in AI Studio / Cloud Run preview `.run.app` or localhost).
+    // On Vercel or custom domain deployments where the app is hosted statically, bypass the local optimizer
+    // and return the original URL so that images load properly without 404s.
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const isDevOrPreview = hostname.endsWith('.run.app') || hostname === 'localhost' || hostname === '127.0.0.1';
+      if (!isDevOrPreview) {
+        return url;
+      }
+    }
+
     const params: string[] = [];
     if (width) params.push(`w=${width}`);
     if (height) params.push(`h=${height}`);
