@@ -41,22 +41,15 @@ export default defineConfig(({mode}) => {
               if (id.includes('firebase')) {
                 return 'vendor-firebase';
               }
-              if (id.includes('lucide-react')) {
-                return 'vendor-lucide';
-              }
               if (id.includes('leaflet') || id.includes('react-leaflet')) {
                 return 'vendor-leaflet';
               }
               if (id.includes('recharts') || id.includes('d3')) {
                 return 'vendor-charts';
               }
-              if (id.includes('motion')) {
-                return 'vendor-motion';
+              if (id.includes('lucide-react')) {
+                return 'vendor-lucide';
               }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-                return 'vendor-react-core';
-              }
-              return 'vendor-utils';
             }
           }
         }
