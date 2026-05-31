@@ -198,7 +198,7 @@ export const CategoryListings: React.FC = () => {
     return filtered;
   }, [rawListings, searchQuery, formattedCategory]);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {

@@ -65,7 +65,7 @@ export const News: React.FC = () => {
     return () => unsubscribe();
   }, [searchQuery, user]);
 
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {

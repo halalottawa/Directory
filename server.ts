@@ -466,6 +466,40 @@ async function startServer() {
     }
   });
 
+  // Reverse proxy for Firebase Auth helper assets to cache with highly efficient TTL (for PageSpeed score optimization)
+  app.get("/__/auth/*", async (req, res) => {
+    try {
+      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      if (!fs.existsSync(configPath)) {
+        return res.status(404).send("Config not found");
+      }
+      
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      const authDomain = firebaseConfig.authDomain || `${firebaseConfig.projectId}.firebaseapp.com`;
+      const targetUrl = `https://${authDomain}${req.url}`;
+      
+      const response = await fetch(targetUrl);
+      if (!response.ok) {
+        return res.status(response.status).send(`Failed to proxy auth helper: ${response.statusText}`);
+      }
+      
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        res.setHeader("Content-Type", contentType);
+      }
+      
+      // Enforce long, efficient cache lifetime for repeating visits
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      return res.send(buffer);
+    } catch (err: any) {
+      console.error("Error reverse proxying Firebase Auth helper:", err);
+      return res.status(500).send("Error proxying Firebase Auth helper");
+    }
+  });
+
   // API routes can be added here
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
@@ -1144,7 +1178,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           if (pathParts.length === 0) {
             routeType = 'home';
             try {
-              const qListings = query(collection(db, 'listings'), where('isApproved', '==', true), where('isFeatured', '==', true), limit(8));
+              const qListings = query(
+                collection(db, 'listings'), 
+                where('isApproved', '==', true), 
+                where('isFeatured', '==', true), 
+                limit(8)
+              );
               const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
               const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
               const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
