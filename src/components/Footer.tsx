@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="flex items-center gap-2" aria-label="Halal Ottawa Home">
               <img 
-                src={getOptimizedImageUrl(siteLogoUrl, 160, 40)} 
+                src={siteLogoUrl || undefined} 
                 alt="Halal Ottawa" 
                 className="h-10 w-auto brightness-0 invert" 
                 loading="lazy"

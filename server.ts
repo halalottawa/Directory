@@ -139,7 +139,7 @@ async function startServer() {
         try {
           const { default: sharp } = await import("sharp");
           procBuffer = await sharp(buffer)
-            .webp({ quality: 80 })
+            .webp({ lossless: true })
             .toBuffer();
         } catch (e) {
           console.error("Error converting uploaded image to webp:", e);
@@ -198,7 +198,7 @@ async function startServer() {
           try {
             const { default: sharp } = await import("sharp");
             procBuffer = await sharp(buffer)
-              .webp({ quality: 80 })
+              .webp({ lossless: true })
               .toBuffer();
           } catch (e) {
             console.error("Error converting uploaded image to webp:", e);
@@ -222,7 +222,7 @@ async function startServer() {
       try {
         const { default: sharp } = await import("sharp");
         procBuffer = await sharp(buffer)
-          .webp({ quality: 80 })
+          .webp({ lossless: true })
           .toBuffer();
       } catch (e) {
         console.error("Error converting uploaded image to webp:", e);
@@ -297,7 +297,7 @@ async function startServer() {
           try {
             const { default: sharp } = await import("sharp");
             procBuffer = await sharp(buffer)
-              .webp({ quality: 80 })
+              .webp({ lossless: true })
               .toBuffer();
           } catch (e) {
             console.error("Error converting uploaded image to webp:", e);
@@ -321,7 +321,7 @@ async function startServer() {
       try {
         const { default: sharp } = await import("sharp");
         procBuffer = await sharp(buffer)
-          .webp({ quality: 80 })
+          .webp({ lossless: true })
           .toBuffer();
       } catch (e) {
         console.error("Error converting uploaded image to webp:", e);
@@ -450,7 +450,7 @@ async function startServer() {
       }
 
       const optimizedBuffer = await sharpImg
-        .webp({ quality })
+        .webp({ lossless: true })
         .toBuffer();
 
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
@@ -583,7 +583,7 @@ async function startServer() {
         let procBuffer = buffer;
         try {
           const { default: sharp } = await import("sharp");
-          procBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
+          procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
         } catch (err) {
           console.warn("Sharp fallback:", err);
         }

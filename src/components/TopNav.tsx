@@ -83,7 +83,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           role="link"
         >
           <img 
-            src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
+            src={siteLogoUrl || undefined} 
             alt="Halal Ottawa" 
             className="h-[52px] w-[180px] object-contain"
             fetchPriority="high"
@@ -176,7 +176,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           role="link"
         >
           <img 
-            src={getOptimizedImageUrl(siteLogoUrl, 152, 44)} 
+            src={siteLogoUrl || undefined} 
             alt="Halal Ottawa" 
             className="h-[44px] w-[152px] object-contain"
             width="152"
@@ -287,7 +287,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             <div className="p-6 flex justify-between items-center border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <img 
-                  src={getOptimizedImageUrl(siteLogoUrl, 180, 52)} 
+                  src={siteLogoUrl || undefined} 
                   alt="Halal Ottawa" 
                   className="h-[52px] w-auto"
                   width="180"
