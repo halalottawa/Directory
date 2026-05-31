@@ -29,6 +29,24 @@ function getContentTypeFromKey(key: string): string {
   }
 }
 
+// Helper function to optimize images to max 1200x1200px format WebP with lossy quality 80 for minimum size
+async function optimizeImageBuffer(buffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(buffer)
+      .resize({
+        width: 1200,
+        height: 1200,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80, effort: 4 })
+      .toBuffer();
+  } catch (err) {
+    console.error("Error optimizing image buffer, falling back to original buffer:", err);
+    return buffer;
+  }
+}
+
 async function startServer() {
   // Initialize firebase-admin
   const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
@@ -125,16 +143,10 @@ async function startServer() {
         }
       }
 
-      // Process image to webp
+      // Process and optimize image to WebP (resizing to max 1200x1200px, lossy quality 80)
       let procBuffer = buffer;
       if (contentType.startsWith("image/")) {
-        try {
-          procBuffer = await sharp(buffer)
-            .webp({ lossless: true })
-            .toBuffer();
-        } catch (e) {
-          console.error("Error converting uploaded image to webp:", e);
-        }
+        procBuffer = await optimizeImageBuffer(buffer);
       }
 
       await s3.send(new PutObjectCommand({
@@ -185,14 +197,7 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          let procBuffer = buffer;
-          try {
-            procBuffer = await sharp(buffer)
-              .webp({ lossless: true })
-              .toBuffer();
-          } catch (e) {
-            console.error("Error converting uploaded image to webp:", e);
-          }
+          const procBuffer = await optimizeImageBuffer(buffer);
           
           const { url } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -208,14 +213,7 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      let procBuffer = buffer;
-      try {
-        procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
-          .toBuffer();
-      } catch (e) {
-        console.error("Error converting uploaded image to webp:", e);
-      }
+      const procBuffer = await optimizeImageBuffer(buffer);
       
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
@@ -282,14 +280,7 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          let procBuffer = buffer;
-          try {
-            procBuffer = await sharp(buffer)
-              .webp({ lossless: true })
-              .toBuffer();
-          } catch (e) {
-            console.error("Error converting uploaded image to webp:", e);
-          }
+          const procBuffer = await optimizeImageBuffer(buffer);
           
           const { url: vercelUrl } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -305,14 +296,7 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      let procBuffer = buffer;
-      try {
-        procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
-          .toBuffer();
-      } catch (e) {
-        console.error("Error converting uploaded image to webp:", e);
-      }
+      const procBuffer = await optimizeImageBuffer(buffer);
 
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
@@ -434,12 +418,7 @@ async function startServer() {
           buffer = fs.readFileSync(localFullPath);
         }
 
-        let procBuffer = buffer;
-        try {
-          procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
-        } catch (err) {
-          console.warn("Sharp fallback:", err);
-        }
+        const procBuffer = await optimizeImageBuffer(buffer);
 
         await s3.send(new PutObjectCommand({
           Bucket: r2BucketName,
