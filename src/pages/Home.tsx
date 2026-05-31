@@ -67,6 +67,7 @@ export const Home: React.FC = () => {
     ? (window as any).__INITIAL_DATA__ 
     : null;
 
+  const [loading, setLoading] = useState(!initData);
   const [featuredListings, setFeaturedListings] = useState<Listing[]>(initData?.listings || []);
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>(initData?.events || []);
@@ -76,6 +77,9 @@ export const Home: React.FC = () => {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
+        if (!initData) {
+          setLoading(true);
+        }
         const isAdmin = user?.role === 'admin';
 
         // Fetch Featured Listings
@@ -172,6 +176,8 @@ export const Home: React.FC = () => {
 
       } catch (error) {
         console.error("Error fetching home data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -285,46 +291,58 @@ export const Home: React.FC = () => {
           </Link>
         </div>
         <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-          {featuredListings.map((listing, idx) => (
-            <Link
-              key={listing.id}
-              to={getListingUrl(listing)}
-              className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
-            >
-              <div className="relative aspect-[2/1] w-full bg-gray-100">
-                {listing.photos?.[0] ? (
-                  <img 
-                    src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
-                    alt={listing.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    loading={idx < 2 ? "eager" : "lazy"}
-                    fetchPriority={idx < 2 ? "high" : "auto"}
-                    width="480"
-                    height="240"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <span className="text-gray-400 text-xs font-medium">No Image</span>
+          {loading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden border border-gray-100/60 p-3 space-y-4 shadow-sm h-[200px]">
+                <div className="animate-pulse bg-gray-200 aspect-[2/1] w-full rounded-2xl" />
+                <div className="space-y-2">
+                  <div className="animate-pulse bg-gray-200 h-4 w-3/4 rounded-md" />
+                  <div className="animate-pulse bg-gray-200 h-3 w-1/2 rounded-md" />
+                </div>
+              </div>
+            ))
+          ) : (
+            featuredListings.map((listing, idx) => (
+              <Link
+                key={listing.id}
+                to={getListingUrl(listing)}
+                className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
+              >
+                <div className="relative aspect-[2/1] w-full bg-gray-100">
+                  {listing.photos?.[0] ? (
+                    <img 
+                      src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
+                      alt={listing.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      loading={idx < 2 ? "eager" : "lazy"}
+                      fetchPriority={idx < 2 ? "high" : "auto"}
+                      width="480"
+                      height="240"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-400 text-xs font-medium">No Image</span>
+                    </div>
+                  )}
+                  <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
+                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold">
+                    <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                    {listing.averageRating}
                   </div>
-                )}
-                <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
-                <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold">
-                  <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                  {listing.averageRating}
                 </div>
-              </div>
-              <div className="p-4">
-                <h3 className="font-bold leading-tight line-clamp-1">{listing.name}</h3>
-                <div className="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
-                  <span className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
-                    {listing.address.split(',')[0]}
-                  </span>
+                <div className="p-4">
+                  <h3 className="font-bold leading-tight line-clamp-1">{listing.name}</h3>
+                  <div className="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
+                      {listing.address.split(',')[0]}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </section>
 
@@ -341,47 +359,60 @@ export const Home: React.FC = () => {
           </Link>
         </div>
         <div className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
-          {latestNews.map((news, index) => (
-            <Link
-              key={news.id}
-              to={`/news/${news.slug || news.id}`}
-              className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35] ${index >= 3 ? 'hidden md:flex' : ''}`}
-            >
-              <div className="relative w-24 h-24 md:w-full md:h-auto aspect-square md:aspect-[2/1] shrink-0 bg-gray-100">
-                {news.coverImage && news.coverImage.trim() !== '' ? (
-                  <img 
-                    src={getOptimizedImageUrl(news.coverImage, 400, 200)} 
-                    alt={news.title} 
-                    className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
-                    loading="lazy"
-                    width="400"
-                    height="200"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
-                    <span className="text-gray-400 text-[10px] md:text-xs font-medium">No Image</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 flex flex-col justify-between py-1 md:p-5">
-                <div>
-                  <h3 className="font-bold leading-tight">{news.title}</h3>
-                  <div className="hidden md:block">
-                    <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.content}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
-                  <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="bg-white border border-gray-100 flex md:flex-col gap-4 md:gap-0 p-3 md:p-4 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm h-[180px] md:h-[280px]">
+                <div className="animate-pulse bg-gray-200 w-24 h-24 md:w-full aspect-square md:aspect-[2/1] rounded-xl md:rounded-2xl" />
+                <div className="flex-1 space-y-3 py-1 md:pt-4">
+                  <div className="animate-pulse bg-gray-200 h-4 w-5/6 rounded-md" />
+                  <div className="animate-pulse bg-gray-200 h-3 w-2/3 rounded-md hidden md:block" />
+                  <div className="animate-pulse bg-gray-200 h-3 w-1/3 rounded-md" />
                 </div>
               </div>
-            </Link>
-          ))}
+            ))
+          ) : (
+            latestNews.map((news, index) => (
+              <Link
+                key={news.id}
+                to={`/news/${news.slug || news.id}`}
+                className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35] ${index >= 3 ? 'hidden md:flex' : ''}`}
+              >
+                <div className="relative w-24 h-24 md:w-full md:h-auto aspect-square md:aspect-[2/1] shrink-0 bg-gray-100">
+                  {news.coverImage && news.coverImage.trim() !== '' ? (
+                    <img 
+                      src={getOptimizedImageUrl(news.coverImage, 400, 200)} 
+                      alt={news.title} 
+                      className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
+                      loading="lazy"
+                      width="400"
+                      height="200"
+                      decoding="async"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
+                      <span className="text-gray-400 text-[10px] md:text-xs font-medium">No Image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex flex-col justify-between py-1 md:p-5">
+                  <div>
+                    <h3 className="font-bold leading-tight">{news.title}</h3>
+                    <div className="hidden md:block">
+                      <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.content}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
+                    <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </section>
 
       {/* Featured Events */}
-      {featuredEvents.length > 0 && (
+      {(loading || featuredEvents.length > 0) && (
         <section className="space-y-4">
           <div className="flex justify-between items-end">
             <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Events</h2>
@@ -394,41 +425,53 @@ export const Home: React.FC = () => {
             </Link>
           </div>
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-            {featuredEvents.map((event) => (
-              <Link
-                key={event.id}
-                to={`/events/${event.slug || event.id}`}
-                className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
-              >
-                <div className="relative aspect-[2/1] bg-gray-100">
-                  {event.coverImage && event.coverImage.trim() !== '' ? (
-                    <img 
-                      src={getOptimizedImageUrl(event.coverImage, 400, 200)} 
-                      alt={event.title} 
-                      className="w-full h-full object-cover" 
-                      loading="lazy"
-                      width="400"
-                      height="200"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400 text-xs font-medium">No Image</span>
-                    </div>
-                  )}
-                  <div className="absolute top-3 left-3 bg-white px-2 py-1 rounded-lg text-center shadow-lg">
-                    <span className="block text-[10px] font-bold text-[#e90b35] uppercase">{new Date(event.dateTime).toLocaleString('default', { month: 'short' })}</span>
-                    <span className="block text-lg font-black leading-none">{new Date(event.dateTime).getDate()}</span>
+            {loading ? (
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden border border-gray-100/60 p-3 space-y-4 shadow-sm h-[200px]">
+                  <div className="animate-pulse bg-gray-200 aspect-[2/1] w-full rounded-2xl" />
+                  <div className="space-y-2">
+                    <div className="animate-pulse bg-gray-200 h-4 w-3/4 rounded-md" />
+                    <div className="animate-pulse bg-gray-200 h-3 w-1/2 rounded-md" />
                   </div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-bold leading-tight line-clamp-1">{event.title}</h3>
-                  <p className="text-[#e90b35] font-bold text-sm flex items-center gap-2 mt-1">
-                    <User className="w-3 h-3" /> {event.organizer}
-                  </p>
-                </div>
-              </Link>
-            ))}
+              ))
+            ) : (
+              featuredEvents.map((event) => (
+                <Link
+                  key={event.id}
+                  to={`/events/${event.slug || event.id}`}
+                  className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
+                >
+                  <div className="relative aspect-[2/1] bg-gray-100">
+                    {event.coverImage && event.coverImage.trim() !== '' ? (
+                      <img 
+                        src={getOptimizedImageUrl(event.coverImage, 400, 200)} 
+                        alt={event.title} 
+                        className="w-full h-full object-cover" 
+                        loading="lazy"
+                        width="400"
+                        height="200"
+                        decoding="async"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-400 text-xs font-medium">No Image</span>
+                      </div>
+                    )}
+                    <div className="absolute top-3 left-3 bg-white px-2 py-1 rounded-lg text-center shadow-lg">
+                      <span className="block text-[10px] font-bold text-[#e90b35] uppercase">{new Date(event.dateTime).toLocaleString('default', { month: 'short' })}</span>
+                      <span className="block text-lg font-black leading-none">{new Date(event.dateTime).getDate()}</span>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-bold leading-tight line-clamp-1">{event.title}</h3>
+                    <p className="text-[#e90b35] font-bold text-sm flex items-center gap-2 mt-1">
+                      <User className="w-3 h-3" /> {event.organizer}
+                    </p>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
         </section>
       )}
@@ -446,47 +489,61 @@ export const Home: React.FC = () => {
           </Link>
         </div>
         <div className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-2 md:gap-4 md:space-y-0">
-          {featuredJobs.map((job) => (
-            <Link
-              key={job.id}
-              to={`/jobs/${job.slug || job.id}`}
-              className="block bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
-            >
-              <div className="flex gap-3 items-start">
-                <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 aspect-square">
-                  {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                    <img 
-                      src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
-                      alt={job.company} 
-                      className="w-full h-full object-cover" 
-                      loading="lazy"
-                      width="48"
-                      height="48"
-                    />
-                  ) : (
-                    <Building2 className="w-6 h-6 text-gray-400" />
+          {loading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="block bg-white p-4 rounded-2xl border border-gray-100 shadow-sm h-[110px] space-y-4">
+                <div className="flex gap-3 items-start animate-pulse">
+                  <div className="w-12 h-12 rounded-xl bg-gray-200 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded-md w-3/4" />
+                    <div className="h-3 bg-gray-200 rounded-md w-1/2" />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            featuredJobs.map((job) => (
+              <Link
+                key={job.id}
+                to={`/jobs/${job.slug || job.id}`}
+                className="block bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
+              >
+                <div className="flex gap-3 items-start">
+                  <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 aspect-square">
+                    {job.companyLogo && job.companyLogo.trim() !== '' ? (
+                      <img 
+                        src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
+                        alt={job.company} 
+                        className="w-full h-full object-cover" 
+                        loading="lazy"
+                        width="48"
+                        height="48"
+                      />
+                    ) : (
+                      <Building2 className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-4">
+                      <h3 className="font-bold text-gray-900 leading-tight">{job.title}</h3>
+                      {job.isFeatured && <span className="bg-red-50 text-[#e90b35] text-[10px] font-bold px-2 py-1 rounded-full uppercase shrink-0">Featured</span>}
+                    </div>
+                    <p className="text-[#e90b35] font-bold text-sm flex items-center gap-1 mt-1">
+                      <Briefcase className="w-3 h-3 shrink-0" /> <span>{job.company}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400 font-medium">
+                  {job.salary && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> {job.salary}</span>}
+                  {job.type && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {job.type}</span>}
+                  {(!job.salary && !job.type) && job.location && (
+                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {job.location.split(',')[1]?.trim() || job.location.split(',')[0]}</span>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start gap-4">
-                    <h3 className="font-bold text-gray-900 leading-tight">{job.title}</h3>
-                    {job.isFeatured && <span className="bg-red-50 text-[#e90b35] text-[10px] font-bold px-2 py-1 rounded-full uppercase shrink-0">Featured</span>}
-                  </div>
-                  <p className="text-[#e90b35] font-bold text-sm flex items-center gap-1 mt-1">
-                    <Briefcase className="w-3 h-3 shrink-0" /> <span>{job.company}</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 flex items-center gap-4 text-xs text-gray-400 font-medium">
-                {job.salary && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> {job.salary}</span>}
-                {job.type && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {job.type}</span>}
-                {(!job.salary && !job.type) && job.location && (
-                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {job.location.split(',')[1]?.trim() || job.location.split(',')[0]}</span>
-                )}
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </section>
 

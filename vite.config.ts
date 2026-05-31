@@ -33,7 +33,24 @@ export default defineConfig(({mode}) => {
           comments: false,
         },
       },
-      rollupOptions: {}
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('lucide') || id.includes('react-icons')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('react-router') || id.includes('react-dom') || id.includes('react-helmet')) {
+                return 'vendor-core';
+              }
+              return 'vendor-others';
+            }
+          }
+        }
+      }
     }
   };
 });
