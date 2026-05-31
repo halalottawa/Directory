@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const { getToken } = await import('firebase/messaging');
             const currentToken = await getToken(messaging, {
-              vapidKey: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeZ1vHIUgl1wIi0m-m2c-x39-t0gQyT9-rX8-p9-s9-v9-w9-y9-z9' // Note: Replace with real VAPID key if needed
+              vapidKey: 'X3tvdqEcdb4vTJ0EI8GFcopHAciDu-g-SqstyZyFAfg'
             });
             if (currentToken) {
               await updateDoc(doc(db, 'users', auth.currentUser.uid), {
@@ -115,6 +115,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
               setUser(userData);
             }
+
+            // Strategy B Token Sync: Check if there is a pending native token to assign
+            const pendingToken = localStorage.getItem('pendingNativeFcmToken');
+            if (pendingToken) {
+              try {
+                await updateDoc(userDocRef, {
+                  fcmToken: pendingToken,
+                  fcmTokenUpdated: new Date().toISOString(),
+                  pushNotifications: true
+                });
+                // Write detailed device registration for multi-device push capabilities
+                await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
+                  token: pendingToken,
+                  platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
+                  lastUpdated: new Date().toISOString(),
+                  appVersion: '1.0.0'
+                });
+                localStorage.removeItem('pendingNativeFcmToken');
+                console.log('Successfully bounded pending native FCM token to active user account.');
+              } catch (err) {
+                console.warn('Error binding pending FCM token:', err);
+              }
+            }
           } else {
             // Create profile if it doesn't exist
             let autoLocation = 'Ottawa, ON';
@@ -124,7 +147,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.warn('Could not auto-fetch location on profile bootstrap:', locationErr);
             }
 
-            const newProfile: UserProfile = {
+            // Strategy B Check: Check if we have a pending native push token
+            const pendingToken = localStorage.getItem('pendingNativeFcmToken');
+
+            const newProfile: UserProfile & { fcmToken?: string; fcmTokenUpdated?: string } = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'Anonymous',
               email: firebaseUser.email || '',
@@ -136,11 +162,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               pushFrequency: 'daily',
               location: autoLocation,
             };
+
+            if (pendingToken) {
+              newProfile.fcmToken = pendingToken;
+              newProfile.fcmTokenUpdated = new Date().toISOString();
+              newProfile.pushNotifications = true;
+            }
+
             if (firebaseUser.photoURL) {
               newProfile.photoURL = firebaseUser.photoURL;
             }
             await setDoc(userDocRef, newProfile);
-            // onSnapshot will pick this up
+
+            if (pendingToken) {
+              try {
+                await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
+                  token: pendingToken,
+                  platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
+                  lastUpdated: new Date().toISOString(),
+                  appVersion: '1.0.0'
+                });
+                localStorage.removeItem('pendingNativeFcmToken');
+              } catch (deviceWriteErr) {
+                console.warn('Could not write device listing during new profile creation:', deviceWriteErr);
+              }
+            }
           }
           setLoading(false);
         }, (err) => {
@@ -159,6 +205,107 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (unsubscribeDoc) unsubscribeDoc();
     };
   }, []);
+
+  // Strategy B: Native JS-to-WebView hybrid push notification bridge
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // 1. Register global callback for when native container obtains FCM token
+    (window as any).onFCMTokenReceived = async (token: string) => {
+      console.log('Strategy B: FCM Token received from Native Mobile Wrapper:', token);
+      if (!token) return;
+
+      // Save to localStorage as pending/resolved reference
+      localStorage.setItem('nativeFcmToken', token);
+
+      if (auth.currentUser) {
+        try {
+          const uid = auth.currentUser.uid;
+          const userDocRef = doc(db, 'users', uid);
+
+          // Update main user profile
+          await updateDoc(userDocRef, {
+            fcmToken: token,
+            fcmTokenUpdated: new Date().toISOString(),
+            pushNotifications: true
+          });
+
+          // Register in multi-device devices log
+          await setDoc(doc(db, 'users', uid, 'devices', token), {
+            token,
+            platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
+            lastUpdated: new Date().toISOString(),
+            appVersion: '1.0.0-native'
+          });
+
+          console.log('Strategy B: Native push token registered successfully.');
+        } catch (err) {
+          console.error('Strategy B: Error saving native FCM Token to Firestore:', err);
+        }
+      } else {
+        // Not logged in yet: Hold as pending until auth state resolves
+        localStorage.setItem('pendingNativeFcmToken', token);
+        console.log('Strategy B: Held native push token as pending guest registration.');
+      }
+    };
+
+    // 2. Global handler for notification actions/clicks relayed by native wrapper
+    (window as any).onNativeNotificationClicked = (payload: any) => {
+      console.log('Strategy B: Notification clicked with payload:', payload);
+      // Custom redirect or deep link can be processed here
+      if (payload && payload.url) {
+        const path = payload.url.replace(/^https?:\/\/[^\/]+/, '');
+        window.location.hash = path; // Fallback route resolution or navigate
+      }
+    };
+
+    // 3. Signal to the native wrapper that the web application is loaded and ready
+    const triggerNativeRegister = () => {
+      const win = window as any;
+      const payloadString = JSON.stringify({ event: 'WEBVIEW_READY', strategy: 'B' });
+
+      // Capacitor Native Push Trigger
+      if (win.Capacitor?.Plugins?.PushNotifications) {
+        try {
+          win.Capacitor.Plugins.PushNotifications.requestPermissions().then((res: any) => {
+            if (res.receive === 'granted') {
+              win.Capacitor.Plugins.PushNotifications.register();
+            }
+          });
+        } catch (e) {
+          console.warn('Capacitor registration attempt failed:', e);
+        }
+      }
+
+      // React Native WebView PostMessage Bridge
+      if (win.ReactNativeWebView?.postMessage) {
+        try {
+          win.ReactNativeWebView.postMessage(payloadString);
+        } catch (e) {}
+      }
+
+      // iOS WebKit Native Handlers
+      if (win.webkit?.messageHandlers?.notificationHandler?.postMessage) {
+        try {
+          win.webkit.messageHandlers.notificationHandler.postMessage({ action: 'register', strategy: 'B' });
+        } catch (e) {}
+      }
+
+      // Custom Android Bridge Injection
+      if (win.AndroidBridge?.requestFCMToken) {
+        try {
+          win.AndroidBridge.requestFCMToken();
+        } catch (e) {}
+      }
+    };
+
+    // Wait slightly to make sure native injectors are present
+    const initTimer = setTimeout(() => {
+      triggerNativeRegister();
+    }, 1500);
+
+    return () => clearTimeout(initTimer);
+  }, [user?.uid]);
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();

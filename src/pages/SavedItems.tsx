@@ -162,6 +162,7 @@ export const SavedItems: React.FC = () => {
       <SEO 
         title="Saved Items" 
         description="View your saved listings, events, jobs, and news on Halal Ottawa." 
+        noindex={true}
       />
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-12">

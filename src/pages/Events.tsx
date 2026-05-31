@@ -11,6 +11,7 @@ import { formatDate, formatTime } from '../utils/dateFormatter';
 import { AdDisplay } from '../components/AdDisplay';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
+import { isAppWrapper } from '../utils/platform';
 
 export const Events: React.FC = () => {
   const { user } = useAuth();
@@ -62,23 +63,27 @@ export const Events: React.FC = () => {
   }, [searchQuery, user]);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {
+    setIsApp(isAppWrapper());
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const shouldUseInfiniteScroll = isMobile && isApp;
+
   const totalPages = Math.ceil(events.length / itemsPerPage);
   const currentEvents = events.slice(
-    isMobile ? 0 : (currentPage - 1) * itemsPerPage,
+    shouldUseInfiniteScroll ? 0 : (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!shouldUseInfiniteScroll) return;
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && currentPage < totalPages) {
@@ -91,7 +96,7 @@ export const Events: React.FC = () => {
       observer.observe(observerTarget.current);
     }
     return () => observer.disconnect();
-  }, [isMobile, currentPage, totalPages]);
+  }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
   // Reset page when searchQuery changes
   useEffect(() => {
@@ -148,7 +153,7 @@ export const Events: React.FC = () => {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {currentEvents.map((event) => (
+        {currentEvents.map((event, idx) => (
           <Link
             key={event.id}
             to={`/events/${event.slug || event.id}`}
@@ -160,9 +165,11 @@ export const Events: React.FC = () => {
                   src={getOptimizedImageUrl(event.coverImage, 400, 192)} 
                   alt={event.title} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  loading="lazy"
+                  loading={idx < 3 ? "eager" : "lazy"}
+                  fetchPriority={idx < 3 ? "high" : "auto"}
                   width="400"
                   height="192"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -195,15 +202,15 @@ export const Events: React.FC = () => {
       </div>
 
       {/* Infinite Scroll target for mobile */}
-      {isMobile && currentPage < totalPages && (
+      {shouldUseInfiniteScroll && currentPage < totalPages && (
         <div ref={observerTarget} className="h-10 w-full flex justify-center items-center py-4">
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#e90b35] rounded-full animate-spin"></div>
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="hidden md:flex justify-center items-center gap-2 pt-8 pb-12">
+      {totalPages > 1 && !shouldUseInfiniteScroll && (
+        <div className="flex justify-center items-center gap-1.5 md:gap-2 pt-8 pb-12">
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
@@ -212,12 +219,12 @@ export const Events: React.FC = () => {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                className={`w-9 h-9 md:w-10 md:h-10 rounded-xl font-bold text-xs md:text-sm transition-all ${
                   currentPage === i + 1 
                     ? 'bg-[#e90b35] text-white shadow-lg shadow-red-200' 
                     : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'

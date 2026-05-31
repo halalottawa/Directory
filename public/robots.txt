@@ -12,12 +12,12 @@ Disallow: /saved
 # Block crawling of forms and action routes to prevent indexing of add or edit pages (news, listing, job, event)
 Disallow: /listings/add
 Disallow: /listings/edit/*
+Disallow: /news/add
+Disallow: /news/edit/*
 Disallow: /events/add
 Disallow: /events/edit/*
 Disallow: /jobs/add
 Disallow: /jobs/edit/*
-Disallow: /news/add
-Disallow: /news/edit/*
 Disallow: /profile/edit
 Disallow: /listings
 Allow: /listings/

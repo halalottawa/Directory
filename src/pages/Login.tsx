@@ -15,6 +15,7 @@ import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
 import { getPreciseLocation } from '../utils/geo';
+import { isAppWrapper } from '../utils/platform';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -30,6 +31,7 @@ export const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setGuest, loginWithGoogle } = useAuth();
+  const isApp = isAppWrapper();
 
   const handleGoogleLogin = async () => {
     if (isRegister) {
@@ -173,14 +175,17 @@ export const Login: React.FC = () => {
       <SEO 
         title={isRegister ? 'Register' : 'Login'} 
         description={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} 
+        noindex={true}
       />
 
-      <button 
-        onClick={() => navigate(-1)} 
-        className="absolute top-6 left-6 p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-gray-600 shadow-sm active:scale-95 transition-all z-10"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
+      {!isApp && (
+        <button 
+          onClick={() => navigate(-1)} 
+          className="absolute top-6 left-6 p-3 bg-white border border-gray-100 rounded-2xl text-gray-400 hover:text-gray-600 shadow-sm active:scale-95 transition-all z-10"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
       <div className="flex-1 flex flex-col justify-start pt-8 px-6 pb-6 max-w-md mx-auto w-full">
         <div className="text-center mb-5 space-y-1">
           <div className="w-12 h-12 bg-[#e90b35] rounded-2xl mx-auto flex items-center justify-center mb-3 shadow-lg shadow-red-200">
@@ -331,22 +336,26 @@ export const Login: React.FC = () => {
             </button>
           </form>
 
-          <div className="relative py-2">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-gray-50 text-gray-400 uppercase tracking-[0.2em] text-[11px] font-bold">Or</span>
-            </div>
-          </div>
+          {!isApp && (
+            <>
+              <div className="relative py-2">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-gray-50 text-gray-400 uppercase tracking-[0.2em] text-[11px] font-bold">Or</span>
+                </div>
+              </div>
 
-          <button
-            type="button"
-            onClick={handleGuestContinue}
-            className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 active:scale-95 transition-all shadow-sm text-sm"
-          >
-            Continue as Guest
-          </button>
+              <button
+                type="button"
+                onClick={handleGuestContinue}
+                className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 active:scale-95 transition-all shadow-sm text-sm"
+              >
+                Continue as Guest
+              </button>
+            </>
+          )}
         </div>
       </div>
     </main>

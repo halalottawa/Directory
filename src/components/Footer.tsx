@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, Globe } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaReddit } from 'react-icons/fa6';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
   }, []);
 
   return (
-    <footer className="hidden md:block bg-gray-900 pt-16 pb-8 border-t border-gray-800">
+    <footer className="bg-gray-950 pt-12 md:pt-16 pb-8 border-t border-gray-850">
       <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
           {/* Brand Column */}
@@ -85,14 +85,6 @@ export const Footer: React.FC = () => {
               <li className="flex items-start gap-3">
                 <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
                 <span className="text-gray-400 text-sm">Ottawa, Ontario, Canada</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-[#e90b35] shrink-0" />
-                <a href="mailto:info@halalottawa.ca" className="text-gray-400 hover:text-white text-sm transition-colors">info@halalottawa.ca</a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Globe className="w-5 h-5 text-[#e90b35] shrink-0" />
-                <a href="https://halalottawa.ca" className="text-gray-400 hover:text-white text-sm transition-colors">halalottawa.ca</a>
               </li>
             </ul>
           </div>

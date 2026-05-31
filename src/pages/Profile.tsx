@@ -163,6 +163,7 @@ export const Profile: React.FC = () => {
       <SEO 
         title={`${user.name} | Profile`} 
         description={`Profile page for ${user.name} on Halal Ottawa.`} 
+        noindex={true}
       />
 
       {/* Profile Hero / Header (Unboxed, clean, matching other page styles) */}

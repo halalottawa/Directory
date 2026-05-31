@@ -9,6 +9,7 @@ import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_EVENTS, DEMO_JOBS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
+import { useAuth } from '../context/AuthContext';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
@@ -60,6 +61,7 @@ export const Home: React.FC = () => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start', slidesToScroll: 1 }, [Autoplay({ delay: 3000, stopOnInteraction: false })]);
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
+  const { user } = useAuth();
 
   const initData = typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home' 
     ? (window as any).__INITIAL_DATA__ 
@@ -74,6 +76,8 @@ export const Home: React.FC = () => {
   useEffect(() => {
     const fetchHomeData = async () => {
       try {
+        const isAdmin = user?.role === 'admin';
+
         // Fetch Featured Listings
         const qListings = query(
           collection(db, 'listings'), 
@@ -86,59 +90,88 @@ export const Home: React.FC = () => {
         setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured).slice(0, 8));
 
         // Fetch Latest News
-        const qNews = query(
-          collection(db, 'news'), 
-          where('isApproved', '==', true),
-          limit(10)
-        );
+        const qNews = isAdmin
+          ? query(collection(db, 'news'), limit(20))
+          : query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
+        
         const newsSnap = await getDocs(qNews);
         const newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
         
-        // Sort by publishDate (newest first) and limit to 6
-        const sortedNews = newsData
-          .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime())
+        // Merge with DEMO_NEWS, deduplicating by ID or slug
+        const mergedNewsMap = new Map<string, NewsArticle>();
+        DEMO_NEWS.forEach(item => mergedNewsMap.set(item.id, item));
+        newsData.forEach(item => {
+          mergedNewsMap.set(item.id, item);
+          if (item.slug) {
+            const demoItem = DEMO_NEWS.find(d => d.slug === item.slug);
+            if (demoItem) mergedNewsMap.delete(demoItem.id);
+          }
+        });
+        
+        const sortedNews = Array.from(mergedNewsMap.values())
+          .sort((a, b) => {
+            if (a.isFeatured && !b.isFeatured) return -1;
+            if (!a.isFeatured && b.isFeatured) return 1;
+            return new Date(b.publishDate || b.createdAt || 0).getTime() - new Date(a.publishDate || a.createdAt || 0).getTime();
+          })
           .slice(0, 6);
-
-        setLatestNews(sortedNews.length > 0 ? sortedNews : DEMO_NEWS.slice(0, 6));
+        setLatestNews(sortedNews);
 
         // Fetch Events
-        const qEvents = query(
-          collection(db, 'events'), 
-          where('isApproved', '==', true),
-          limit(20)
-        );
+        const qEvents = isAdmin
+          ? query(collection(db, 'events'), limit(20))
+          : query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
+        
         const eventsSnap = await getDocs(qEvents);
         const eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Event[];
         
-        // Show the latest 8 events chronologically (newest first)
-        const sortedEvents = eventsData
+        // Merge with DEMO_EVENTS, deduplicating by ID or slug
+        const mergedEventsMap = new Map<string, Event>();
+        DEMO_EVENTS.forEach(item => mergedEventsMap.set(item.id, item));
+        eventsData.forEach(item => {
+          mergedEventsMap.set(item.id, item);
+          if (item.slug) {
+            const demoItem = DEMO_EVENTS.find(d => d.slug === item.slug);
+            if (demoItem) mergedEventsMap.delete(demoItem.id);
+          }
+        });
+
+        const sortedEvents = Array.from(mergedEventsMap.values())
           .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
           .slice(0, 8);
-          
-        setFeaturedEvents(sortedEvents.length > 0 ? sortedEvents : []);
+        setFeaturedEvents(sortedEvents);
 
         // Fetch Latest Jobs
-        const qJobs = query(
-          collection(db, 'jobs'), 
-          where('isApproved', '==', true),
-          limit(10)
-        );
+        const qJobs = isAdmin
+          ? query(collection(db, 'jobs'), limit(20))
+          : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
+          
         const jobsSnap = await getDocs(qJobs);
         const jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
         
-        // Sort by creation date (newest first)
-        const sortedJobs = jobsData
+        // Merge with DEMO_JOBS, deduplicating by ID or slug
+        const mergedJobsMap = new Map<string, Job>();
+        DEMO_JOBS.forEach(item => mergedJobsMap.set(item.id, item));
+        jobsData.forEach(item => {
+          mergedJobsMap.set(item.id, item);
+          if (item.slug) {
+            const demoItem = DEMO_JOBS.find(d => d.slug === item.slug);
+            if (demoItem) mergedJobsMap.delete(demoItem.id);
+          }
+        });
+
+        const sortedJobs = Array.from(mergedJobsMap.values())
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 4);
+        setFeaturedJobs(sortedJobs);
 
-        setFeaturedJobs(sortedJobs.length > 0 ? sortedJobs : DEMO_JOBS);
       } catch (error) {
         console.error("Error fetching home data:", error);
       }
     };
 
     fetchHomeData();
-  }, []);
+  }, [user]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

@@ -11,6 +11,7 @@ import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { AdDisplay } from '../components/AdDisplay';
 import { SEO } from '../components/SEO';
+import { isAppWrapper } from '../utils/platform';
 
 export const Jobs: React.FC = () => {
   const { user } = useAuth();
@@ -63,23 +64,27 @@ export const Jobs: React.FC = () => {
   }, [searchQuery, user]);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {
+    setIsApp(isAppWrapper());
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const shouldUseInfiniteScroll = isMobile && isApp;
+
   const totalPages = Math.ceil(jobs.length / itemsPerPage);
   const currentJobs = jobs.slice(
-    isMobile ? 0 : (currentPage - 1) * itemsPerPage,
+    shouldUseInfiniteScroll ? 0 : (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!shouldUseInfiniteScroll) return;
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && currentPage < totalPages) {
@@ -92,7 +97,7 @@ export const Jobs: React.FC = () => {
       observer.observe(observerTarget.current);
     }
     return () => observer.disconnect();
-  }, [isMobile, currentPage, totalPages]);
+  }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
   // Reset page when searchQuery changes
   useEffect(() => {
@@ -149,7 +154,7 @@ export const Jobs: React.FC = () => {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {currentJobs.map((job) => (
+        {currentJobs.map((job, idx) => (
           <Link
             key={job.id}
             to={`/jobs/${job.slug || job.id}`}
@@ -162,9 +167,11 @@ export const Jobs: React.FC = () => {
                     src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
                     alt={job.company} 
                     className="w-full h-full object-cover" 
-                    loading="lazy"
+                    loading={idx < 4 ? "eager" : "lazy"}
+                    fetchPriority={idx < 4 ? "high" : "auto"}
                     width="48"
                     height="48"
+                    decoding="async"
                   />
                 ) : (
                   <Building2 className="w-6 h-6 text-gray-400" />
@@ -200,15 +207,15 @@ export const Jobs: React.FC = () => {
       </div>
 
       {/* Infinite Scroll target for mobile */}
-      {isMobile && currentPage < totalPages && (
+      {shouldUseInfiniteScroll && currentPage < totalPages && (
         <div ref={observerTarget} className="h-10 w-full flex justify-center items-center py-4">
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#e90b35] rounded-full animate-spin"></div>
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="hidden md:flex justify-center items-center gap-2 pt-8 pb-12">
+      {totalPages > 1 && !shouldUseInfiniteScroll && (
+        <div className="flex justify-center items-center gap-1.5 md:gap-2 pt-8 pb-12">
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
@@ -217,12 +224,12 @@ export const Jobs: React.FC = () => {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentPage(i + 1)}
-                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                className={`w-9 h-9 md:w-10 md:h-10 rounded-xl font-bold text-xs md:text-sm transition-all ${
                   currentPage === i + 1 
                     ? 'bg-[#e90b35] text-white shadow-lg shadow-red-200' 
                     : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'

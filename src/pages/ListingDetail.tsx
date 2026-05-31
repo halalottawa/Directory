@@ -41,6 +41,16 @@ export const ListingDetail: React.FC = () => {
   const [editingReview, setEditingReview] = useState<string | null>(null);
   const [editComment, setEditComment] = useState('');
   const [relatedListings, setRelatedListings] = useState<Listing[]>([]);
+  const [settingsCoverUrl, setSettingsCoverUrl] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists() && docSnap.data().coverImageUrl) {
+        setSettingsCoverUrl(docSnap.data().coverImageUrl);
+      }
+    });
+    return () => unsub();
+  }, []);
 
   // Contact Info Modal state
   const [infoModal, setInfoModal] = useState<{
@@ -360,13 +370,18 @@ export const ListingDetail: React.FC = () => {
   const renderBreadcrumbs = (position: 'top' | 'content') => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;
     
+    let displayCategory: string = mainCategory;
+    if (mainCategory === 'Restaurants') displayCategory = 'Halal Restaurants';
+    if (mainCategory === 'Schools') displayCategory = 'Islamic Schools';
+    if (mainCategory === 'Grocery') displayCategory = 'Halal Grocery';
+    
     return (
       <div className={`hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap scrollbar-hide ${position === 'top' ? 'py-4 px-6 border-b border-gray-100 bg-gray-50/50' : ''}`}>
         <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
         {mainCategory && (
           <>
             <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-            <Link to={`/${mainCategory.toLowerCase()}`} className="hover:text-[#e90b35] transition-colors">{mainCategory === 'Restaurants' ? 'Halal Restaurants' : mainCategory}</Link>
+            <Link to={`/${mainCategory.toLowerCase()}`} className="hover:text-[#e90b35] transition-colors">{displayCategory}</Link>
           </>
         )}
         <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
@@ -455,37 +470,16 @@ export const ListingDetail: React.FC = () => {
         ]}
       />
 
-      {/* Image Gallery */}
-      <div className="relative h-72">
-        {listing.photos && listing.photos.length > 0 ? (
-          <div className="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
-            {listing.photos.map((photo, idx) => (
-              <img 
-                key={idx} 
-                src={getOptimizedImageUrl(photo, 800, 288)} 
-                alt={`${listing.name} - Photo ${idx + 1}`} 
-                className="w-full h-full object-cover shrink-0 snap-center" 
-                crossOrigin="anonymous" 
-                loading={idx === 0 ? "eager" : "lazy"}
-                fetchPriority={idx === 0 ? "high" : "auto"}
-                width="800"
-                height="288"
-                decoding="async"
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-400 font-medium">No Image Available</span>
-          </div>
-        )}
-        {listing.photos && listing.photos.length > 1 && (
-          <div className="absolute bottom-6 right-6 bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold">
-             1 / {listing.photos.length} 
-             <span className="ml-2 font-normal text-white/70 tracking-widest uppercase text-[10px]">Swipe to view</span>
-          </div>
-        )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none"></div>
+      {/* Listing Header Banner */}
+      <div className="relative h-72 bg-slate-900 overflow-hidden">
+        <img 
+          src={settingsCoverUrl || "/ottawa-sunset.webp"} 
+          alt={listing.name}
+          className="absolute inset-0 w-full h-full object-cover object-[center_30%]"
+          loading="eager"
+          fetchPriority="high"
+        />
+        <div className="absolute inset-0 bg-black/70"></div>
 
         {listing.isFeatured && (
           <div className="absolute top-4 left-4 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
@@ -518,7 +512,7 @@ export const ListingDetail: React.FC = () => {
           )}
         </div>
 
-        <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white">
+        <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap text-white">
               {(() => {
@@ -538,14 +532,25 @@ export const ListingDetail: React.FC = () => {
                 return (
                   <>
                     {mainCategory && (
-                      <span className={displaySubcategories.length === 0 ? "bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase" : "bg-[#e90b35] text-white border border-[#e90b35] px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm"}>
+                      <Link 
+                        to={`/${mainCategory.toLowerCase().replace(/\s+/g, '-')}`}
+                        className={`transition-all hover:scale-105 active:scale-95 duration-200 ${
+                          displaySubcategories.length === 0 
+                            ? "bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase" 
+                            : "bg-[#e90b35] text-white border border-[#e90b35] px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase shadow-sm hover:brightness-110"
+                        }`}
+                      >
                         {mainCategory}
-                      </span>
+                      </Link>
                     )}
                     {displaySubcategories.map((sub, index) => (
-                      <span key={`sub-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
+                      <Link 
+                        key={`sub-${index}`} 
+                        to={`/${sub.toLowerCase().replace(/\s+/g, '-')}`}
+                        className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase transition-all hover:scale-105 hover:bg-red-100/80 active:scale-95 duration-200"
+                      >
                         {sub}
-                      </span>
+                      </Link>
                     ))}
                   </>
                 );

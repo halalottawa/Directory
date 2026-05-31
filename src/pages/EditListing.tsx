@@ -202,6 +202,7 @@ export const EditListing: React.FC = () => {
       <SEO 
         title="Edit Listing" 
         description="Update the details for this place or organization." 
+        noindex={true}
       />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-6">

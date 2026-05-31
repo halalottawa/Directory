@@ -24,6 +24,7 @@ export const NotFound: React.FC<NotFoundProps> = ({
       <SEO 
         title={title} 
         description={message} 
+        noindex={true}
       />
       
       <div className="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 flex flex-col items-center justify-center min-h-[50vh]">

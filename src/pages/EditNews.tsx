@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, Save, Trash2, Send } from 'lucide-react';
+import { ChevronLeft, Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, Save, Trash2, Send, Upload } from 'lucide-react';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -9,7 +9,8 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { NewsArticle } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { SEO } from '../components/SEO';
-import { uploadFromUrl } from '../utils/storageUtils';
+import { uploadFromUrl, uploadFile } from '../utils/storageUtils';
+import { toast } from 'sonner';
 
 export const EditNews: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -112,6 +113,7 @@ export const EditNews: React.FC = () => {
       <SEO 
         title="Edit News" 
         description="Update the community news article." 
+        noindex={true}
       />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">
@@ -151,11 +153,31 @@ export const EditNews: React.FC = () => {
               <Camera className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Cover Image URL (Optional)"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                placeholder="Cover Image URL (Optional) or upload ->"
+                className="w-full pl-14 pr-12 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.coverImage}
                 onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
               />
+              <label className="absolute right-4 top-1/2 -translate-y-1/2 p-2 cursor-pointer bg-white rounded-xl shadow-sm text-gray-500 hover:text-[#e90b35] transition-colors border border-gray-100 hover:border-red-100">
+                <Upload className="w-4 h-4" />
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const toastId = toast.loading('Uploading photo...');
+                    try {
+                      const url = await uploadFile(file, 'news');
+                      setFormData(prev => ({ ...prev, coverImage: url }));
+                      toast.success('Photo uploaded successfully', { id: toastId });
+                    } catch (error: any) {
+                      toast.error(error.message || 'Failed to upload photo', { id: toastId });
+                    }
+                  }}
+                />
+              </label>
             </div>
 
             <div className="relative md:col-span-1">

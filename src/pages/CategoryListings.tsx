@@ -12,6 +12,7 @@ import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
+import { isAppWrapper } from '../utils/platform';
 
 export const CategoryListings: React.FC = () => {
   const { user } = useAuth();
@@ -21,9 +22,14 @@ export const CategoryListings: React.FC = () => {
   // Get category from param or from the first part of the pathname
   const categorySlug = paramCategory || pathname.split('/')[1];
   
+  // Normalize category slug by decurling and removing hyphens (e.g. middle-eastern -> middle eastern)
+  const cleanCategorySlug = categorySlug 
+    ? decodeURIComponent(categorySlug).replace(/-/g, ' ')
+    : '';
+  
   // Format category from slug (e.g., "restaurants" -> "Restaurants")
-  const rawFormattedCategory = categorySlug 
-    ? categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1).toLowerCase()
+  const rawFormattedCategory = cleanCategorySlug 
+    ? cleanCategorySlug.charAt(0).toUpperCase() + cleanCategorySlug.slice(1).toLowerCase()
     : '';
     
   const isMainCategory = CATEGORIES.map(c => c.toLowerCase()).includes(rawFormattedCategory.toLowerCase());
@@ -44,20 +50,36 @@ export const CategoryListings: React.FC = () => {
   const monthYearStr = `${currentMonth} ${currentYear}`;
 
   let pageTitle = `${formattedCategory}`;
+  let seoDescription = `Explore the best halal ${formattedCategory} in Ottawa. Find top-rated places, read reviews, and discover local spots in the Ottawa Muslim community directory.`;
+
   if (formattedCategory === 'Restaurants') {
     pageTitle = `Halal Restaurants in Ottawa - ${monthYearStr}`;
+    seoDescription = "Discover the best verified halal restaurants and food spots in Ottawa. Search by cuisine or food type, read verified reviews, and get directions.";
   } else if (formattedCategory === 'Grocery') {
     pageTitle = `Halal Grocery Stores in Ottawa - ${monthYearStr}`;
+    seoDescription = "Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and international ingredients.";
   } else if (formattedCategory === 'Clothing') {
     pageTitle = `Islamic Clothing in Ottawa - ${monthYearStr}`;
+    seoDescription = "Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, thobes, and daily apparel for the family.";
   } else if (formattedCategory === 'Schools') {
     pageTitle = `Islamic Schools in Ottawa - ${monthYearStr}`;
+    seoDescription = "Browse directories of Islamic schools, preschools, and educational institutions in Ottawa offering academic excellence and Islamic values.";
   } else if (formattedCategory === 'Butchers') {
     pageTitle = `Halal Meat in Ottawa - ${monthYearStr}`;
+    seoDescription = "Find trusted halal butcher shops and meat markets in Ottawa providing fresh, premium hand-slaughtered zabihah halal chicken, beef, lamb, and goat.";
   } else if (formattedCategory === 'Organizations') {
     pageTitle = `Muslim Organizations in Ottawa - ${monthYearStr}`;
+    seoDescription = "Connect with Ottawa's Islamic organizations, community groups, charitable societies, and family services supporting the local Muslim community.";
+  } else if (formattedCategory === 'Mosques') {
+    pageTitle = `Mosques in Ottawa - ${monthYearStr}`;
+    seoDescription = "Find mosques, Islamic centers, and prayer places (musallas) in Ottawa, including prayer times, Friday khutbah details, and community events.";
   } else if (!isMainCategory && isValidCategory) {
     pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
+    if (matchedCuisine) {
+      seoDescription = `Find top-rated halal ${formattedCategory} restaurants in Ottawa. Explore authentic ${formattedCategory} dishes, read reviews, and find directions to local favorites.`;
+    } else if (matchedType) {
+      seoDescription = `Discover the best spots for halal ${formattedCategory} in Ottawa. Find delicious halal ${formattedCategory} options near you, complete with reviews, addresses, and hours.`;
+    }
   } else {
     pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
   }
@@ -170,23 +192,27 @@ export const CategoryListings: React.FC = () => {
   }, [rawListings, searchQuery, formattedCategory]);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {
+    setIsApp(isAppWrapper());
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const shouldUseInfiniteScroll = isMobile && isApp;
+
   const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
   const currentListings = filteredListings.slice(
-    isMobile ? 0 : (currentPage - 1) * itemsPerPage,
+    shouldUseInfiniteScroll ? 0 : (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!shouldUseInfiniteScroll) return;
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && currentPage < totalPages) {
@@ -199,7 +225,7 @@ export const CategoryListings: React.FC = () => {
       observer.observe(observerTarget.current);
     }
     return () => observer.disconnect();
-  }, [isMobile, currentPage, totalPages]);
+  }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
   if (!isValidCategory) {
     return <NotFound />;
@@ -209,8 +235,8 @@ export const CategoryListings: React.FC = () => {
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title={pageTitle} 
-        description={`Explore the best ${formattedCategory} in Ottawa. Find top-rated places in the local Muslim community directory.`} 
-        canonicalUrl={`https://www.halalottawa.ca/${paramCategory || pathname.split('/')[1]}`} 
+        description={seoDescription} 
+        canonicalUrl={`https://www.halalottawa.ca${pathname}`} 
         disableSuffix={true}
         structuredData={{
           "@context": "https://schema.org",
@@ -233,7 +259,16 @@ export const CategoryListings: React.FC = () => {
       />
 
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl md:text-3xl font-bold">{formattedCategory}</h1>
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
+          {formattedCategory === 'Restaurants' ? 'Halal Restaurants in Ottawa' :
+           formattedCategory === 'Mosques' ? 'Mosques in Ottawa' :
+           formattedCategory === 'Grocery' ? 'Halal Grocery in Ottawa' :
+           formattedCategory === 'Clothing' ? 'Islamic Clothing in Ottawa' :
+           formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
+           formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
+           formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
+           formattedCategory}
+        </h1>
         <Link 
           to="/listings/add" 
           className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
@@ -331,29 +366,18 @@ export const CategoryListings: React.FC = () => {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(() => {
                       const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);
-                      return (
-                        <>
-                          {allCategories.map((cat: string, idx: number) => (
-                            <span key={`cat-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase">
-                              {cat}
-                            </span>
-                          ))}
-                          {allCategories.includes('Restaurants') && (
-                            <>
-                              {listing.types?.map((type, index) => (
-                                <span key={`type-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
-                                  {type}
-                                </span>
-                              ))}
-                              {listing.cuisine?.map((c, index) => (
-                                <span key={`cuisine-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
-                                  {c}
-                                </span>
-                              ))}
-                            </>
-                          )}
-                        </>
-                      );
+                      let tags = [...allCategories.slice(1)];
+                      
+                      if (allCategories.includes('Restaurants')) {
+                        if (listing.types?.length) tags = [...tags, ...listing.types];
+                        if (listing.cuisine?.length) tags = [...tags, ...listing.cuisine];
+                      }
+                      
+                      return tags.slice(0, 2).map((tag: string, idx: number) => (
+                        <span key={`tag-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
+                          {tag}
+                        </span>
+                      ));
                     })()}
                   </div>
                 </div>
@@ -374,15 +398,15 @@ export const CategoryListings: React.FC = () => {
       </div>
 
       {/* Infinite Scroll target for mobile */}
-      {isMobile && currentPage < totalPages && (
+      {shouldUseInfiniteScroll && currentPage < totalPages && (
         <div ref={observerTarget} className="h-10 w-full flex justify-center items-center py-4">
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#e90b35] rounded-full animate-spin"></div>
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="hidden md:flex justify-center items-center gap-2 pt-8 pb-12">
+      {totalPages > 1 && !shouldUseInfiniteScroll && (
+        <div className="flex justify-center items-center gap-1.5 md:gap-2 pt-8 pb-12">
           <button
             onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
             disabled={currentPage === 1}
@@ -391,12 +415,12 @@ export const CategoryListings: React.FC = () => {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => handlePageChange(i + 1)}
-                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                className={`w-9 h-9 md:w-10 md:h-10 rounded-xl font-bold text-xs md:text-sm transition-all ${
                   currentPage === i + 1 
                     ? 'bg-[#e90b35] text-white' 
                     : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
@@ -434,7 +458,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/${item.toLowerCase()}`}
+                    to={`/restaurants/${item.toLowerCase()}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
@@ -464,7 +488,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/${item.toLowerCase()}`}
+                    to={`/restaurants/${item.toLowerCase()}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">

@@ -7,7 +7,7 @@ export const TermsOfService: React.FC = () => {
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
       <SEO 
         title="Terms of Service" 
-        description="Terms of Service for Halal Ottawa." 
+        description="Read the Terms of Service for Halal Ottawa to understand the guidelines, rules, user responsibilities, and legal agreements for accessing and using our community directory." 
         canonicalUrl="https://www.halalottawa.ca/terms"
         structuredData={{
           "@context": "https://schema.org",

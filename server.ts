@@ -1,12 +1,14 @@
 import dotenv from "dotenv";
 dotenv.config({ override: true });
+import dns from "node:dns";
+dns.setDefaultResultOrder("ipv4first");
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
 import sharp from "sharp";
 import compression from "compression";
+import admin from "firebase-admin";
 
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
@@ -28,14 +30,47 @@ function getContentTypeFromKey(key: string): string {
 }
 
 async function startServer() {
+  // Initialize firebase-admin
+  const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
+  if (fs.existsSync(serviceAccountPath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    try {
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+          databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+        });
+        console.log("Firebase Admin SDK initialized successfully");
+      }
+    } catch (error) {
+      console.error("Error initializing Firebase Admin SDK:", error);
+    }
+  } else {
+    console.warn("No firebase-service-account.json found. Backend admin functions will be disabled.");
+  }
+
   const app = express();
   app.use(compression());
-  const PORT = 3000;
+  const PORT = process.env.NODE_ENV === "production" && process.env.PORT
+    ? parseInt(process.env.PORT)
+    : 3000;
 
   // Set up upload dir
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  let uploadDir = path.join(process.cwd(), "public", "uploads");
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn("Failed to create public/uploads directory, falling back to /tmp/uploads:", err);
+    uploadDir = "/tmp/uploads";
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+    } catch (e2) {
+      console.error("Failed to create fallback /tmp/uploads directory:", e2);
+    }
   }
 
   const storage = multer.memoryStorage();
@@ -43,6 +78,85 @@ async function startServer() {
 
   // Serve static files from public folder specifically for uploads in production too
   app.use("/uploads", express.static(uploadDir));
+
+  // Upload to Cloudflare R2 if credentials are provided
+  async function uploadToR2(buffer: Buffer, finalName: string, contentType = "image/webp"): Promise<string | null> {
+    try {
+      const accountId = process.env.R2_ACCOUNT_ID;
+      const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const publicUrl = process.env.R2_PUBLIC_URL;
+
+      if (!accountId || !accessKeyId || !secretAccessKey) {
+        return null; // Not fully configured
+      }
+
+      const { S3Client, PutObjectCommand, ListBucketsCommand, CreateBucketCommand } = await import("@aws-sdk/client-s3");
+      
+      const s3 = new S3Client({
+        region: "auto",
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+
+      // 1. Resolve Bucket Name
+      let bucketName = process.env.R2_BUCKET_NAME || '';
+      if (!bucketName || !bucketName.trim()) {
+        try {
+          const listRes = await s3.send(new ListBucketsCommand({}));
+          if (listRes.Buckets && listRes.Buckets.length > 0) {
+            bucketName = listRes.Buckets[0].Name || "halal-ottawa-images";
+            console.log(`Auto-selected existing R2 Bucket: ${bucketName}`);
+          } else {
+            // No buckets found! Auto create one
+            bucketName = "halal-ottawa-images";
+            console.log(`No R2 buckets found. Auto-creating bucket: ${bucketName}`);
+            await s3.send(new CreateBucketCommand({
+              Bucket: bucketName
+            }));
+            console.log(`Successfully created bucket: ${bucketName}`);
+          }
+        } catch (bucketError) {
+          console.error("Failed to auto-resolve R2 bucket. Using default 'halal-ottawa-images':", bucketError);
+          bucketName = "halal-ottawa-images";
+        }
+      }
+
+      // Process image to webp
+      let procBuffer = buffer;
+      if (contentType.startsWith("image/")) {
+        try {
+          procBuffer = await sharp(buffer)
+            .webp({ lossless: true })
+            .toBuffer();
+        } catch (e) {
+          console.error("Error converting uploaded image to webp:", e);
+        }
+      }
+
+      await s3.send(new PutObjectCommand({
+        Bucket: bucketName,
+        Key: `uploads/${finalName}`,
+        Body: procBuffer,
+        ContentType: "image/webp", // Force type to webp as we optimize
+      }));
+
+      // 2. Generate Public URL
+      let baseUrl = publicUrl ? publicUrl.replace(/\/$/, "") : "";
+      if (!baseUrl) {
+        baseUrl = `https://${bucketName}.${accountId}.r2.cloudflarestorage.com`;
+      }
+
+      console.log(`Successfully uploaded ${finalName} to Cloudflare R2 bucket: ${bucketName}`);
+      return `${baseUrl}/uploads/${finalName}`;
+    } catch (err) {
+      console.error("Error during Cloudflare R2 Upload workflow:", err);
+      return null;
+    }
+  }
 
   // File upload endpoint
   app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
@@ -56,26 +170,14 @@ async function startServer() {
       if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
          return res.status(400).json({ error: "No file content received" });
       }
-      
-      // Detect format
-      let format = "";
-      try {
-        const metadata = await sharp(buffer).metadata();
-        format = metadata.format || "";
-      } catch (e) {
-        console.warn("Sharp metadata readout failed, trying filename ext:", e);
-      }
-
-      if (!format) {
-        const ext = path.extname(filenameStr).toLowerCase();
-        if (ext === ".png") format = "png";
-        else if (ext === ".jpg" || ext === ".jpeg") format = "jpeg";
-        else if (ext === ".gif") format = "gif";
-        else if (ext === ".webp") format = "webp";
-        else if (ext === ".svg") format = "svg";
-      }
 
       const finalName = `${cleanName}.webp`;
+
+      // Upload to Cloudflare R2 if configured
+      const r2Url = await uploadToR2(buffer, finalName, "image/webp");
+      if (r2Url) {
+        return res.json({ url: r2Url });
+      }
 
       // Upload to Vercel Blob
       try {
@@ -83,9 +185,14 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          const procBuffer = await sharp(buffer)
-            .webp({ quality: 85, effort: 6 })
-            .toBuffer();
+          let procBuffer = buffer;
+          try {
+            procBuffer = await sharp(buffer)
+              .webp({ lossless: true })
+              .toBuffer();
+          } catch (e) {
+            console.error("Error converting uploaded image to webp:", e);
+          }
           
           const { url } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -103,9 +210,11 @@ async function startServer() {
       // Fallback: local disk upload
       let procBuffer = buffer;
       try {
-        procBuffer = await sharp(buffer).webp({ quality: 85, effort: 6 }).toBuffer();
-      } catch (err) {
-        console.error("Error optimizing image to webp:", err);
+        procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+      } catch (e) {
+        console.error("Error converting uploaded image to webp:", e);
       }
       
       const outputPath = path.join(uploadDir, finalName);
@@ -130,13 +239,11 @@ async function startServer() {
 
       const cleanName = name ? name.toLowerCase().replace(/[^a-z0-9]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') : 'upload';
       
-      const urlWithoutQuery = url.split('?')[0];
+      const finalName = `${cleanName}.webp`;
 
       // Check if it is already our local url
       if (url.startsWith('/uploads/')) {
         const srcPath = path.join(process.cwd(), 'public', url);
-        const urlExt = path.extname(urlWithoutQuery).toLowerCase() || '.jpg';
-        const finalName = `${cleanName}${urlExt}`;
         const outputPath = path.join(uploadDir, finalName);
         if (fs.existsSync(srcPath)) {
           if (srcPath !== outputPath) {
@@ -151,7 +258,7 @@ async function startServer() {
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Accept': 'image/*,*/*;q=0.8',
           'Referer': 'https://www.google.com/'
         }
       });
@@ -163,7 +270,11 @@ async function startServer() {
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      const finalName = `${cleanName}.webp`;
+      // Upload to Cloudflare R2 if configured
+      const r2Url = await uploadToR2(buffer, finalName, "image/webp");
+      if (r2Url) {
+        return res.json({ url: r2Url });
+      }
 
       // Upload to Vercel Blob
       try {
@@ -171,9 +282,14 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          const procBuffer = await sharp(buffer)
-            .webp({ quality: 85, effort: 6 })
-            .toBuffer();
+          let procBuffer = buffer;
+          try {
+            procBuffer = await sharp(buffer)
+              .webp({ lossless: true })
+              .toBuffer();
+          } catch (e) {
+            console.error("Error converting uploaded image to webp:", e);
+          }
           
           const { url: vercelUrl } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -191,9 +307,11 @@ async function startServer() {
       // Fallback: local disk upload
       let procBuffer = buffer;
       try {
-        procBuffer = await sharp(buffer).webp({ quality: 85, effort: 6 }).toBuffer();
-      } catch (err) {
-        console.error("Error optimizing downloaded image to webp:", err);
+        procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+      } catch (e) {
+        console.error("Error converting uploaded image to webp:", e);
       }
 
       const outputPath = path.join(uploadDir, finalName);
@@ -239,6 +357,387 @@ async function startServer() {
   // API routes can be added here
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get("/api/admin/migrate-r2", async (req, res) => {
+    try {
+      const limitVal = parseInt(req.query.limit as string) || 10;
+      const collectionName = (req.query.collection as string) || "all";
+
+      console.log(`[R2 Migration Endpoint] Starting migration. Limit: ${limitVal}, Collection: ${collectionName}`);
+
+      const firebaseConfigPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      if (!fs.existsSync(firebaseConfigPath)) {
+        return res.status(500).json({ error: "firebase-applet-config.json not found" });
+      }
+
+      const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
+      const { initializeApp } = await import("firebase/app");
+      const { getFirestore, collection, getDocs, updateDoc, doc } = await import("firebase/firestore");
+
+      const localApp = initializeApp(firebaseConfig, "migration-instance-" + Date.now());
+      const localDb = getFirestore(localApp, firebaseConfig.firestoreDatabaseId || "default");
+
+      const r2AccountId = process.env.R2_ACCOUNT_ID;
+      const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
+      const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+      const r2BucketName = process.env.R2_BUCKET_NAME || "halalottawa";
+      const r2PublicUrl = process.env.R2_PUBLIC_URL ? process.env.R2_PUBLIC_URL.replace(/\/$/, "") : "";
+
+      if (!r2AccountId || !r2AccessKeyId || !r2SecretAccessKey) {
+        return res.status(400).json({ error: "R2 credentials are not configured in system environment." });
+      }
+
+      const { S3Client, PutObjectCommand } = await import("@aws-sdk/client-s3");
+      const s3 = new S3Client({
+        region: "auto",
+        endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: r2AccessKeyId,
+          secretAccessKey: r2SecretAccessKey,
+        },
+        forcePathStyle: true,
+      });
+
+      function generateSlug(text: string): string {
+        if (!text) return "";
+        return text
+          .toLowerCase()
+          .trim()
+          .replace(/[^\w\s-]/g, "")
+          .replace(/[\s_-]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
+
+      async function uploadUrlToR2(url: string, name: string): Promise<string> {
+        const slugName = generateSlug(name) || "image";
+        const finalName = `${slugName}.webp`;
+        let buffer: Buffer;
+
+        if (url.startsWith("http")) {
+          const fetchRes = await fetch(url, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            },
+          });
+          if (!fetchRes.ok) {
+            throw new Error(`Failed to download ${url}: ${fetchRes.statusText}`);
+          }
+          const arrayBuf = await fetchRes.arrayBuffer();
+          buffer = Buffer.from(arrayBuf);
+        } else {
+          const cleanRelativePath = url.startsWith("/") ? url.slice(1) : url;
+          const localFullPath = path.join(process.cwd(), "public", cleanRelativePath);
+          if (!fs.existsSync(localFullPath)) {
+            throw new Error(`Local file not found: ${localFullPath}`);
+          }
+          buffer = fs.readFileSync(localFullPath);
+        }
+
+        let procBuffer = buffer;
+        try {
+          procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
+        } catch (err) {
+          console.warn("Sharp fallback:", err);
+        }
+
+        await s3.send(new PutObjectCommand({
+          Bucket: r2BucketName,
+          Key: `uploads/${finalName}`,
+          Body: procBuffer,
+          ContentType: "image/webp",
+        }));
+
+        const baseUrl = r2PublicUrl || `https://${r2BucketName}.${r2AccountId}.r2.cloudflarestorage.com`;
+        return `${baseUrl}/uploads/${finalName}`;
+      }
+
+      function isUrlAlreadyR2(url: string): boolean {
+        if (!url) return true;
+        if (r2PublicUrl && url.startsWith(r2PublicUrl)) return true;
+        if (url.includes(".r2.cloudflarestorage.com") || (url.includes("pub-") && url.includes(".r2.dev"))) return true;
+        return false;
+      }
+
+      const collectionsToMigrate = [
+        { name: "listings", imageFields: [], arrayImageFields: ["photos"] },
+        { name: "events", imageFields: ["coverImage"], arrayImageFields: [] },
+        { name: "jobs", imageFields: ["companyLogo"], arrayImageFields: [] },
+        { name: "news", imageFields: ["coverImage"], arrayImageFields: [] },
+      ].filter(c => collectionName === "all" || c.name === collectionName);
+
+      let migratedCount = 0;
+      const logs: string[] = [];
+
+      for (const colInfo of collectionsToMigrate) {
+        if (migratedCount >= limitVal) break;
+
+        const snap = await getDocs(collection(localDb, colInfo.name));
+        for (const docObj of snap.docs) {
+          if (migratedCount >= limitVal) break;
+
+          const data = docObj.data();
+          const docId = docObj.id;
+          const nameOrTitle = data.name || data.title || data.company || docId;
+          const slug = data.slug || generateSlug(nameOrTitle) || docId.toLowerCase();
+          let hasUpdated = false;
+          const updates: any = {};
+
+          // Single fields
+          for (const field of colInfo.imageFields) {
+            if (migratedCount >= limitVal) break;
+            const url = data[field];
+            if (url && typeof url === "string" && !isUrlAlreadyR2(url)) {
+              try {
+                logs.push(`Migrating [${colInfo.name}] ${nameOrTitle} -> field: ${field}`);
+                const newUrl = await uploadUrlToR2(url, slug);
+                updates[field] = newUrl;
+                hasUpdated = true;
+                migratedCount++;
+              } catch (err: any) {
+                logs.push(`Failed to migrate single field [${field}] for doc ${docId}: ${err.message}`);
+              }
+            }
+          }
+
+          // Array fields
+          for (const field of colInfo.arrayImageFields) {
+            if (migratedCount >= limitVal) break;
+            const urlArray = data[field];
+            if (urlArray && Array.isArray(urlArray)) {
+              const freshArray: string[] = [];
+              let arrayChanged = false;
+              let idx = 0;
+
+              for (const url of urlArray) {
+                if (url && typeof url === "string") {
+                  if (!isUrlAlreadyR2(url)) {
+                    if (migratedCount >= limitVal) {
+                      freshArray.push(url);
+                    } else {
+                      try {
+                        logs.push(`Migrating [${colInfo.name}] ${nameOrTitle} -> array item [${field}][${idx}]`);
+                        const uniqueSlugName = idx === 0 ? slug : `${slug}-${idx}`;
+                        const newUrl = await uploadUrlToR2(url, uniqueSlugName);
+                        freshArray.push(newUrl);
+                        arrayChanged = true;
+                        migratedCount++;
+                      } catch (err: any) {
+                        logs.push(`Failed to migrate array item [${idx}] inside field [${field}] for doc ${docId}: ${err.message}`);
+                        freshArray.push(url);
+                      }
+                    }
+                  } else {
+                    freshArray.push(url);
+                  }
+                } else {
+                  freshArray.push(url);
+                }
+                idx++;
+              }
+
+              if (arrayChanged) {
+                updates[field] = freshArray;
+                hasUpdated = true;
+              }
+            }
+          }
+
+          if (hasUpdated) {
+            await updateDoc(doc(localDb, colInfo.name, docId), updates);
+            logs.push(`Saved updates to ${colInfo.name} -> doc: ${docId}`);
+          }
+        }
+      }
+
+      res.json({
+        status: "complete",
+        migratedCount,
+        maxLimit: limitVal,
+        logs,
+        instructions: migratedCount >= limitVal
+          ? "There are more assets remaining. Trigger this endpoint again to process the next batch!"
+          : "All collections scanned fully and all images are successfully hosted on Cloudflare R2!"
+      });
+    } catch (error: any) {
+      console.error("Migration endpoint error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/send-push-notification", express.json(), async (req, res) => {
+    const { title, message, url, image } = req.body;
+    const authHeader = req.headers.authorization;
+
+    if (!title || !message) {
+      return res.status(400).json({ error: "Title and message are required" });
+    }
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: "Authorization header with Bearer token is required" });
+    }
+
+    try {
+      const idToken = authHeader.split('Bearer ')[1];
+      // Verify ID token
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+
+      // Verify if is Admin by reading the user profile
+      const userDoc = await admin.firestore().collection('users').doc(uid).get();
+      const userData = userDoc.data();
+
+      // Check for admin role
+      const isAdminEmail = decodedToken.email?.toLowerCase() === 'abesabil00@gmail.com' || 
+                           decodedToken.email?.toLowerCase() === 'fibaliktn@gmail.com';
+
+      if (!userData || (userData.role !== 'admin' && !isAdminEmail)) {
+        return res.status(403).json({ error: "Access denied. Admin role required." });
+      }
+
+      // Also write global notification log in Firestore as in-app notification archive
+      await admin.firestore().collection('global_notifications').add({
+        title,
+        message,
+        url: url || "",
+        image: image || "",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        type: 'push_alert'
+      });
+
+      // Gather FCM tokens across all registered devices
+      const tokensSet = new Set<string>();
+
+      // 1. Fetch from main user profiles
+      const usersSnap = await admin.firestore().collection('users').where('fcmToken', '!=', '').get();
+      usersSnap.forEach(docDoc => {
+        const data = docDoc.data();
+        if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
+          tokensSet.add(data.fcmToken.trim());
+        }
+      });
+
+      // 2. Fetch from collection group 'devices'
+      try {
+        const devicesSnap = await admin.firestore().collectionGroup('devices').get();
+        devicesSnap.forEach(docDoc => {
+          const data = docDoc.data();
+          if (data && typeof data.token === 'string' && data.token.trim()) {
+            tokensSet.add(data.token.trim());
+          }
+        });
+      } catch (grpErr) {
+        console.warn("Collection group 'devices' query failed or index not ready:", grpErr);
+      }
+
+      const tokens = Array.from(tokensSet);
+      if (tokens.length === 0) {
+        return res.json({ 
+          success: true, 
+          message: "Notification logged to database, but 0 devices with FCM tokens are currently registered.", 
+          sentCount: 0 
+        });
+      }
+
+      // Dispatch FCM notifications in multicast batches (max 500 per request)
+      let successCount = 0;
+      let failureCount = 0;
+      const batchSize = 500;
+
+      for (let i = 0; i < tokens.length; i += batchSize) {
+        const batchTokens = tokens.slice(i, i + batchSize);
+        const multicastMessage: any = {
+          tokens: batchTokens,
+          notification: {
+            title: title,
+            body: message,
+          },
+          data: {
+            title: title,
+            message: message,
+            url: url || '',
+          },
+          android: {
+            notification: {
+              sound: "default",
+              clickAction: "FLUTTER_NOTIFICATION_CLICK"
+            }
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: "default",
+                category: "NEWS_CATEGORY"
+              }
+            }
+          }
+        };
+
+        if (image) {
+          multicastMessage.notification.image = image;
+          multicastMessage.data.image = image;
+        }
+
+        const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+        successCount += response.successCount;
+        failureCount += response.failureCount;
+
+        if (response.failureCount > 0) {
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              console.error(`FCM error sending to token ${batchTokens[idx]}:`, resp.error);
+            }
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Push notification dispatched successfully.`,
+        sentCount: successCount,
+        failedCount: failureCount,
+        totalRecipientDevices: tokens.length
+      });
+
+    } catch (e: any) {
+      console.error("FCM dispatch API error:", e);
+      res.status(500).json({ error: e.message || "Failed to dispatch push notifications." });
+    }
+  });
+
+  app.get("/api/geocode", async (req, res) => {
+    const { q, lat, lon, reverse } = req.query;
+    try {
+      let url = "";
+      if (reverse === "true") {
+        if (!lat || !lon) {
+          return res.status(400).json({ error: "Latitude and longitude are required for reverse geocoding" });
+        }
+        url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+      } else {
+        if (!q) {
+          return res.status(400).json({ error: "Query parameter 'q' is required for geocoding" });
+        }
+        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(String(q))}&format=json&addressdetails=1&limit=1`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
+          'Accept-Language': 'en'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Nominatim returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Geocoding proxy error:", error);
+      res.status(500).json({ error: error.message || "Failed to geocode address" });
+    }
   });
 
   app.get("/sitemap.xml", async (req, res) => {
@@ -350,10 +849,14 @@ async function startServer() {
       // We need to initialize firebase admin or use the client SDK
       // Since we don't have admin SDK, we can just read the firebase config and use client SDK
       const fs = await import('fs');
+      const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+      if (!fs.existsSync(configPath)) {
+        return res.status(400).json({ error: "Firebase configuration file not found" });
+      }
       const { initializeApp } = await import('firebase/app');
       const { getFirestore, collection, getDocs, query, orderBy, limit, updateDoc, doc } = await import('firebase/firestore');
       
-      const firebaseConfig = JSON.parse(fs.readFileSync('./firebase-applet-config.json', 'utf-8'));
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       const fbApp = initializeApp(firebaseConfig, 'server-app');
       const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
 
@@ -409,6 +912,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -651,16 +1155,242 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <meta name="twitter:card" content="summary_large_image" />
           `;
 
-          // Inject basic Schema if we have data
+          // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
           if (pathParts.length === 2 && initialData) {
-             const schemaData = {
-               "@context": "https://schema.org",
-               "@type": "WebPage",
-               "name": title,
-               "description": description,
-               "image": ogImage
-             };
-             extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+            let schemaData: any = {
+              "@context": "https://schema.org",
+              "@type": "WebPage",
+              "name": title,
+              "description": description,
+              "image": ogImage,
+              "url": `https://www.halalottawa.ca${urlPath}`
+            };
+
+            const fullUrl = `https://www.halalottawa.ca${urlPath}`;
+
+            if (routeType === 'listing') {
+              // Decide specific type if restaurant, mosque, grocery, etc.
+              let schemaType = "LocalBusiness";
+              const cat = (initialData.category || '').toString().toLowerCase();
+              if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
+                schemaType = "Restaurant";
+              } else if (cat.includes('mosque') || cat.includes('masjid')) {
+                schemaType = "Mosque";
+              } else if (cat.includes('grocery') || cat.includes('supermarket')) {
+                schemaType = "GroceryStore";
+              }
+
+              schemaData = {
+                "@context": "https://schema.org",
+                "@type": schemaType,
+                "name": initialData.name,
+                "description": description,
+                "image": ogImage,
+                "url": fullUrl,
+                "priceRange": initialData.priceRange || "$$",
+                "address": initialData.address ? {
+                  "@type": "PostalAddress",
+                  "streetAddress": initialData.address,
+                  "addressLocality": "Ottawa",
+                  "addressRegion": "ON",
+                  "postalCode": initialData.postalCode || "",
+                  "addressCountry": "CA"
+                } : undefined,
+                "telephone": initialData.phone || undefined,
+                "geo": initialData.lat && initialData.lng ? {
+                  "@type": "GeoCoordinates",
+                  "latitude": parseFloat(initialData.lat),
+                  "longitude": parseFloat(initialData.lng)
+                } : undefined
+              };
+
+              // If there's high-quality review averages, inject AggregateRating
+              if (initialData.rating && initialData.reviewCount) {
+                schemaData.aggregateRating = {
+                  "@type": "AggregateRating",
+                  "ratingValue": parseFloat(initialData.rating).toFixed(1),
+                  "reviewCount": parseInt(initialData.reviewCount) || 1,
+                  "bestRating": "5",
+                  "worstRating": "1"
+                };
+              }
+            } else if (routeType === 'news') {
+              schemaData = {
+                "@context": "https://schema.org",
+                "@type": "NewsArticle",
+                "mainEntityOfPage": {
+                  "@type": "WebPage",
+                  "@id": fullUrl
+                },
+                "headline": initialData.title,
+                "image": ogImage ? [ogImage] : undefined,
+                "datePublished": initialData.publishDate || initialData.createdAt || new Date().toISOString(),
+                "dateModified": initialData.updatedAt || initialData.publishDate || new Date().toISOString(),
+                "author": {
+                  "@type": "Person",
+                  "name": initialData.author || "Halal Ottawa Staff"
+                },
+                "publisher": {
+                  "@type": "Organization",
+                  "name": "Halal Ottawa",
+                  "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://www.halalottawa.ca/favicon.ico"
+                  }
+                },
+                "description": description
+              };
+            } else if (routeType === 'event') {
+              schemaData = {
+                "@context": "https://schema.org",
+                "@type": "Event",
+                "name": initialData.title,
+                "startDate": initialData.dateTime || new Date().toISOString(),
+                "endDate": initialData.endDateTime || initialData.dateTime || new Date().toISOString(),
+                "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+                "eventStatus": "https://schema.org/EventScheduled",
+                "location": {
+                  "@type": "Place",
+                  "name": initialData.venue || initialData.location || "Ottawa Community Venue",
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": initialData.location || "Ottawa",
+                    "addressLocality": "Ottawa",
+                    "addressRegion": "ON",
+                    "addressCountry": "CA"
+                  }
+                },
+                "image": ogImage ? [ogImage] : undefined,
+                "description": description,
+                "offers": {
+                  "@type": "Offer",
+                  "url": fullUrl,
+                  "price": initialData.price || "0",
+                  "priceCurrency": "CAD",
+                  "availability": "https://schema.org/InStock",
+                  "validFrom": initialData.createdAt || new Date().toISOString()
+                },
+                "organizer": {
+                  "@type": "Organization",
+                  "name": initialData.organizer || "Halal Ottawa Community Partner",
+                  "url": "https://www.halalottawa.ca"
+                }
+              };
+            } else if (routeType === 'job') {
+              let empType = ["FULL_TIME"];
+              const t = (initialData.type || '').toUpperCase();
+              if (t.includes('PART')) {
+                empType = ["PART_TIME"];
+              } else if (t.includes('CONTRACT')) {
+                empType = ["CONTRACTOR"];
+              } else if (t.includes('INTERN')) {
+                empType = ["INTERN"];
+              }
+
+              schemaData = {
+                "@context": "https://schema.org",
+                "@type": "JobPosting",
+                "title": initialData.title,
+                "description": initialData.description || description,
+                "datePosted": initialData.createdAt || new Date().toISOString(),
+                "employmentType": empType,
+                "hiringOrganization": {
+                  "@type": "Organization",
+                  "name": initialData.company || "Halal Ottawa Partner",
+                  "logo": initialData.companyLogo || undefined
+                },
+                "jobLocation": {
+                  "@type": "Place",
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": initialData.location || "Ottawa",
+                    "addressLocality": "Ottawa",
+                    "addressRegion": "ON",
+                    "addressCountry": "CA"
+                  }
+                }
+              };
+            }
+
+            const breadcrumbItems = [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              }
+            ];
+
+            if (routeType === 'listing') {
+              const mainCategoryStr = Array.isArray(initialData.category) && initialData.category.length > 0 
+                ? initialData.category[0] 
+                : (typeof initialData.category === 'string' ? initialData.category : 'listings');
+              
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 2,
+                "name": mainCategoryStr,
+                "item": `https://www.halalottawa.ca/${mainCategoryStr.toLowerCase()}`
+              });
+
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 3,
+                "name": initialData.name,
+                "item": fullUrl
+              });
+            } else if (routeType === 'news') {
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 2,
+                "name": "News",
+                "item": "https://www.halalottawa.ca/news"
+              });
+
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 3,
+                "name": initialData.title,
+                "item": fullUrl
+              });
+            } else if (routeType === 'event') {
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Events",
+                "item": "https://www.halalottawa.ca/events"
+              });
+
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 3,
+                "name": initialData.title,
+                "item": fullUrl
+              });
+            } else if (routeType === 'job') {
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Jobs",
+                "item": "https://www.halalottawa.ca/jobs"
+              });
+
+              breadcrumbItems.push({
+                "@type": "ListItem",
+                "position": 3,
+                "name": initialData.title,
+                "item": fullUrl
+              });
+            }
+
+            const breadcrumbSchema = {
+              "@context": "https://schema.org",
+              "@type": "BreadcrumbList",
+              "itemListElement": breadcrumbItems
+            };
+
+            extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+            extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
           }
           
           if (initialData) {

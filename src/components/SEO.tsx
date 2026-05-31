@@ -10,6 +10,7 @@ interface SEOProps {
   twitterCard?: 'summary' | 'summary_large_image';
   structuredData?: Record<string, any> | Record<string, any>[];
   disableSuffix?: boolean;
+  noindex?: boolean;
 }
 
 export const SEO: React.FC<SEOProps> = ({
@@ -21,6 +22,7 @@ export const SEO: React.FC<SEOProps> = ({
   twitterCard = 'summary_large_image',
   structuredData,
   disableSuffix = false,
+  noindex = false,
 }) => {
   const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa') || disableSuffix
     ? title 
@@ -30,21 +32,25 @@ export const SEO: React.FC<SEOProps> = ({
     <Helmet>
       {/* Standard SEO */}
       <title>{siteTitle}</title>
-      <meta name="description" content={description} />
-      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+      {noindex ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : (
+        <meta name="description" content={description} />
+      )}
+      {canonicalUrl && !noindex && <link rel="canonical" href={canonicalUrl} />}
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={siteTitle} />
-      <meta property="og:description" content={description} />
-      {ogImage && <meta property="og:image" content={ogImage} />}
-      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+      {!noindex && <meta property="og:description" content={description} />}
+      {ogImage && !noindex && <meta property="og:image" content={ogImage} />}
+      {canonicalUrl && !noindex && <meta property="og:url" content={canonicalUrl} />}
 
       {/* Twitter */}
       <meta name="twitter:card" content={twitterCard} />
       <meta name="twitter:title" content={siteTitle} />
-      <meta name="twitter:description" content={description} />
-      {ogImage && <meta name="twitter:image" content={ogImage} />}
+      {!noindex && <meta name="twitter:description" content={description} />}
+      {ogImage && !noindex && <meta name="twitter:image" content={ogImage} />}
 
       {/* Structured Data (JSON-LD) */}
       {structuredData && (

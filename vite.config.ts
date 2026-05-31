@@ -13,6 +13,8 @@ export default defineConfig(({mode}) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
+        'react': path.resolve(__dirname, 'node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
       },
     },
     server: {
@@ -31,15 +33,7 @@ export default defineConfig(({mode}) => {
           comments: false,
         },
       },
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-            'vendor-utils': ['lucide-react', 'motion/react', 'react-helmet-async'],
-          }
-        }
-      }
+      rollupOptions: {}
     }
   };
 });

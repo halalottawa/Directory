@@ -70,6 +70,7 @@ export const AddJob: React.FC = () => {
       <SEO 
         title="Post a Job" 
         description="List a halal-friendly job opportunity." 
+        noindex={true}
       />
 
       <div className="bg-white md:rounded-3xl md:shadow-sm md:border md:border-gray-100 p-4 md:p-10 space-y-8">

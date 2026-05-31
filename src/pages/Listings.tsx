@@ -12,6 +12,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
+import { isAppWrapper } from '../utils/platform';
 
 export const Listings: React.FC = () => {
   const { user } = useAuth();
@@ -137,23 +138,27 @@ export const Listings: React.FC = () => {
   }, [rawListings, activeCategories, searchQuery, user]);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isApp, setIsApp] = useState(false);
 
   useEffect(() => {
+    setIsApp(isAppWrapper());
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const shouldUseInfiniteScroll = isMobile && isApp;
+
   const totalPages = Math.ceil(filteredListings.length / itemsPerPage);
   const currentListings = filteredListings.slice(
-    isMobile ? 0 : (currentPage - 1) * itemsPerPage,
+    shouldUseInfiniteScroll ? 0 : (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!shouldUseInfiniteScroll) return;
     const observer = new IntersectionObserver(
       entries => {
         if (entries[0].isIntersecting && currentPage < totalPages) {
@@ -166,7 +171,7 @@ export const Listings: React.FC = () => {
       observer.observe(observerTarget.current);
     }
     return () => observer.disconnect();
-  }, [isMobile, currentPage, totalPages]);
+  }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
@@ -298,29 +303,18 @@ export const Listings: React.FC = () => {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(() => {
                       const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);
-                      return (
-                        <>
-                          {allCategories.map((cat: string, idx: number) => (
-                            <span key={`cat-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase">
-                              {cat}
-                            </span>
-                          ))}
-                          {allCategories.includes('Restaurants') && (
-                            <>
-                              {listing.types?.map((type, index) => (
-                                <span key={`type-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
-                                  {type}
-                                </span>
-                              ))}
-                              {listing.cuisine?.map((c, index) => (
-                                <span key={`cuisine-${index}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
-                                  {c}
-                                </span>
-                              ))}
-                            </>
-                          )}
-                        </>
-                      );
+                      let tags = [...allCategories.slice(1)];
+                      
+                      if (allCategories.includes('Restaurants')) {
+                        if (listing.types?.length) tags = [...tags, ...listing.types];
+                        if (listing.cuisine?.length) tags = [...tags, ...listing.cuisine];
+                      }
+                      
+                      return tags.slice(0, 2).map((tag: string, idx: number) => (
+                        <span key={`tag-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
+                          {tag}
+                        </span>
+                      ));
                     })()}
                   </div>
                 </div>
@@ -341,15 +335,15 @@ export const Listings: React.FC = () => {
       </div>
 
       {/* Infinite Scroll target for mobile */}
-      {isMobile && currentPage < totalPages && (
+      {shouldUseInfiniteScroll && currentPage < totalPages && (
         <div ref={observerTarget} className="h-10 w-full flex justify-center items-center py-4">
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#e90b35] rounded-full animate-spin"></div>
         </div>
       )}
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="hidden md:flex justify-center items-center gap-2 pt-8 pb-12">
+      {totalPages > 1 && !shouldUseInfiniteScroll && (
+        <div className="flex justify-center items-center gap-1.5 md:gap-2 pt-8 pb-12">
           <button
             onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
             disabled={currentPage === 1}
@@ -358,12 +352,12 @@ export const Listings: React.FC = () => {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {[...Array(totalPages)].map((_, i) => (
               <button
                 key={i}
                 onClick={() => handlePageChange(i + 1)}
-                className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                 className={`w-9 h-9 md:w-10 md:h-10 rounded-xl font-bold text-xs md:text-sm transition-all ${
                   currentPage === i + 1 
                     ? 'bg-[#e90b35] text-white' 
                     : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'

@@ -133,6 +133,7 @@ export const EditProfile: React.FC = () => {
       <SEO 
         title="Edit Profile" 
         description="Edit your profile information on Halal Ottawa." 
+        noindex={true}
       />
 
       <TopNav showBack />

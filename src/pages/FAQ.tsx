@@ -37,7 +37,7 @@ export const FAQ: React.FC = () => {
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
       <SEO 
         title="FAQ" 
-        description="Frequently Asked Questions about Halal Ottawa." 
+        description="Frequently Asked Questions (FAQ) about Halal Ottawa. Learn how we verify halal statuses, submit new listings, post events or jobs, and support the Ottawa Muslim community." 
         canonicalUrl="https://www.halalottawa.ca/faq"
         structuredData={{
           "@context": "https://schema.org",

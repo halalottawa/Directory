@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon } from 'lucide-react';
+import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus } from 'lucide-react';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
@@ -57,6 +57,11 @@ export const AdminDashboard: React.FC = () => {
   const [isSendingPush, setIsSendingPush] = useState(false);
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
+  const [pushTargetType, setPushTargetType] = useState<'none' | 'listing' | 'event' | 'job' | 'news'>('none');
+  const [pushTargetId, setPushTargetId] = useState('');
+  const [pushImage, setPushImage] = useState('');
+  const [pushSearchQuery, setPushSearchQuery] = useState('');
+  const [isPushSearchFocused, setIsPushSearchFocused] = useState(false);
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
 
@@ -68,6 +73,9 @@ export const AdminDashboard: React.FC = () => {
   // Settings states
   const [siteLogoUrl, setSiteLogoUrl] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [isCoverUploading, setIsCoverUploading] = useState(false);
+  const [isPushImageUploading, setIsPushImageUploading] = useState(false);
 
   // Link Shortener states
   const [originalUrl, setOriginalUrl] = useState('');
@@ -76,6 +84,16 @@ export const AdminDashboard: React.FC = () => {
   const [shortLinks, setShortLinks] = useState<any[]>([]);
 
   const [viewFeedbackItem, setViewFeedbackItem] = useState<{ type: 'reviews' | 'comments', item: any } | null>(null);
+
+  // Newsletter Subscriber management states
+  const [standaloneSubscribers, setStandaloneSubscribers] = useState<{ id: string; email: string; name?: string; createdAt?: string; status?: 'subscribed' | 'unsubscribed'; unsubscribedAt?: string; location?: string }[]>([]);
+  const [newSubEmail, setNewSubEmail] = useState('');
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubLocation, setNewSubLocation] = useState('Ottawa, ON');
+  const [isSubmittingSub, setIsSubmittingSub] = useState(false);
+  const [subscriberSearch, setSubscriberSearch] = useState('');
+  const [subscriberTab, setSubscriberTab] = useState<'all' | 'registered' | 'guests'>('all');
+  const [subscriberStatusFilter, setSubscriberStatusFilter] = useState<'all' | 'subscribed' | 'unsubscribed'>('all');
 
   const generateWithRetry = async (ai: any, prompt: string, toastId: any, maxRetries = 6) => {
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -126,7 +144,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
-        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap, shortLinksSnap
+        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap, shortLinksSnap, subscribersSnap
       ] = await Promise.all([
         getDocs(collection(db, 'listings')),
         getDocs(collection(db, 'events')),
@@ -138,7 +156,8 @@ export const AdminDashboard: React.FC = () => {
         getDocs(collection(db, 'ads')),
         getDocs(collection(db, 'plan_requests')),
         getDoc(doc(db, 'settings', 'general')),
-        getDocs(collection(db, 'short_links'))
+        getDocs(collection(db, 'short_links')),
+        getDocs(collection(db, 'subscribers')).catch(() => ({ docs: [] }) as any)
       ]);
 
       const listings = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Listing))
@@ -160,9 +179,14 @@ export const AdminDashboard: React.FC = () => {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
       const shortLinksData = shortLinksSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
+      const subs = subscribersSnap && subscribersSnap.docs
+        ? subscribersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
+        : [];
 
-      if (settingsSnap.exists() && settingsSnap.data().logoUrl) {
-        setSiteLogoUrl(settingsSnap.data().logoUrl);
+      if (settingsSnap.exists()) {
+        const settingsData = settingsSnap.data();
+        if (settingsData.logoUrl) setSiteLogoUrl(settingsData.logoUrl);
+        if (settingsData.coverImageUrl) setCoverImageUrl(settingsData.coverImageUrl);
       }
 
       setPendingListings(listings.filter(i => !i.isApproved));
@@ -183,6 +207,7 @@ export const AdminDashboard: React.FC = () => {
       setAds(adsData);
       setPlanRequests(plansData);
       setShortLinks(shortLinksData.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
+      setStandaloneSubscribers(subs);
 
       // Auto-repair listing ratings based on actual approved reviews
       listings.forEach(async (listing) => {
@@ -227,6 +252,23 @@ export const AdminDashboard: React.FC = () => {
       console.error(error);
     } finally {
       setIsLogoUploading(false);
+    }
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setIsCoverUploading(true);
+    try {
+      const url = await uploadFile(file, 'settings', 'global-listings-cover');
+      await setDoc(doc(db, 'settings', 'general'), { coverImageUrl: url }, { merge: true });
+      setCoverImageUrl(url);
+      toast.success('Global listings cover image updated successfully.');
+    } catch (error: any) {
+      toast.error('Error: ' + (error?.message || String(error)));
+      console.error(error);
+    } finally {
+      setIsCoverUploading(false);
     }
   };
 
@@ -372,7 +414,7 @@ export const AdminDashboard: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: 'Send Email Update',
-      message: 'Are you sure you want to send an email update to all subscribed users?',
+      message: 'Are you sure you want to send an email update to all subscribed users and guest subscribers?',
       confirmText: 'Send Email',
       confirmVariant: 'primary',
       onConfirm: async () => {
@@ -380,8 +422,11 @@ export const AdminDashboard: React.FC = () => {
         setConfirmModal(null);
         try {
           const usersSnap = await getDocs(query(collection(db, 'users'), where('consentToUpdates', '==', true)));
-          const emails = usersSnap.docs.map(doc => doc.data().email);
-          toast.success(`Email update sent successfully to ${emails.length} users!`);
+          const registeredEmails = usersSnap.docs.map(doc => doc.data().email);
+          const guestEmails = standaloneSubscribers.map(sub => sub.email);
+          const allEmails = Array.from(new Set([...registeredEmails, ...guestEmails].filter(Boolean)));
+
+          toast.success(`Email update sent successfully to ${allEmails.length} subscribers!`);
           setEmailSubject('');
           setEmailBody('');
         } catch (err) {
@@ -394,6 +439,326 @@ export const AdminDashboard: React.FC = () => {
     });
   };
 
+  // Newsletter Subscribers management functions
+  const handleAddCustomSubscriber = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubEmail.trim()) return;
+    setIsSubmittingSub(true);
+    try {
+      const emailLower = newSubEmail.trim().toLowerCase();
+      
+      // Check if already subscribed in standalone collection or registered users
+      const alreadySubbed = standaloneSubscribers.some(s => s.email.toLowerCase() === emailLower && s.status !== 'unsubscribed') ||
+                            allUsers.some(u => u.email?.toLowerCase() === emailLower && u.consentToUpdates);
+      
+      if (alreadySubbed) {
+        toast.error('This email is already subscribed to the newsletter.');
+        setIsSubmittingSub(false);
+        return;
+      }
+
+      await setDoc(doc(db, 'subscribers', emailLower), {
+        email: emailLower,
+        name: newSubName.trim() || 'Guest Subscriber',
+        createdAt: new Date().toISOString(),
+        status: 'subscribed',
+        unsubscribedAt: null,
+        location: newSubLocation.trim() || 'Ottawa, ON'
+      });
+
+      toast.success('Subscriber added successfully.');
+      setNewSubEmail('');
+      setNewSubName('');
+      setNewSubLocation('Ottawa, ON');
+      fetchData();
+    } catch (err: any) {
+      toast.error('Failed to add subscriber: ' + (err.message || String(err)));
+    } finally {
+      setIsSubmittingSub(false);
+    }
+  };
+
+  const handleUnsubscribeSubscriber = async (sub: { id: string; email: string; type: 'Registered' | 'Guest' }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Unsubscribe Subscriber',
+      message: `Are you sure you want to unsubscribe ${sub.email} from the newsletter? Their subscriber profile and history will be preserved as "Unsubscribed".`,
+      confirmText: 'Unsubscribe',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          if (sub.type === 'Registered') {
+            await updateDoc(doc(db, 'users', sub.id), { 
+              consentToUpdates: false,
+              unsubscribedAt: new Date().toISOString()
+            });
+          } else {
+            await updateDoc(doc(db, 'subscribers', sub.id), { 
+              status: 'unsubscribed',
+              unsubscribedAt: new Date().toISOString()
+            });
+          }
+          toast.success('Subscriber marked as unsubscribed.');
+          fetchData();
+        } catch (err: any) {
+          toast.error('Failed to unsubscribe: ' + (err.message || String(err)));
+        }
+      }
+    });
+  };
+
+  const handleReSubscribeSubscriber = async (sub: { id: string; email: string; type: 'Registered' | 'Guest' }) => {
+    try {
+      if (sub.type === 'Registered') {
+        await updateDoc(doc(db, 'users', sub.id), { 
+          consentToUpdates: true,
+          unsubscribedAt: null
+        });
+      } else {
+        await updateDoc(doc(db, 'subscribers', sub.id), { 
+          status: 'subscribed',
+          unsubscribedAt: null
+        });
+      }
+      toast.success(`Successfully re-subscribed ${sub.email}!`);
+      fetchData();
+    } catch (err: any) {
+      toast.error('Failed to re-subscribe: ' + (err.message || String(err)));
+    }
+  };
+
+  const handleDeleteSubscriberPermanently = async (sub: { id: string; email: string; type: 'Registered' | 'Guest' }) => {
+    if (sub.type === 'Registered') {
+      toast.error('Cannot delete a registered user profile. You can only unsubscribe them.');
+      return;
+    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Guest Permanently',
+      message: `Are you sure you want to permanently delete the guest subscriber record for ${sub.email}? This action is irreversible.`,
+      confirmText: 'Delete Permanently',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setConfirmModal(null);
+        try {
+          await deleteDoc(doc(db, 'subscribers', sub.id));
+          toast.success('Guest subscriber record deleted permanently.');
+          fetchData();
+        } catch (err: any) {
+          toast.error('Failed to delete subscriber: ' + (err.message || String(err)));
+        }
+      }
+    });
+  };
+
+  const handleCopyEmails = () => {
+    const emailsList = Array.from(new Set([
+      ...allUsers.filter(u => u.consentToUpdates).map(u => u.email),
+      ...standaloneSubscribers.filter(s => s.status !== 'unsubscribed').map(s => s.email)
+    ].filter(Boolean)));
+
+    if (emailsList.length === 0) {
+      toast.error('No active subscribers to copy.');
+      return;
+    }
+
+    navigator.clipboard.writeText(emailsList.join(', '));
+    toast.success(`${emailsList.length} active email addresses copied to clipboard!`);
+  };
+
+  const handleExportSubscribers = () => {
+    const list: { name: string; email: string; type: string; status: string; location: string; dateSubscribed: string; dateUnsubscribed: string }[] = [];
+    
+    allUsers.forEach(u => {
+      list.push({
+        name: u.name || 'Anonymous',
+        email: u.email || '',
+        type: 'Registered',
+        status: u.consentToUpdates ? 'Active' : 'Unsubscribed',
+        location: u.location || 'Ottawa, ON',
+        dateSubscribed: u.createdAt || '',
+        dateUnsubscribed: (u as any).unsubscribedAt || ''
+      });
+    });
+
+    standaloneSubscribers.forEach(s => {
+      list.push({
+        name: s.name || 'Guest Subscriber',
+        email: s.email || '',
+        type: 'Guest',
+        status: s.status === 'unsubscribed' ? 'Unsubscribed' : 'Active',
+        location: s.location || 'Ottawa, ON',
+        dateSubscribed: s.createdAt || '',
+        dateUnsubscribed: s.unsubscribedAt || ''
+      });
+    });
+
+    if (list.length === 0) {
+      toast.error('No subscribers to export.');
+      return;
+    }
+
+    const csvRows = [
+      ["Name", "Email", "Type", "Status", "Location", "Date Subscribed", "Date Unsubscribed"].join(",")
+    ];
+    
+    list.forEach(e => {
+      csvRows.push(`"${(e.name || '').replace(/"/g, '""')}","${e.email}","${e.type}","${e.status}","${(e.location || '').replace(/"/g, '""')}","${e.dateSubscribed}","${e.dateUnsubscribed}"`);
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "halal_ottawa_newsletter_subscribers.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Subscribers list exported successfully!');
+  };
+
+  const handlePushTargetChange = (type: 'none' | 'listing' | 'event' | 'job' | 'news', id: string) => {
+    setPushTargetType(type);
+    setPushTargetId(id);
+    
+    if (type === 'none' || !id) {
+      return;
+    }
+    
+    // Auto-fill title, description, and image
+    if (type === 'listing') {
+      const item = approvedListings.find(l => l.id === id);
+      if (item) {
+        setPushTitle(item.name);
+        setPushMessage(item.description ? item.description.replace(/[#*`_]/g, '').substring(0, 120) + (item.description.length > 120 ? '...' : '') : `Check out ${item.name} on Halal Ottawa!`);
+        setPushImage((item.photos && item.photos[0]) || '');
+      }
+    } else if (type === 'news') {
+      const item = approvedNews.find(n => n.id === id);
+      if (item) {
+        setPushTitle(item.title);
+        const plainText = item.content ? item.content.replace(/[#*`_]/g, '') : '';
+        setPushMessage(plainText ? plainText.substring(0, 120) + (plainText.length > 120 ? '...' : '') : `Read our latest news: ${item.title}`);
+        setPushImage(item.coverImage || '');
+      }
+    } else if (type === 'event') {
+      const item = approvedEvents.find(e => e.id === id);
+      if (item) {
+        setPushTitle(item.title);
+        setPushMessage(item.description ? item.description.replace(/[#*`_]/g, '').substring(0, 120) + (item.description.length > 120 ? '...' : '') : `Join our event: ${item.title}`);
+        setPushImage(item.coverImage || '');
+      }
+    } else if (type === 'job') {
+      const item = approvedJobs.find(j => j.id === id);
+      if (item) {
+        setPushTitle(`${item.title} at ${item.company}`);
+        setPushMessage(item.description ? item.description.replace(/[#*`_]/g, '').substring(0, 120) + (item.description.length > 120 ? '...' : '') : `New job opening: ${item.title} with ${item.company}`);
+        setPushImage(item.companyLogo || '');
+      }
+    }
+  };
+
+  const getConnectedTargetName = () => {
+    if (pushTargetType === 'none' || !pushTargetId) return null;
+    if (pushTargetType === 'listing') {
+      return approvedListings.find(l => l.id === pushTargetId)?.name || 'Listing';
+    } else if (pushTargetType === 'news') {
+      return approvedNews.find(n => n.id === pushTargetId)?.title || 'News Article';
+    } else if (pushTargetType === 'event') {
+      return approvedEvents.find(e => e.id === pushTargetId)?.title || 'Event';
+    } else if (pushTargetType === 'job') {
+      const job = approvedJobs.find(j => j.id === pushTargetId);
+      return job ? `${job.title} (${job.company})` : 'Job Opening';
+    }
+    return null;
+  };
+
+  const pushSuggestionsList = (() => {
+    const queryText = pushSearchQuery.toLowerCase().trim();
+    if (!queryText) return [];
+    
+    interface PushSuggestion {
+      id: string;
+      type: 'listing' | 'event' | 'job' | 'news';
+      title: string;
+      subtitle: string;
+      image: string;
+    }
+    
+    const results: PushSuggestion[] = [];
+    
+    // Listing matches
+    approvedListings.forEach(item => {
+      if (item.name.toLowerCase().includes(queryText) || (item.description && item.description.toLowerCase().includes(queryText))) {
+        results.push({
+          id: item.id,
+          type: 'listing',
+          title: item.name,
+          subtitle: 'Directory Listing',
+          image: item.photos?.[0] || ''
+        });
+      }
+    });
+
+    // News matches
+    approvedNews.forEach(item => {
+      if (item.title.toLowerCase().includes(queryText) || (item.content && item.content.toLowerCase().includes(queryText))) {
+        results.push({
+          id: item.id,
+          type: 'news',
+          title: item.title,
+          subtitle: 'News Article',
+          image: item.coverImage || ''
+        });
+      }
+    });
+
+    // Event matches
+    approvedEvents.forEach(item => {
+      if (item.title.toLowerCase().includes(queryText) || (item.description && item.description.toLowerCase().includes(queryText))) {
+        results.push({
+          id: item.id,
+          type: 'event',
+          title: item.title,
+          subtitle: 'Community Event',
+          image: item.coverImage || ''
+        });
+      }
+    });
+
+    // Job matches
+    approvedJobs.forEach(item => {
+      if (item.title.toLowerCase().includes(queryText) || item.company.toLowerCase().includes(queryText) || (item.description && item.description.toLowerCase().includes(queryText))) {
+        results.push({
+          id: item.id,
+          type: 'job',
+          title: item.title,
+          subtitle: `Job Opening at ${item.company}`,
+          image: item.companyLogo || ''
+        });
+      }
+    });
+
+    return results.slice(0, 8);
+  })();
+
+  const handlePushImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setIsPushImageUploading(true);
+    try {
+      const url = await uploadFile(file, 'notifications', `push-${Date.now()}`);
+      setPushImage(url);
+      toast.success('Notification image uploaded successfully.');
+    } catch (err: any) {
+      toast.error('Error uploading image: ' + (err?.message || String(err)));
+      console.error(err);
+    } finally {
+      setIsPushImageUploading(false);
+    }
+  };
+
   const sendPushNotification = async () => {
     if (!pushTitle || !pushMessage) {
       toast.error('Please enter both title and message for the push notification.');
@@ -403,29 +768,81 @@ export const AdminDashboard: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: 'Send Push Notification',
-      message: 'Are you sure you want to send a push notification to all devices?',
+      message: 'Are you sure you want to send a real-time push notification to all devices?',
       confirmText: 'Send Push',
       confirmVariant: 'primary',
       onConfirm: async () => {
         setIsSendingPush(true);
         setConfirmModal(null);
         try {
-          // 1. Save as an in-app notification (fallback)
-          const { addDoc, serverTimestamp } = await import('firebase/firestore');
-          await addDoc(collection(db, 'global_notifications'), {
-            title: pushTitle,
-            message: pushMessage,
-            createdAt: serverTimestamp(),
-            type: 'push_alert'
+          const { auth } = await import('../firebase');
+          const firebaseUser = auth.currentUser;
+          if (!firebaseUser) {
+            toast.error('No logged-in session found. Unable to authenticate.');
+            return;
+          }
+
+          const idToken = await firebaseUser.getIdToken();
+
+          // Construct URL if target is selected
+          let targetUrl = '';
+          if (pushTargetType !== 'none' && pushTargetId) {
+            if (pushTargetType === 'listing') {
+              const matched = approvedListings.find(l => l.id === pushTargetId);
+              if (matched) {
+                targetUrl = `/listings/${matched.slug || matched.id}`;
+              }
+            } else if (pushTargetType === 'news') {
+              const matched = approvedNews.find(n => n.id === pushTargetId);
+              if (matched) {
+                targetUrl = `/news/${matched.slug || matched.id}`;
+              }
+            } else if (pushTargetType === 'event') {
+              const matched = approvedEvents.find(e => e.id === pushTargetId);
+              if (matched) {
+                targetUrl = `/events/${matched.slug || matched.id}`;
+              }
+            } else if (pushTargetType === 'job') {
+              const matched = approvedJobs.find(j => j.id === pushTargetId);
+              if (matched) {
+                targetUrl = `/jobs/${matched.slug || matched.id}`;
+              }
+            }
+          }
+
+          const response = await fetch('/api/send-push-notification', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${idToken}`
+            },
+            body: JSON.stringify({
+              title: pushTitle,
+              message: pushMessage,
+              url: targetUrl,
+              image: pushImage
+            })
           });
 
-          // 2. Explain the backend requirement for real FCM
-          toast.success('Notification saved! Note: Sending real FCM push notifications requires a backend server (like Firebase Cloud Functions) to use the Admin SDK.');
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Failed to dispatch push notifications');
+          }
+
+          const result = await response.json();
+
+          toast.success(
+            `Successfully triggered real FCM push notifications! Sent: ${result.sentCount} devices. (Failed: ${result.failedCount || 0})`
+          );
           
           setPushTitle('');
           setPushMessage('');
-        } catch (err) {
-          toast.error('Failed to send push notification.');
+          setPushTargetType('none');
+          setPushTargetId('');
+          setPushImage('');
+        } catch (err: any) {
+          console.error('Error dispatching push notification:', err);
+          toast.error(err.message || 'Failed to send push notification.');
         } finally {
           setIsSendingPush(false);
         }
@@ -1120,11 +1537,81 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
     return items;
   })();
 
+  const visibleSubscribers = (() => {
+    const list: { id: string; name: string; email: string; type: 'Registered' | 'Guest'; status: 'subscribed' | 'unsubscribed'; createdAt?: string; unsubscribedAt?: string; location?: string }[] = [];
+    
+    // Add Registered Users
+    allUsers.forEach(u => {
+      const isSubscribed = !!u.consentToUpdates;
+      list.push({
+        id: u.uid,
+        name: u.name || 'Anonymous',
+        email: u.email || '',
+        type: 'Registered',
+        status: isSubscribed ? 'subscribed' : 'unsubscribed',
+        createdAt: u.createdAt,
+        unsubscribedAt: (u as any).unsubscribedAt || undefined,
+        location: u.location || 'Ottawa, ON'
+      });
+    });
+
+    // Add Guest Subscribers
+    standaloneSubscribers.forEach(s => {
+      const isSubscribed = s.status !== 'unsubscribed';
+      list.push({
+        id: s.id,
+        name: s.name || 'Guest Subscriber',
+        email: s.email || '',
+        type: 'Guest',
+        status: isSubscribed ? 'subscribed' : 'unsubscribed',
+        createdAt: s.createdAt,
+        unsubscribedAt: s.unsubscribedAt || undefined,
+        location: s.location || 'Ottawa, ON'
+      });
+    });
+
+    // Apply Filter Tab (all, registered, guests)
+    let filtered = list;
+    if (subscriberTab === 'registered') {
+      filtered = filtered.filter(sub => sub.type === 'Registered');
+    } else if (subscriberTab === 'guests') {
+      filtered = filtered.filter(sub => sub.type === 'Guest');
+    }
+
+    // Apply Status Filter (all, subscribed, unsubscribed)
+    if (subscriberStatusFilter === 'subscribed') {
+      filtered = filtered.filter(sub => sub.status === 'subscribed');
+    } else if (subscriberStatusFilter === 'unsubscribed') {
+      filtered = filtered.filter(sub => sub.status === 'unsubscribed');
+    }
+
+    // Apply Search
+    if (subscriberSearch.trim()) {
+      const q = subscriberSearch.toLowerCase();
+      filtered = filtered.filter(sub => 
+        (sub.name?.toLowerCase().includes(q)) ||
+        (sub.email?.toLowerCase().includes(q)) ||
+        (sub.location?.toLowerCase().includes(q))
+      );
+    }
+
+    return filtered;
+  })();
+
+  const activeRegisteredCount = allUsers.filter(u => u.consentToUpdates).length;
+  const activeGuestCount = standaloneSubscribers.filter(s => s.status !== 'unsubscribed').length;
+  const totalSubscriberCount = activeRegisteredCount + activeGuestCount;
+
+  const inactiveRegisteredCount = allUsers.filter(u => !u.consentToUpdates).length;
+  const inactiveGuestCount = standaloneSubscribers.filter(s => s.status === 'unsubscribed').length;
+  const totalUnsubscribedCount = inactiveRegisteredCount + inactiveGuestCount;
+
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
       <SEO 
         title="Admin Dashboard" 
         description="Manage and moderate your community platform." 
+        noindex={true}
       />
 
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-12">
@@ -1202,30 +1689,60 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
             Site Settings
           </h2>
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900 mb-1">Site Logo</h3>
-              <p className="text-xs text-gray-500 mb-4">Upload a logo to display in the header and footer.</p>
-              <div className="flex items-center gap-4">
-                {siteLogoUrl ? (
-                  <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 p-2 flex items-center justify-center">
-                    <img src={siteLogoUrl} alt="Site Logo" className="max-w-full max-h-full object-contain" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Site Logo</h3>
+                <p className="text-xs text-gray-500 mb-4">Upload a logo to display in the header and footer.</p>
+                <div className="flex items-center gap-4">
+                  {siteLogoUrl ? (
+                    <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 p-2 flex items-center justify-center">
+                      <img src={siteLogoUrl} alt="Site Logo" className="max-w-full max-h-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
+                      <span className="text-xs">No Logo</span>
+                    </div>
+                  )}
+                  <div>
+                    <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
+                      {isLogoUploading ? 'Uploading...' : 'Upload Logo'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleLogoUpload} 
+                        className="hidden" 
+                        disabled={isLogoUploading} 
+                      />
+                    </label>
                   </div>
-                ) : (
-                  <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
-                    <span className="text-xs">No Logo</span>
+                </div>
+              </div>
+
+              <div className="border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Global Listing Cover Image</h3>
+                <p className="text-xs text-gray-500 mb-4">Upload a cover image used for all single listings pages.</p>
+                <div className="flex items-center gap-4">
+                  {coverImageUrl ? (
+                    <div className="w-32 h-20 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
+                      <img src={coverImageUrl} alt="Global Cover" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-32 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
+                      <span className="text-xs">No Cover</span>
+                    </div>
+                  )}
+                  <div>
+                    <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
+                      {isCoverUploading ? 'Uploading...' : 'Upload Cover'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleCoverUpload} 
+                        className="hidden" 
+                        disabled={isCoverUploading} 
+                      />
+                    </label>
                   </div>
-                )}
-                <div>
-                  <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
-                    {isLogoUploading ? 'Uploading...' : 'Upload Logo'}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleLogoUpload} 
-                      className="hidden" 
-                      disabled={isLogoUploading} 
-                    />
-                  </label>
                 </div>
               </div>
             </div>
@@ -1579,6 +2096,127 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
             </div>
             
             <div className="space-y-4">
+              {/* Search Destination Autocomplete */}
+              <div className="space-y-2 relative">
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">
+                  Push Landing Destination Link (Optional)
+                </label>
+                
+                {pushTargetType !== 'none' ? (
+                  <div className="p-3.5 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl text-white shadow-sm shrink-0 ${
+                        pushTargetType === 'listing' ? 'bg-blue-500' :
+                        pushTargetType === 'news' ? 'bg-[#10b981]' :
+                        pushTargetType === 'event' ? 'bg-purple-500' : 'bg-orange-500'
+                      }`}>
+                        {pushTargetType === 'listing' && <MapPin className="w-4 h-4" />}
+                        {pushTargetType === 'news' && <Newspaper className="w-4 h-4" />}
+                        {pushTargetType === 'event' && <Calendar className="w-4 h-4" />}
+                        {pushTargetType === 'job' && <Briefcase className="w-4 h-4" />}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500 block">
+                          Connected Link ({pushTargetType === 'listing' ? 'Listing' : pushTargetType === 'news' ? 'News' : pushTargetType === 'event' ? 'Event' : 'Job'})
+                        </span>
+                        <h4 className="font-bold text-sm text-gray-900 truncate">
+                          {getConnectedTargetName()}
+                        </h4>
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handlePushTargetChange('none', '');
+                        setPushSearchQuery('');
+                      }}
+                      className="p-1 px-3 bg-white hover:bg-red-50 text-red-600 border border-red-100 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1 active:scale-95 cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Unlink Page
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search className="h-4.5 w-4.5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={pushSearchQuery}
+                      onChange={(e) => {
+                        setPushSearchQuery(e.target.value);
+                        setIsPushSearchFocused(true);
+                      }}
+                      onFocus={() => setIsPushSearchFocused(true)}
+                      onBlur={() => {
+                        // Delay slightly so onMouseDown of suggestion item triggers first
+                        setTimeout(() => setIsPushSearchFocused(false), 200);
+                      }}
+                      placeholder="Search across listings, news, events, or jobs to link landing destination..."
+                      className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-gray-400"
+                    />
+                    
+                    {/* Floating Suggestion Menu */}
+                    {isPushSearchFocused && pushSearchQuery.trim().length > 0 && (
+                      <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1.5 max-h-72 overflow-y-auto divide-y divide-gray-50 flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100">
+                        {pushSuggestionsList.length > 0 ? (
+                          pushSuggestionsList.map((suggestion) => (
+                            <button
+                              key={`${suggestion.type}-${suggestion.id}`}
+                              type="button"
+                              onMouseDown={() => {
+                                handlePushTargetChange(suggestion.type, suggestion.id);
+                              }}
+                              className="w-full px-4 py-2.5 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors flex items-center justify-between gap-3 text-sm cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                {suggestion.image ? (
+                                  <img 
+                                    src={suggestion.image} 
+                                    alt={suggestion.title} 
+                                    className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-100 shrink-0"
+                                    onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40?text=Logo' }}
+                                  />
+                                ) : (
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                                    suggestion.type === 'listing' ? 'bg-blue-50 text-blue-500' :
+                                    suggestion.type === 'news' ? 'bg-emerald-50 text-emerald-500' :
+                                    suggestion.type === 'event' ? 'bg-purple-50 text-purple-500' : 'bg-orange-50 text-orange-500'
+                                  }`}>
+                                    {suggestion.type === 'listing' && <MapPin className="w-5 h-5" />}
+                                    {suggestion.type === 'news' && <Newspaper className="w-5 h-5" />}
+                                    {suggestion.type === 'event' && <Calendar className="w-5 h-5" />}
+                                    {suggestion.type === 'job' && <Briefcase className="w-5 h-5" />}
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-gray-900 truncate">{suggestion.title}</p>
+                                  <p className="text-xs text-gray-400 truncate">{suggestion.subtitle}</p>
+                                </div>
+                              </div>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 uppercase tracking-wider ${
+                                suggestion.type === 'listing' ? 'bg-blue-50 text-blue-600' :
+                                suggestion.type === 'news' ? 'bg-emerald-50 text-emerald-600' :
+                                suggestion.type === 'event' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
+                              }`}>
+                                {suggestion.type}
+                              </span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-4 py-4 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-1">
+                            <Search className="w-5 h-5 text-gray-300" />
+                            <span>No matching results found for "{pushSearchQuery}"</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Notification Title</label>
                 <input 
@@ -1589,8 +2227,9 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
                 />
               </div>
+
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Notification Message</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Notification Message / Description</label>
                 <textarea 
                   value={pushMessage}
                   onChange={(e) => setPushMessage(e.target.value)}
@@ -1599,10 +2238,65 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                   className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all resize-none"
                 />
               </div>
-              <div className="flex justify-end">
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                  Notification Image / Photo
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input 
+                    type="text" 
+                    value={pushImage}
+                    onChange={(e) => setPushImage(e.target.value)}
+                    placeholder="Paste image URL (e.g., https://...)" 
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
+                  />
+                  <div className="flex gap-2">
+                    <label className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-2xl text-xs transition-colors shrink-0 flex items-center justify-center cursor-pointer gap-1.5 h-[46px] select-none">
+                      <Plus className="w-4 h-4" />
+                      <span>{isPushImageUploading ? 'Uploading...' : 'Upload Photo'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handlePushImageUpload} 
+                        disabled={isPushImageUploading}
+                        className="hidden" 
+                      />
+                    </label>
+                    {pushImage && (
+                      <button 
+                        type="button"
+                        onClick={() => setPushImage('')}
+                        className="px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-2xl text-xs transition-colors shrink-0"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {pushImage && (
+                <div className="mt-2 p-3 bg-gray-50 rounded-2xl border border-gray-100 max-w-xs flex gap-3 items-center">
+                  <img 
+                    src={pushImage} 
+                    alt="Notification Preview" 
+                    className="w-16 h-12 rounded-lg object-cover bg-gray-200 shrink-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://placehold.co/120x95?text=Image+Not+Loaded';
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Photo Preview</p>
+                    <p className="text-xs text-gray-500 truncate">{pushImage}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
                 <button 
                   onClick={sendPushNotification} 
-                  disabled={isSendingPush || !pushTitle || !pushMessage} 
+                  disabled={isSendingPush || isPushImageUploading || !pushTitle || !pushMessage} 
                   className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl shadow-lg shadow-gray-200 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center"
                 >
                   {isSendingPush ? 'Sending...' : 'Send Push Notification'}
@@ -1657,6 +2351,278 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                 >
                   {isSendingEmails ? 'Sending...' : 'Send Email Newsletter'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Newsletter Subscribers Section */}
+        <section className="space-y-4">
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
+            Newsletter Subscribers
+          </h2>
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 text-[#e90b35] flex items-center justify-center shrink-0">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">Manage Subscribers</h3>
+                  <p className="text-sm text-gray-500">
+                    Track subscription lifecycle, location, registered dates, and soft-unsubscribed history.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleExportSubscribers}
+                  className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 border border-gray-100 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </button>
+                <button
+                  onClick={handleCopyEmails}
+                  className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl text-xs transition-all flex items-center gap-1.5 border border-gray-100 cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Active Emails
+                </button>
+              </div>
+            </div>
+
+            {/* Subscription Stats Dashboard Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-green-50/45 rounded-2xl p-4 border border-green-100/50">
+                <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">Active Subscribers</span>
+                <span className="text-2xl font-black text-green-900 block mt-1">{totalSubscriberCount}</span>
+                <span className="text-[10px] text-green-600 block mt-0.5">{activeRegisteredCount} users + {activeGuestCount} guests</span>
+              </div>
+              <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Unsubscribed History</span>
+                <span className="text-2xl font-black text-gray-700 block mt-1">{totalUnsubscribedCount}</span>
+                <span className="text-[10px] text-gray-400 block mt-0.5">{inactiveRegisteredCount} users + {inactiveGuestCount} guests</span>
+              </div>
+              <div className="bg-blue-50/45 rounded-2xl p-4 border border-blue-100/30">
+                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Registered Users</span>
+                <span className="text-2xl font-black text-blue-950 block mt-1">{allUsers.length}</span>
+                <span className="text-[10px] text-blue-500 block mt-0.5">{(allUsers.length > 0 ? ((activeRegisteredCount / allUsers.length) * 100).toFixed(0) : 0)}% opted-in rate</span>
+              </div>
+              <div className="bg-teal-50/45 rounded-2xl p-4 border border-teal-100/30">
+                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">Guest Subscribers</span>
+                <span className="text-2xl font-black text-teal-900 block mt-1">{standaloneSubscribers.length}</span>
+                <span className="text-[10px] text-teal-600 block mt-0.5">{(standaloneSubscribers.length > 0 ? ((activeGuestCount / standaloneSubscribers.length) * 100).toFixed(0) : 0)}% active rate</span>
+              </div>
+            </div>
+
+            {/* Quick Add Form with Location Support */}
+            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/50">
+              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Add Custom Email Subscriber</h4>
+              <form onSubmit={handleAddCustomSubscriber} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="Enter subscriber email..."
+                    value={newSubEmail}
+                    onChange={(e) => setNewSubEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Enter full name (optional)..."
+                    value={newSubName}
+                    onChange={(e) => setNewSubName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Location, e.g. Ottawa, ON"
+                    value={newSubLocation}
+                    onChange={(e) => setNewSubLocation(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSub}
+                  className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  {isSubmittingSub ? 'Adding...' : 'Add Subscriber'}
+                </button>
+              </form>
+            </div>
+
+            {/* Filtering Dashboard */}
+            <div className="space-y-3 pt-2">
+              <div className="flex flex-col md:flex-row md:items-center gap-3 justify-between">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by email, name, or location..."
+                    value={subscriberSearch}
+                    onChange={(e) => setSubscriberSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20"
+                  />
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Subscriber Type Filter */}
+                  <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+                    {(['all', 'registered', 'guests'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setSubscriberTab(tab)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                          subscriberTab === tab
+                            ? 'bg-white text-gray-950 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-900'
+                        }`}
+                      >
+                        {tab === 'all' ? 'All' : tab === 'registered' ? 'Registered' : 'Guests'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Subscriber Status Filter */}
+                  <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+                    {(['all', 'subscribed', 'unsubscribed'] as const).map((statusTab) => (
+                      <button
+                        key={statusTab}
+                        type="button"
+                        onClick={() => setSubscriberStatusFilter(statusTab)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                          subscriberStatusFilter === statusTab
+                            ? 'bg-white text-gray-950 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-900'
+                        }`}
+                      >
+                        {statusTab === 'all' ? 'All' : statusTab === 'subscribed' ? 'Subscribed' : 'Unsubscribed'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscribers List Container */}
+            <div className="overflow-hidden border border-gray-100 rounded-2xl bg-white">
+              <div className="max-h-[460px] overflow-y-auto divide-y divide-gray-50">
+                {visibleSubscribers.length === 0 ? (
+                  <div className="p-10 text-center text-gray-400 text-sm">
+                    No subscriber records found matching these criteria.
+                  </div>
+                ) : (
+                  visibleSubscribers.map((sub) => {
+                    const isActive = sub.status === 'subscribed';
+                    return (
+                      <div key={sub.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 hover:bg-gray-50 transition-colors">
+                        <div className="min-w-0 flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                            isActive
+                              ? (sub.type === 'Registered' ? 'bg-blue-50/70 text-blue-600' : 'bg-teal-50 text-teal-600')
+                              : 'bg-gray-100 text-gray-400'
+                          }`}>
+                            {isActive ? (
+                              <UserCheck className="w-5 h-5" />
+                            ) : (
+                              <UserX className="w-5 h-5" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-gray-900 text-sm truncate">{sub.name || 'Anonymous'}</span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                sub.type === 'Registered' 
+                                  ? 'bg-blue-50 text-blue-600 border border-blue-100/50' 
+                                  : 'bg-teal-50 text-teal-600 border border-teal-100/50'
+                              }`}>
+                                {sub.type}
+                              </span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                                isActive 
+                                  ? 'bg-green-50 text-green-600 border border-green-100/50' 
+                                  : 'bg-red-50 text-red-600 border border-red-100/50'
+                              }`}>
+                                {isActive ? 'Active' : 'Unsubscribed'}
+                              </span>
+                            </div>
+                            
+                            {/* Metadata Details Row */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
+                              <span className="text-gray-900 font-semibold truncate block max-w-[200px] sm:max-w-xs">{sub.email}</span>
+                              <span className="text-gray-300">•</span>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                {sub.location || 'Ottawa, ON'}
+                              </span>
+                              {sub.createdAt && (
+                                <>
+                                  <span className="text-gray-300">•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                                    Subbed: {new Date(sub.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </span>
+                                </>
+                              )}
+                              {!isActive && sub.unsubscribedAt && (
+                                <>
+                                  <span className="text-gray-300">•</span>
+                                  <span className="flex items-center gap-1 text-red-500 bg-red-50 px-1.5 py-0.5 rounded-md text-[10px] font-medium">
+                                    <UserMinus className="w-3 h-3" />
+                                    Unsubscribed: {new Date(sub.unsubscribedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Subscriber Action Panel */}
+                        <div className="flex items-center justify-end gap-2 shrink-0 self-end sm:self-center">
+                          {isActive ? (
+                            <button
+                              onClick={() => handleUnsubscribeSubscriber(sub)}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                              title="Unsubscribe Newsletter"
+                            >
+                              <UserMinus className="w-3.5 h-3.5" />
+                              Unsubscribe
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleReSubscribeSubscriber(sub)}
+                              className="px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-600 text-xs font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                              title="Subscribe / Re-enable"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                              Re-subscribe
+                            </button>
+                          )}
+                          
+                          {/* Purge Guest records option */}
+                          {sub.type === 'Guest' && (
+                            <button
+                              onClick={() => handleDeleteSubscriberPermanently(sub)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                              title="Delete permanently"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

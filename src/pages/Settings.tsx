@@ -8,6 +8,7 @@ import { db, auth } from '../firebase';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
+import { isAppWrapper } from '../utils/platform';
 
 export const Settings: React.FC = () => {
   const { logout, user } = useAuth();
@@ -152,9 +153,38 @@ export const Settings: React.FC = () => {
       <SEO 
         title="Settings" 
         description="Manage your account settings and preferences on Halal Ottawa." 
+        noindex={true}
       />
 
       <h1 className="text-3xl font-bold">Settings</h1>
+
+      {isAppWrapper() && (
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-100 p-4 rounded-3xl flex items-start gap-3">
+          <div className="p-2 bg-white rounded-xl shadow-xs text-[#e90b35]">
+            <Globe className="w-5 h-5 animate-pulse" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <h3 className="font-semibold text-gray-900 text-sm">Mobile App Wrapper Connected</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Running inside native mobile companion. Push notifications are managed via modern **Strategy B (Native JS-to-WebView Interface)**.
+            </p>
+            <div className="pt-2 flex items-center gap-4">
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#e90b35]/20 text-[#e90b35]">
+                ● Native Channel Active
+              </span>
+              {localStorage.getItem('nativeFcmToken') ? (
+                <span className="text-[10px] text-gray-400 font-mono">
+                  Token: {localStorage.getItem('nativeFcmToken')?.substring(0, 12)}...
+                </span>
+              ) : (
+                <span className="text-[10px] text-orange-500 animate-pulse">
+                  Waiting for device registration...
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-8">
         {sections.map((section) => (

@@ -5,7 +5,9 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
-import { CATEGORIES } from '../constants';
+import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
+import { isAppWrapper } from '../utils/platform';
+import { CategoryIcon } from './CategoryIcon';
 
 interface TopNavProps {
   showBack?: boolean;
@@ -14,11 +16,17 @@ interface TopNavProps {
 export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const location = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isRestaurantsMobileExpanded, setIsRestaurantsMobileExpanded] = useState(false);
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
   const { user, logout, loading } = useAuth();
   const navigate = useNavigate();
+  const [inApp, setInApp] = useState(false);
+
+  useEffect(() => {
+    setInApp(isAppWrapper());
+  }, []);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
@@ -89,18 +97,73 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         <nav className="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
           {CATEGORIES.filter(c => c !== 'Organizations').map(cat => {
             const path = `/${cat.toLowerCase().replace(/\s+/g, '-')}`;
+            const label = cat;
             return (
-              <Link
-                key={cat}
-                to={path}
-                className={`text-sm font-semibold transition-colors whitespace-nowrap ${
-                  location.pathname === path || (location.pathname.startsWith(path + '/') && location.pathname !== '/')
-                    ? 'text-[#e90b35]'
-                    : 'text-gray-900 hover:text-[#e90b35]'
-                }`}
-              >
-                {cat}
-              </Link>
+              <div key={cat} className="relative group/menu py-2">
+                <Link
+                  to={path}
+                  className={`flex items-center gap-1.5 text-sm font-semibold transition-colors whitespace-nowrap ${
+                    location.pathname === path || (location.pathname.startsWith(path + '/') && location.pathname !== '/')
+                      ? 'text-[#e90b35]'
+                      : 'text-gray-900 hover:text-[#e90b35]'
+                  }`}
+                >
+                  <span>{label}</span>
+                  {cat === 'Restaurants' && (
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-400 group-hover/menu:text-[#e90b35] transition-transform duration-200 group-hover/menu:rotate-180" />
+                  )}
+                </Link>
+
+                {cat === 'Restaurants' && (
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[600px] bg-white border border-gray-100 shadow-2xl rounded-2xl p-5 grid grid-cols-2 gap-6 opacity-0 translate-y-2 pointer-events-none group-hover/menu:opacity-100 group-hover/menu:translate-y-0 group-hover/menu:pointer-events-auto transition-all duration-300 z-50">
+                    {/* Food Types column */}
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-1.5/50">
+                        Food
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                        {LISTING_TYPES.map((type) => {
+                          const typePath = `/restaurants/${type.toLowerCase().replace(/\s+/g, '-')}`;
+                          return (
+                            <Link
+                              key={type}
+                              to={typePath}
+                              className={`text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-red-50 hover:text-[#e90b35] transition-colors whitespace-nowrap ${
+                                location.pathname === typePath ? 'text-[#e90b35] bg-red-50/50' : 'text-gray-650'
+                              }`}
+                            >
+                              {type}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Cuisines column */}
+                    <div>
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-1.5/50">
+                        Cuisines
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                        {CUISINES.map((cuisine) => {
+                          const cuisinePath = `/restaurants/${cuisine.toLowerCase().replace(/\s+/g, '-')}`;
+                          return (
+                            <Link
+                              key={cuisine}
+                              to={cuisinePath}
+                              className={`text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-red-50 hover:text-[#e90b35] transition-colors whitespace-nowrap ${
+                                location.pathname === cuisinePath ? 'text-[#e90b35] bg-red-50/50' : 'text-gray-650'
+                              }`}
+                            >
+                              {cuisine}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -239,73 +302,197 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             </div>
             
             <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6">
-              <nav>
-                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Tools</p>
-                <Link 
-                  to="/tools/qibla" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                    isActive('/tools/qibla') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                    isActive('/tools/qibla') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                  }`}>
-                    <Compass className="w-4 h-4" />
+              {!inApp ? (
+                <nav>
+                  <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Categories</p>
+                  <div className="space-y-1">
+                    {CATEGORIES.map(cat => {
+                      const path = `/${cat.toLowerCase().replace(/\s+/g, '-')}`;
+                      const isCatActive = location.pathname === path;
+                      if (cat === 'Restaurants') {
+                        return (
+                          <div key={cat} className="space-y-1">
+                            <div className="flex items-center justify-between w-full">
+                              <Link
+                                to={path}
+                                onClick={() => setIsMenuOpen(false)}
+                                className={`flex-1 flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                                  isCatActive ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                                }`}
+                              >
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                                  isCatActive ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                                }`}>
+                                  <CategoryIcon category={cat} className="w-4 h-4" />
+                                </div>
+                                <span className="font-bold text-sm">Halal Restaurants</span>
+                              </Link>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); setIsRestaurantsMobileExpanded(!isRestaurantsMobileExpanded); }}
+                                className="p-2 hover:bg-gray-50 text-gray-400 rounded-xl mr-1 cursor-pointer transition-colors"
+                                aria-label="Toggle Halal Restaurants subcategories"
+                              >
+                                {isRestaurantsMobileExpanded ? (
+                                  <ChevronUp className="w-4 h-4 text-gray-400" />
+                                ) : (
+                                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                                )}
+                              </button>
+                            </div>
+                            
+                            {isRestaurantsMobileExpanded && (
+                              <div className="pl-2 pr-1 py-1 space-y-3.5 border-l border-red-100 ml-1.5 my-1 animate-in slide-in-from-top-2 duration-200">
+                                {/* Food types sub-section */}
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Food</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {LISTING_TYPES.map((type) => {
+                                      const typePath = `/restaurants/${type.toLowerCase().replace(/\s+/g, '-')}`;
+                                      return (
+                                        <Link
+                                          key={type}
+                                          to={typePath}
+                                          onClick={() => setIsMenuOpen(false)}
+                                          className={`text-[11px] font-bold px-2 py-1 rounded-full transition-colors ${
+                                            location.pathname === typePath
+                                              ? 'bg-[#e90b35] text-white'
+                                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                          }`}
+                                        >
+                                          {type}
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                                
+                                {/* Cuisines sub-section */}
+                                <div>
+                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Cuisines</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {CUISINES.map((cuisine) => {
+                                      const cuisinePath = `/restaurants/${cuisine.toLowerCase().replace(/\s+/g, '-')}`;
+                                      return (
+                                        <Link
+                                          key={cuisine}
+                                          to={cuisinePath}
+                                          onClick={() => setIsMenuOpen(false)}
+                                          className={`text-[11px] font-bold px-2 py-1 rounded-full transition-colors ${
+                                            location.pathname === cuisinePath
+                                              ? 'bg-[#e90b35] text-white'
+                                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                          }`}
+                                        >
+                                          {cuisine}
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+                      return (
+                        <Link
+                          key={cat}
+                          to={path}
+                          onClick={() => setIsMenuOpen(false)}
+                          className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                            isCatActive ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                            isCatActive ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                          }`}>
+                            <CategoryIcon category={cat} className="w-4 h-4" />
+                          </div>
+                          <span className="font-bold text-sm">
+                            {cat === 'Mosques' ? 'Mosques' :
+                             cat === 'Grocery' ? 'Halal Grocery' :
+                             cat === 'Clothing' ? 'Islamic Clothing' :
+                             cat === 'Schools' ? 'Islamic Schools' :
+                             cat === 'Butchers' ? 'Halal Butchers' :
+                             cat === 'Organizations' ? 'Muslim Organizations' :
+                             cat}
+                          </span>
+                        </Link>
+                      );
+                    })}
                   </div>
-                  <span className="font-bold">Qibla Direction</span>
-                </Link>
-              </nav>
+                </nav>
+              ) : (
+                <>
+                  <nav>
+                    <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Tools</p>
+                    <Link 
+                      to="/tools/qibla" 
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                        isActive('/tools/qibla') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                        isActive('/tools/qibla') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                      }`}>
+                        <Compass className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold">Qibla Direction</span>
+                    </Link>
+                  </nav>
 
-              <nav>
-                <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2 mt-4">Support</p>
-                <div className="space-y-1">
-                  <Link 
-                    to="/faq" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/faq') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/faq') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <HelpCircle className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold">FAQ</span>
-                  </Link>
+                  <nav>
+                    <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2 mt-4">Support</p>
+                    <div className="space-y-1">
+                      <Link 
+                        to="/faq" 
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                          isActive('/faq') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                          isActive('/faq') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                        }`}>
+                          <HelpCircle className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold">FAQ</span>
+                      </Link>
 
-                  <Link 
-                    to="/terms" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/terms') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/terms') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <FileText className="w-4 h-4" />
+                      <Link 
+                        to="/terms" 
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                          isActive('/terms') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                          isActive('/terms') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                        }`}>
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold">Terms of Service</span>
+                      </Link>
+                      
+                      <Link 
+                        to="/privacy-policy" 
+                        onClick={() => setIsMenuOpen(false)}
+                        className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
+                          isActive('/privacy-policy') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-750'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                          isActive('/privacy-policy') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
+                        }`}>
+                          <Shield className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold">Privacy Policy</span>
+                      </Link>
                     </div>
-                    <span className="font-bold">Terms of Service</span>
-                  </Link>
-                  
-                  <Link 
-                    to="/privacy-policy" 
-                    onClick={() => setIsMenuOpen(false)}
-                    className={`flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group ${
-                      isActive('/privacy-policy') ? 'bg-red-50 text-[#e90b35]' : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
-                      isActive('/privacy-policy') ? 'bg-white text-[#e90b35]' : 'bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50'
-                    }`}>
-                      <Shield className="w-4 h-4" />
-                    </div>
-                    <span className="font-bold">Privacy Policy</span>
-                  </Link>
-                </div>
-              </nav>
+                  </nav>
+                </>
+              )}
             </div>
 
             <div className="p-6 border-t border-gray-50">

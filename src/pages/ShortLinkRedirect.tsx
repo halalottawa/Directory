@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NotFound } from './NotFound';
+import { SEO } from '../components/SEO';
 
 export const ShortLinkRedirect: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -49,6 +50,11 @@ export const ShortLinkRedirect: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <SEO 
+        title="Redirecting..." 
+        description="Redirecting you to the target community link on Halal Ottawa." 
+        noindex={true}
+      />
       <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin mb-4"></div>
       <p className="text-gray-500 font-medium">Redirecting...</p>
     </div>

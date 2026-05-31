@@ -16,13 +16,7 @@ export async function getPreciseLocation(): Promise<string> {
 
       const { latitude, longitude } = position.coords;
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
-        {
-          headers: {
-            'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
-            'Accept-Language': 'en'
-          }
-        }
+        `/api/geocode?reverse=true&lat=${latitude}&lon=${longitude}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -104,13 +98,7 @@ export async function getSuburbFromAddress(address: string): Promise<string> {
   try {
     const queryStr = address.toLowerCase().includes('ottawa') ? address : `${address}, Ottawa, ON`;
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(queryStr)}&format=json&addressdetails=1&limit=1`,
-      {
-        headers: {
-          'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
-          'Accept-Language': 'en'
-        }
-      }
+      `/api/geocode?q=${encodeURIComponent(queryStr)}`
     );
     if (res.ok) {
       const data = await res.json();

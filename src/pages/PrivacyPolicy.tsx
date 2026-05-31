@@ -10,7 +10,7 @@ export const PrivacyPolicy: React.FC = () => {
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
       <SEO 
         title="Privacy Policy" 
-        description="Read the Privacy Policy for Halal Ottawa." 
+        description="Read the Privacy Policy for Halal Ottawa to find out how we collect, use, and safeguard your personal details, cookies, and account data across our platform." 
         canonicalUrl="https://www.halalottawa.ca/privacy-policy"
         structuredData={{
           "@context": "https://schema.org",

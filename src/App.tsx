@@ -1,8 +1,9 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { isAppWrapper } from './utils/platform';
 
 // Lazy load pages
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -45,6 +46,23 @@ import { Toaster } from 'sonner';
 
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  const isApp = isAppWrapper();
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
+
+  if (isApp && !user && !isAuthPage && !isAllowedPublicPathInApp) {
+    return <Navigate to="/login" replace state={{ from: location, message: 'Welcome to Halal Ottawa! Please log in or register to continue.' }} />;
+  }
 
   return (
     <ErrorBoundary>
@@ -58,6 +76,7 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/listings" element={<Listings />} />
           <Route path="/restaurants" element={<CategoryListings />} />
+          <Route path="/restaurants/:category" element={<CategoryListings />} />
           <Route path="/mosques" element={<CategoryListings />} />
           <Route path="/organizations" element={<CategoryListings />} />
           <Route path="/grocery" element={<CategoryListings />} />

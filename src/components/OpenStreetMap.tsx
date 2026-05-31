@@ -29,11 +29,7 @@ export const OpenStreetMap: React.FC<OpenStreetMapProps> = ({ address }) => {
   useEffect(() => {
     const geocode = async () => {
       try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`, {
-          headers: {
-            'Accept-Language': 'en'
-          }
-        });
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(address)}`);
         const data = await response.json();
         if (data && data.length > 0) {
           setPosition([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
