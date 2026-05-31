@@ -80,7 +80,12 @@ async function startServer() {
   const upload = multer({ storage: storage });
 
   // Serve static files from public folder specifically for uploads in production too
-  app.use("/uploads", express.static(uploadDir));
+  app.use("/uploads", express.static(uploadDir, {
+    maxAge: "30d",
+    setHeaders: (res) => {
+      res.setHeader("Cache-Control", "public, max-age=2592000, immutable");
+    }
+  }));
 
   // Upload to Cloudflare R2 if credentials are provided
   async function uploadToR2(buffer: Buffer, finalName: string, contentType = "image/webp"): Promise<string | null> {
@@ -134,7 +139,7 @@ async function startServer() {
         try {
           const { default: sharp } = await import("sharp");
           procBuffer = await sharp(buffer)
-            .webp({ lossless: true })
+            .webp({ quality: 80 })
             .toBuffer();
         } catch (e) {
           console.error("Error converting uploaded image to webp:", e);
@@ -193,7 +198,7 @@ async function startServer() {
           try {
             const { default: sharp } = await import("sharp");
             procBuffer = await sharp(buffer)
-              .webp({ lossless: true })
+              .webp({ quality: 80 })
               .toBuffer();
           } catch (e) {
             console.error("Error converting uploaded image to webp:", e);
@@ -217,7 +222,7 @@ async function startServer() {
       try {
         const { default: sharp } = await import("sharp");
         procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
+          .webp({ quality: 80 })
           .toBuffer();
       } catch (e) {
         console.error("Error converting uploaded image to webp:", e);
@@ -292,7 +297,7 @@ async function startServer() {
           try {
             const { default: sharp } = await import("sharp");
             procBuffer = await sharp(buffer)
-              .webp({ lossless: true })
+              .webp({ quality: 80 })
               .toBuffer();
           } catch (e) {
             console.error("Error converting uploaded image to webp:", e);
@@ -316,7 +321,7 @@ async function startServer() {
       try {
         const { default: sharp } = await import("sharp");
         procBuffer = await sharp(buffer)
-          .webp({ lossless: true })
+          .webp({ quality: 80 })
           .toBuffer();
       } catch (e) {
         console.error("Error converting uploaded image to webp:", e);
@@ -445,7 +450,7 @@ async function startServer() {
         let procBuffer = buffer;
         try {
           const { default: sharp } = await import("sharp");
-          procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
+          procBuffer = await sharp(buffer).webp({ quality: 80 }).toBuffer();
         } catch (err) {
           console.warn("Sharp fallback:", err);
         }
@@ -931,9 +936,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, {
       index: false,
-      maxAge: "1d",
+      maxAge: "30d",
       setHeaders: (res, filePath) => {
         if (filePath.includes("/assets/")) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else if (/\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js)$/i.test(filePath)) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
           res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
