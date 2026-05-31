@@ -1284,12 +1284,25 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
             } else if (p0 === 'listings' || isSingleSegmentValid(p0)) {
               try {
-                const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
-                const snap = await getDocs(q);
-                if (snap.empty) {
+                // Try fetching by Firestore Document ID first
+                const listingDocRef = doc(db, 'listings', p1);
+                const listingDocSnap = await getDoc(listingDocRef);
+                let data: any = null;
+                
+                if (listingDocSnap.exists()) {
+                  data = { id: listingDocSnap.id, ...listingDocSnap.data() };
+                } else {
+                  // Fallback to querying by slug field if document ID does not exist
+                  const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
+                  const snap = await getDocs(q);
+                  if (!snap.empty) {
+                    data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                  }
+                }
+
+                if (!data) {
                   isNotFound = true;
                 } else {
-                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
                   title = `${data.name} | Halal Ottawa`;
                   description = data.description?.substring(0, 160) || description;
                   if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
