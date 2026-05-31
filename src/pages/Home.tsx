@@ -85,16 +85,33 @@ export const Home: React.FC = () => {
           where('isFeatured', '==', true),
           limit(8)
         );
-        const listingsSnap = await getDocs(qListings);
-        const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured).slice(0, 8));
 
         // Fetch Latest News
         const qNews = isAdmin
           ? query(collection(db, 'news'), limit(20))
           : query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
-        
-        const newsSnap = await getDocs(qNews);
+
+        // Fetch Events
+        const qEvents = isAdmin
+          ? query(collection(db, 'events'), limit(20))
+          : query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
+
+        // Fetch Latest Jobs
+        const qJobs = isAdmin
+          ? query(collection(db, 'jobs'), limit(20))
+          : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
+
+        // Execute all queries in parallel
+        const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
+          getDocs(qListings),
+          getDocs(qNews),
+          getDocs(qEvents),
+          getDocs(qJobs)
+        ]);
+
+        const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
+        setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured).slice(0, 8));
+
         const newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
         
         // Merge with DEMO_NEWS, deduplicating by ID or slug
@@ -117,12 +134,6 @@ export const Home: React.FC = () => {
           .slice(0, 6);
         setLatestNews(sortedNews);
 
-        // Fetch Events
-        const qEvents = isAdmin
-          ? query(collection(db, 'events'), limit(20))
-          : query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
-        
-        const eventsSnap = await getDocs(qEvents);
         const eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Event[];
         
         // Merge with DEMO_EVENTS, deduplicating by ID or slug
@@ -141,12 +152,6 @@ export const Home: React.FC = () => {
           .slice(0, 8);
         setFeaturedEvents(sortedEvents);
 
-        // Fetch Latest Jobs
-        const qJobs = isAdmin
-          ? query(collection(db, 'jobs'), limit(20))
-          : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
-          
-        const jobsSnap = await getDocs(qJobs);
         const jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
         
         // Merge with DEMO_JOBS, deduplicating by ID or slug

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Send } from 'lucide-react';
 import { FaFacebook, FaInstagram, FaTwitter, FaTiktok } from 'react-icons/fa6';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Review } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -19,8 +19,13 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { toast } from 'sonner';
 
-export const ListingDetail: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+interface ListingDetailProps {
+  overrideSlug?: string;
+}
+
+export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) => {
+  const { slug: urlSlug } = useParams<{ slug: string }>();
+  const slug = overrideSlug || urlSlug;
   const navigate = useNavigate();
   const { user } = useAuth();
   const [listing, setListing] = useState<Listing | null>(() => {
@@ -138,9 +143,14 @@ export const ListingDetail: React.FC = () => {
       if (!listing) return;
 
       try {
+        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
+        const primaryCat = currentCategories[0] || 'Restaurants';
+
         const q = query(
           collection(db, 'listings'),
-          where('isApproved', '==', true)
+          where('isApproved', '==', true),
+          where('category', 'array-contains', primaryCat),
+          limit(12)
         );
         const querySnapshot = await getDocs(q);
         const allFirestore = querySnapshot.docs
@@ -153,8 +163,6 @@ export const ListingDetail: React.FC = () => {
         const uniqueListings = Array.from(new Map(allListings.map(item => [item.id, item])).values());
 
         // Find listings that share at least one category with the current listing
-        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
-        
         const related = uniqueListings.filter(l => {
           const lCategories = Array.isArray(l.category) ? l.category : [l.category];
           return lCategories.some(c => currentCategories.includes(c));

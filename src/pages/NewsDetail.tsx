@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Clock, User, ChevronLeft, ExternalLink, Edit2, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { NewsArticle } from '../types';
 import { DEMO_NEWS } from '../constants';
@@ -74,7 +74,7 @@ export const NewsDetail: React.FC = () => {
 
       if (fetchedArticle) {
         try {
-          const qNews = query(collection(db, 'news'), where('isApproved', '==', true));
+          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(5));
           const snap = await getDocs(qNews);
           const relatedFs = snap.docs
             .map(d => ({ id: d.id, ...d.data() } as NewsArticle))

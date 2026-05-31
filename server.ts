@@ -6,9 +6,14 @@ import express from "express";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
-import sharp from "sharp";
 import compression from "compression";
 import admin from "firebase-admin";
+
+// Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
+let cachedFirebaseConfig: any = null;
+let cachedFbApp: any = null;
+let cachedDb: any = null;
+let cachedFirestoreUtils: any = null;
 
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
@@ -29,45 +34,11 @@ function getContentTypeFromKey(key: string): string {
   }
 }
 
-// Helper function to optimize images to max 1200x1200px format WebP with lossy quality 80 for minimum size
-async function optimizeImageBuffer(buffer: Buffer): Promise<Buffer> {
-  try {
-    return await sharp(buffer)
-      .resize({
-        width: 1200,
-        height: 1200,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 80, effort: 4 })
-      .toBuffer();
-  } catch (err) {
-    console.error("Error optimizing image buffer, falling back to original buffer:", err);
-    return buffer;
-  }
-}
-
 async function startServer() {
   // Initialize firebase-admin
-  let serviceAccount: any = null;
   const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
-  
   if (fs.existsSync(serviceAccountPath)) {
-    try {
-      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
-    } catch (err) {
-      console.error("Error parsing firebase-service-account.json:", err);
-    }
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      console.log("Loaded Firebase credentials from environment variable");
-    } catch (err) {
-      console.error("Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:", err);
-    }
-  }
-
-  if (serviceAccount) {
+    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
     try {
       if (admin.apps.length === 0) {
         admin.initializeApp({
@@ -80,14 +51,12 @@ async function startServer() {
       console.error("Error initializing Firebase Admin SDK:", error);
     }
   } else {
-    console.warn("No firebase-service-account.json or FIREBASE_SERVICE_ACCOUNT environment variable found. Backend admin functions will be disabled.");
+    console.warn("No firebase-service-account.json found. Backend admin functions will be disabled.");
   }
 
   const app = express();
   app.use(compression());
-  const PORT = process.env.NODE_ENV === "production" && process.env.PORT
-    ? parseInt(process.env.PORT)
-    : 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   // Set up upload dir
   let uploadDir = path.join(process.cwd(), "public", "uploads");
@@ -159,10 +128,17 @@ async function startServer() {
         }
       }
 
-      // Process and optimize image to WebP (resizing to max 1200x1200px, lossy quality 80)
+      // Process image to webp
       let procBuffer = buffer;
       if (contentType.startsWith("image/")) {
-        procBuffer = await optimizeImageBuffer(buffer);
+        try {
+          const { default: sharp } = await import("sharp");
+          procBuffer = await sharp(buffer)
+            .webp({ lossless: true })
+            .toBuffer();
+        } catch (e) {
+          console.error("Error converting uploaded image to webp:", e);
+        }
       }
 
       await s3.send(new PutObjectCommand({
@@ -213,7 +189,15 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          const procBuffer = await optimizeImageBuffer(buffer);
+          let procBuffer = buffer;
+          try {
+            const { default: sharp } = await import("sharp");
+            procBuffer = await sharp(buffer)
+              .webp({ lossless: true })
+              .toBuffer();
+          } catch (e) {
+            console.error("Error converting uploaded image to webp:", e);
+          }
           
           const { url } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -229,7 +213,15 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      const procBuffer = await optimizeImageBuffer(buffer);
+      let procBuffer = buffer;
+      try {
+        const { default: sharp } = await import("sharp");
+        procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+      } catch (e) {
+        console.error("Error converting uploaded image to webp:", e);
+      }
       
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
@@ -296,7 +288,15 @@ async function startServer() {
         if (hasVercelToken) {
           const { put } = await import("@vercel/blob");
           
-          const procBuffer = await optimizeImageBuffer(buffer);
+          let procBuffer = buffer;
+          try {
+            const { default: sharp } = await import("sharp");
+            procBuffer = await sharp(buffer)
+              .webp({ lossless: true })
+              .toBuffer();
+          } catch (e) {
+            console.error("Error converting uploaded image to webp:", e);
+          }
           
           const { url: vercelUrl } = await put(`uploads/${finalName}`, procBuffer, {
             access: 'public',
@@ -312,7 +312,15 @@ async function startServer() {
       }
 
       // Fallback: local disk upload
-      const procBuffer = await optimizeImageBuffer(buffer);
+      let procBuffer = buffer;
+      try {
+        const { default: sharp } = await import("sharp");
+        procBuffer = await sharp(buffer)
+          .webp({ lossless: true })
+          .toBuffer();
+      } catch (e) {
+        console.error("Error converting uploaded image to webp:", e);
+      }
 
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
@@ -434,7 +442,13 @@ async function startServer() {
           buffer = fs.readFileSync(localFullPath);
         }
 
-        const procBuffer = await optimizeImageBuffer(buffer);
+        let procBuffer = buffer;
+        try {
+          const { default: sharp } = await import("sharp");
+          procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
+        } catch (err) {
+          console.warn("Sharp fallback:", err);
+        }
 
         await s3.send(new PutObjectCommand({
           Bucket: r2BucketName,
@@ -982,15 +996,43 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           isNotFound = true;
         }
 
-        // Fetch data for dynamic routes if possible
+        // Fetch data for dynamic routes if possible using cached Firebase connection to avoid blocking disk I/O and dynamic import latency
         const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
         if (fs.existsSync(configPath)) {
-          const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-          const { initializeApp, getApps } = await import("firebase/app");
-          const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
-          
-          const fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
-          const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+          if (!cachedFirebaseConfig) {
+            try {
+              cachedFirebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            } catch (err) {
+              console.error("Error parsing firebase config json:", err);
+            }
+          }
+
+          if (cachedFirebaseConfig) {
+            if (!cachedFirestoreUtils) {
+              try {
+                const { initializeApp, getApps } = await import("firebase/app");
+                const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
+                cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy };
+              } catch (err) {
+                console.error("Error lazy-importing firebase web SDK utils in server:", err);
+              }
+            }
+
+            if (cachedFirestoreUtils && !cachedDb) {
+              try {
+                const { initializeApp, getApps, getFirestore } = cachedFirestoreUtils;
+                cachedFbApp = getApps().find((app: any) => app.name === "server-app") || initializeApp(cachedFirebaseConfig, "server-app");
+                cachedDb = getFirestore(cachedFbApp, cachedFirebaseConfig.firestoreDatabaseId);
+              } catch (err) {
+                console.error("Error creating firebase app instance in server:", err);
+              }
+            }
+          }
+        }
+
+        if (cachedDb && cachedFirestoreUtils) {
+          const db = cachedDb;
+          const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = cachedFirestoreUtils;
           
           // Home Page Pre-fetch
           if (pathParts.length === 0) {

@@ -12,6 +12,7 @@ import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
+import { ListingDetail } from './ListingDetail';
 import { isAppWrapper } from '../utils/platform';
 
 export const CategoryListings: React.FC = () => {
@@ -118,9 +119,15 @@ export const CategoryListings: React.FC = () => {
   useEffect(() => {
     if (!isValidCategory) return;
 
-    // Fetch all listings for the category or all approved listings to filter client-side
-    // This handles both string and array category fields and allows showing user's own pending listings
-    const q = query(collection(db, 'listings'));
+    // Build targeted query depending on the facet type to fetch from firestore efficiently
+    let q = query(collection(db, 'listings'));
+    if (isMainCategory) {
+      q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory));
+    } else if (matchedType) {
+      q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory));
+    } else if (matchedCuisine) {
+      q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory));
+    }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const firestoreListings = snapshot.docs.map(doc => ({
@@ -228,7 +235,7 @@ export const CategoryListings: React.FC = () => {
   }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
   if (!isValidCategory) {
-    return <NotFound />;
+    return <ListingDetail overrideSlug={categorySlug} />;
   }
 
   return (

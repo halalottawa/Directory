@@ -9,7 +9,6 @@ export default defineConfig(({mode}) => {
     plugins: [react(), tailwindcss()],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env': '{}',
     },
     resolve: {
       alias: {
@@ -34,26 +33,7 @@ export default defineConfig(({mode}) => {
           comments: false,
         },
       },
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('firebase')) {
-                return 'vendor-firebase';
-              }
-              if (id.includes('leaflet') || id.includes('react-leaflet')) {
-                return 'vendor-leaflet';
-              }
-              if (id.includes('recharts') || id.includes('d3')) {
-                return 'vendor-charts';
-              }
-              if (id.includes('lucide-react')) {
-                return 'vendor-lucide';
-              }
-            }
-          }
-        }
-      }
+      rollupOptions: {}
     }
   };
 });

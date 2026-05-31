@@ -89,18 +89,10 @@ async function uploadToR2(url: string, name: string): Promise<string> {
     buffer = fs.readFileSync(localFullPath);
   }
 
-  // Convert/optimize using Sharp to ensure clean WebP compression with maximum dimensions of 1200x1200px
+  // Convert/optimize using Sharp to ensure clean WebP compression
   let procBuffer = buffer;
   try {
-    procBuffer = await sharp(buffer)
-      .resize({
-        width: 1200,
-        height: 1200,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 80, effort: 4 })
-      .toBuffer();
+    procBuffer = await sharp(buffer).webp({ lossless: true }).toBuffer();
   } catch (err) {
     console.warn(`Sharp processing skipped or failed for ${url}, rising back to raw buffer.`, err);
   }

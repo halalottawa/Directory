@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { Calendar, MapPin, User, ChevronLeft, ExternalLink, Clock, Plus, Edit2, Trash2, X, ClipboardCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Event } from '../types';
 import { DEMO_EVENTS } from '../constants';
@@ -118,7 +118,7 @@ export const EventDetail: React.FC = () => {
 
       if (fetchedEvent) {
         try {
-          const qEvents = query(collection(db, 'events'), where('isApproved', '==', true));
+          const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(5));
           const snap = await getDocs(qEvents);
           const relatedFs = snap.docs
             .map(d => ({ id: d.id, ...d.data() } as Event))

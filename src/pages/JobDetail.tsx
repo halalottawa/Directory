@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Briefcase, MapPin, ChevronLeft, ExternalLink, DollarSign, Building2, Calendar, Edit2, Trash2, Clock } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { doc, getDoc, deleteDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Job } from '../types';
 import { DEMO_JOBS } from '../constants';
@@ -75,7 +75,7 @@ export const JobDetail: React.FC = () => {
       if (fetchedJob) {
         // Fetch related jobs (just latest ones excluding current)
         try {
-          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true));
+          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(5));
           const snap = await getDocs(qJobs);
           const relatedFs = snap.docs
             .map(d => ({ id: d.id, ...d.data() } as Job))
