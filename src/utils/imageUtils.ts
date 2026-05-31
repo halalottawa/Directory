@@ -2,6 +2,12 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
   if (!url) return undefined;
 
   try {
+    const lowerUrl = url.toLowerCase();
+    // Do not optimize base64 images, SVGs, or Google web UI icons
+    if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
+      return url;
+    }
+
     // Google User Content (Google My Business, Google Photos, etc.)
     if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
       // Remove any existing sizing parameters (e.g., =wxxx-hxxx, =sxxx)
@@ -35,6 +41,14 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
         return `${parts[0]}/upload/${transform}/${parts[1]}`;
       }
     }
+
+    // Route all other images through our server-side WebP and resizing optimization API
+    const params: string[] = [];
+    if (width) params.push(`w=${width}`);
+    if (height) params.push(`h=${height}`);
+    if (quality) params.push(`q=${quality}`);
+    
+    return `/api/optimize-image?url=${encodeURIComponent(url)}&${params.join('&')}`;
   } catch (e) {
     console.error('Error optimizing image URL:', e);
   }

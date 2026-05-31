@@ -359,12 +359,111 @@ async function startServer() {
       const path = await import("path");
       const filePath = path.join(process.cwd(), "public", "uploads", req.params.key);
       if (fs.existsSync(filePath)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         return res.sendFile(filePath);
       }
     } catch (e) {
       console.error("Error serving blob:", e);
     }
     return res.status(404).send("Not found");
+  });
+
+  // Dynamic Image Optimization Endpoint
+  app.get("/api/optimize-image", async (req, res) => {
+    try {
+      const imageUrl = req.query.url as string;
+      if (!imageUrl) {
+        return res.status(400).send("Missing url query parameter");
+      }
+
+      const width = req.query.w ? parseInt(req.query.w as string, 10) : null;
+      const height = req.query.h ? parseInt(req.query.h as string, 10) : null;
+      const quality = req.query.q ? parseInt(req.query.q as string, 10) : 80;
+
+      const fs = await import("fs");
+      const path = await import("path");
+
+      let buffer: Buffer | null = null;
+
+      // Handle local path or absolute url pointing to this server
+      const isLocal = imageUrl.startsWith("/") || imageUrl.startsWith(req.protocol + "://" + req.get("host")) || imageUrl.startsWith("http://localhost:3000") || imageUrl.startsWith("https://www.halalottawa.ca") || imageUrl.startsWith("https://halalottawa.ca");
+      
+      if (isLocal) {
+        let cleanPath = imageUrl;
+        if (imageUrl.startsWith("http")) {
+          try {
+            cleanPath = new URL(imageUrl).pathname;
+          } catch (e) {}
+        }
+        
+        const relativePath = cleanPath.startsWith("/") ? cleanPath.substring(1) : cleanPath;
+        const localPath = path.join(process.cwd(), "public", relativePath);
+        
+        if (fs.existsSync(localPath)) {
+          buffer = fs.readFileSync(localPath);
+        } else {
+          const filename = path.basename(cleanPath);
+          const uploadPath = path.join(uploadDir, filename);
+          if (fs.existsSync(uploadPath)) {
+            buffer = fs.readFileSync(uploadPath);
+          }
+        }
+      }
+
+      // Remote file parsing if we couldn't load locally
+      if (!buffer) {
+        if (!imageUrl.startsWith("http")) {
+          return res.status(404).send("Image not found");
+        }
+
+        const fetchRes = await fetch(imageUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/*"
+          }
+        });
+        
+        if (!fetchRes.ok) {
+          return res.redirect(imageUrl);
+        }
+        
+        const contentType = fetchRes.headers.get("content-type");
+        if (contentType && !contentType.startsWith("image/")) {
+          return res.status(400).send("Source URL is not an image");
+        }
+
+        const ab = await fetchRes.arrayBuffer();
+        buffer = Buffer.from(ab);
+      }
+
+      // Optimize image using sharp
+      const { default: sharp } = await import("sharp");
+      let sharpImg = sharp(buffer);
+
+      if (width || height) {
+        sharpImg = sharpImg.resize({
+          width: width || undefined,
+          height: height || undefined,
+          fit: "cover",
+          withoutEnlargement: true
+        });
+      }
+
+      const optimizedBuffer = await sharpImg
+        .webp({ quality })
+        .toBuffer();
+
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Content-Type", "image/webp");
+      return res.send(optimizedBuffer);
+    } catch (err) {
+      console.error("Error in /api/optimize-image:", err);
+      const fallbackUrl = req.query.url as string;
+      if (fallbackUrl && fallbackUrl.startsWith("http")) {
+        return res.redirect(fallbackUrl);
+      }
+      return res.status(500).send("Error optimizing image");
+    }
   });
 
   // API routes can be added here
