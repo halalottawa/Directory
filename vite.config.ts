@@ -43,7 +43,9 @@ export default defineConfig(({mode}) => {
               if (id.includes('lucide') || id.includes('react-icons')) {
                 return 'vendor-icons';
               }
-              if (id.includes('react-router') || id.includes('react-dom') || id.includes('react-helmet')) {
+              if (
+                /node_modules[/\\](react|react-dom|scheduler|react-router|react-router-dom|@remix-run[/\\]router|react-helmet|react-helmet-async)/.test(id)
+              ) {
                 return 'vendor-core';
               }
               return 'vendor-others';
