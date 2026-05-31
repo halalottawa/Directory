@@ -49,9 +49,25 @@ async function optimizeImageBuffer(buffer: Buffer): Promise<Buffer> {
 
 async function startServer() {
   // Initialize firebase-admin
+  let serviceAccount: any = null;
   const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
+  
   if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    } catch (err) {
+      console.error("Error parsing firebase-service-account.json:", err);
+    }
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      console.log("Loaded Firebase credentials from environment variable");
+    } catch (err) {
+      console.error("Error parsing FIREBASE_SERVICE_ACCOUNT environment variable:", err);
+    }
+  }
+
+  if (serviceAccount) {
     try {
       if (admin.apps.length === 0) {
         admin.initializeApp({
@@ -64,7 +80,7 @@ async function startServer() {
       console.error("Error initializing Firebase Admin SDK:", error);
     }
   } else {
-    console.warn("No firebase-service-account.json found. Backend admin functions will be disabled.");
+    console.warn("No firebase-service-account.json or FIREBASE_SERVICE_ACCOUNT environment variable found. Backend admin functions will be disabled.");
   }
 
   const app = express();
