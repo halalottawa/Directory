@@ -82,12 +82,11 @@ export const Home: React.FC = () => {
         }
         const isAdmin = user?.role === 'admin';
 
-        // Fetch Featured Listings
+        // Fetch Latest Listings
         const qListings = query(
           collection(db, 'listings'), 
           where('isApproved', '==', true),
-          where('isFeatured', '==', true),
-          limit(8)
+          limit(50)
         );
 
         // Fetch Latest News
@@ -114,7 +113,10 @@ export const Home: React.FC = () => {
         ]);
 
         const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        setFeaturedListings(listingsData.length > 0 ? listingsData : DEMO_LISTINGS.filter(l => l.isFeatured).slice(0, 8));
+        const sortedListings = listingsData
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+          .slice(0, 8);
+        setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 8));
 
         const newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
         
@@ -278,14 +280,14 @@ export const Home: React.FC = () => {
         </button>
       </section>
 
-      {/* Featured Listings */}
+      {/* Latest Listings */}
       <section className="space-y-4">
         <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Featured Listings</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Listings</h2>
           <Link 
             to="/listings" 
             className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
-            aria-label="View all featured listings"
+            aria-label="View all latest listings"
           >
             View all
           </Link>
@@ -325,7 +327,9 @@ export const Home: React.FC = () => {
                       <span className="text-gray-400 text-xs font-medium">No Image</span>
                     </div>
                   )}
-                  <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
+                  {listing.isFeatured && (
+                    <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest animate-pulse">Featured</div>
+                  )}
                   <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold">
                     <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                     {listing.averageRating}
@@ -345,7 +349,7 @@ export const Home: React.FC = () => {
           ) : (
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
               <Utensils className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm font-medium">No featured listings at the moment.</p>
+              <p className="text-gray-400 text-sm font-medium">No listings at the moment.</p>
             </div>
           )}
         </div>

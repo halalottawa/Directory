@@ -481,13 +481,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
       {/* Listing Header Banner */}
       <div className="relative h-72 bg-slate-900 overflow-hidden">
         <img 
-          src={
-            listing.isFeatured && listing.photos && listing.photos.length > 0 && listing.photos[0].trim() !== ''
-              ? getOptimizedImageUrl(listing.photos[0], 1920, 600)
-              : (listing.photos && listing.photos.length > 0 && listing.photos[0].trim() !== ''
-                  ? listing.photos[0]
-                  : (settingsCoverUrl || "/ottawa-sunset.webp"))
-          } 
+          src={getOptimizedImageUrl(settingsCoverUrl || "/ottawa-sunset.webp", 1920, 600)} 
           alt={listing.name}
           className="absolute inset-0 w-full h-full object-cover object-center"
           loading="eager"

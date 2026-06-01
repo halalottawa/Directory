@@ -75,11 +75,14 @@ export const CategoryListings: React.FC = () => {
     pageTitle = `Mosques in Ottawa - ${monthYearStr}`;
     seoDescription = "Find mosques, Islamic centers, and prayer places (musallas) in Ottawa, including prayer times, Friday khutbah details, and community events.";
   } else if (!isMainCategory && isValidCategory) {
-    pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
     if (matchedCuisine) {
+      pageTitle = `Halal ${formattedCategory} Restaurants in Ottawa - ${monthYearStr}`;
       seoDescription = `Find top-rated halal ${formattedCategory} restaurants in Ottawa. Explore authentic ${formattedCategory} dishes, read reviews, and find directions to local favorites.`;
-    } else if (matchedType) {
-      seoDescription = `Discover the best spots for halal ${formattedCategory} in Ottawa. Find delicious halal ${formattedCategory} options near you, complete with reviews, addresses, and hours.`;
+    } else {
+      pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
+      if (matchedType) {
+        seoDescription = `Discover the best spots for halal ${formattedCategory} in Ottawa. Find delicious halal ${formattedCategory} options near you, complete with reviews, addresses, and hours.`;
+      }
     }
   } else {
     pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
@@ -274,6 +277,7 @@ export const CategoryListings: React.FC = () => {
            formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
            formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
            formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
+           matchedCuisine ? `Halal ${formattedCategory} Restaurants in Ottawa` :
            formattedCategory}
         </h1>
         <Link 
