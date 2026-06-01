@@ -1057,14 +1057,546 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
+  async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean }> {
+    let html = template;
+    
+    // Basic SEO injection for specific routes
+    let title = "Halal Ottawa - Halal Places in Ottawa";
+    let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
+    let ogImage = "https://www.halalottawa.ca/default-og.jpg";
+    
+    let initialData: any = null;
+    let routeType: string = '';
+    const pathParts = urlPath.split('/').filter(Boolean);
+    let isNotFound = false;
+
+    const isSingleSegmentValid = (segment: string): boolean => {
+      const s = segment.toLowerCase();
+      const knownStatic = new Set([
+        "listings", "news", "events", "jobs", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register"
+      ]);
+      if (knownStatic.has(s)) return true;
+      
+      const knownCategories = new Set([
+        'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
+      ]);
+      const knownTypes = new Set([
+        'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
+      ]);
+      const knownCuisines = new Set([
+        'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
+      ]);
+      
+      return knownCategories.has(s) || knownTypes.has(s) || knownCuisines.has(s);
+    };
+
+    const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
+      const p1 = part1.toLowerCase();
+      const p2 = part2.toLowerCase();
+      if (p1 === "profile" && p2 === "edit") return true;
+      if (p1 === "listings" && p2 === "add") return true;
+      if (p1 === "events" && p2 === "add") return true;
+      if (p1 === "jobs" && p2 === "add") return true;
+      if (p1 === "news" && p2 === "add") return true;
+      if (p1 === "tools" && p2 === "qibla") return true;
+      return false;
+    };
+
+    if (pathParts.length === 1 && !isSingleSegmentValid(pathParts[0])) {
+      isNotFound = true;
+    } else if (pathParts.length > 3) {
+      isNotFound = true;
+    }
+
+    // Fetch data for dynamic routes if possible using cached Firebase connection to avoid blocking disk I/O and dynamic import latency
+    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      if (!cachedFirebaseConfig) {
+        try {
+          cachedFirebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        } catch (err) {
+          console.error("Error parsing firebase config json:", err);
+        }
+      }
+
+      if (cachedFirebaseConfig) {
+        if (!cachedFirestoreUtils) {
+          try {
+            const { initializeApp, getApps } = await import("firebase/app");
+            const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
+            cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy };
+          } catch (err) {
+            console.error("Error lazy-importing firebase web SDK utils in server:", err);
+          }
+        }
+
+        if (cachedFirestoreUtils && !cachedDb) {
+          try {
+            const { initializeApp, getApps, getFirestore } = cachedFirestoreUtils;
+            cachedFbApp = getApps().find((app: any) => app.name === "server-app") || initializeApp(cachedFirebaseConfig, "server-app");
+            cachedDb = getFirestore(cachedFbApp, cachedFirebaseConfig.firestoreDatabaseId);
+          } catch (err) {
+            console.error("Error creating firebase app instance in server:", err);
+          }
+        }
+      }
+    }
+
+    if (cachedDb && cachedFirestoreUtils) {
+      const db = cachedDb;
+      const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = cachedFirestoreUtils;
+      
+      // Home Page Pre-fetch
+      if (pathParts.length === 0) {
+        routeType = 'home';
+        try {
+          const qListings = query(
+            collection(db, 'listings'), 
+            where('isApproved', '==', true), 
+            limit(50)
+          );
+          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
+          const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
+          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
+          
+          const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
+            getDocs(qListings), getDocs(qNews), getDocs(qEvents), getDocs(qJobs)
+          ]);
+          
+          const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          
+          let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
+          
+          let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          eventsData = eventsData.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 8);
+          
+          let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          jobsData = jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
+          
+          initialData = {
+            listings: listingsData,
+            news: newsData,
+            events: eventsData,
+            jobs: jobsData,
+            timestamp: Date.now()
+          };
+        } catch(e) {
+          console.error("Error pre-fetching home data", e);
+        }
+      }
+      // Dynamic Route Data Pre-fetch and 404 enforcement
+      else if (pathParts.length === 2) {
+        const p0 = pathParts[0].toLowerCase();
+        const p1 = pathParts[1];
+        
+        if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
+          isNotFound = false;
+        } else if (p0 === 'go') {
+          try {
+            const linkRef = doc(db, 'short_links', p1);
+            const linkSnap = await getDoc(linkRef);
+            if (!linkSnap.exists()) {
+              isNotFound = true;
+            }
+          } catch (e) {
+            console.error("Error fetching short link details", e);
+          }
+        } else if (p0 === 'news') {
+          try {
+            const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              isNotFound = true;
+            } else {
+              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+              title = `${data.title} | Halal Ottawa`;
+              description = data.content?.substring(0, 160) || description;
+              if (data.coverImage) ogImage = data.coverImage;
+              initialData = data;
+              routeType = 'news';
+            }
+          } catch (e) {
+            console.error("Error fetching news details", e);
+          }
+        } else if (p0 === 'events') {
+          try {
+            const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              isNotFound = true;
+            } else {
+              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+              title = `${data.title} | Halal Ottawa Events`;
+              description = data.description?.substring(0, 160) || description;
+              if (data.coverImage) ogImage = data.coverImage;
+              initialData = data;
+              routeType = 'event';
+            }
+          } catch (e) {
+            console.error("Error fetching event details", e);
+          }
+        } else if (p0 === 'jobs') {
+          try {
+            const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              isNotFound = true;
+            } else {
+              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
+              title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
+              description = data.description?.substring(0, 160) || description;
+              if (data.companyLogo) ogImage = data.companyLogo;
+              initialData = data;
+              routeType = 'job';
+            }
+          } catch (e) {
+            console.error("Error fetching job details", e);
+          }
+        } else if (p0 === 'listings' || isSingleSegmentValid(p0)) {
+          try {
+            // Try fetching by Firestore Document ID first
+            const listingDocRef = doc(db, 'listings', p1);
+            const listingDocSnap = await getDoc(listingDocRef);
+            let data: any = null;
+            
+            if (listingDocSnap.exists()) {
+              data = { id: listingDocSnap.id, ...listingDocSnap.data() };
+            } else {
+              // Fallback to querying by slug field if document ID does not exist
+              const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+
+            if (!data) {
+              isNotFound = true;
+            } else {
+              title = `${data.name} | Halal Ottawa`;
+              description = data.description?.substring(0, 160) || description;
+              if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
+              initialData = data;
+              routeType = 'listing';
+            }
+          } catch (e) {
+            console.error("Error fetching listing details", e);
+          }
+        } else {
+          isNotFound = true;
+        }
+      }
+      else if (pathParts.length === 3) {
+        const p0 = pathParts[0].toLowerCase();
+        const p1 = pathParts[1].toLowerCase();
+        const docId = pathParts[2];
+        if (p1 === 'edit' && ['listings', 'events', 'jobs', 'news'].includes(p0)) {
+          try {
+            const collName = p0 === 'jobs' ? 'jobs' : p0;
+            const dSnap = await getDoc(doc(db, collName, docId));
+            if (!dSnap.exists()) {
+              isNotFound = true;
+            }
+          } catch (err) {
+            console.error("Error checking edit page doc", err);
+          }
+        } else {
+          isNotFound = true;
+        }
+      }
+    }
+
+    // Simple string replacement for basic SEO tags
+    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`);
+    
+    // Inject OG tags if not present
+    if (!html.includes('property="og:title"')) {
+      let extraTags = `
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${ogImage}" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+      `;
+
+      // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
+      if (pathParts.length === 2 && initialData) {
+        let schemaData: any = {
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          "name": title,
+          "description": description,
+          "image": ogImage,
+          "url": `https://www.halalottawa.ca${urlPath}`
+        };
+
+        const fullUrl = `https://www.halalottawa.ca${urlPath}`;
+
+        if (routeType === 'listing') {
+          // Decide specific type if restaurant, mosque, grocery, etc.
+          let schemaType = "LocalBusiness";
+          const cat = (initialData.category || '').toString().toLowerCase();
+          if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
+            schemaType = "Restaurant";
+          } else if (cat.includes('mosque') || cat.includes('masjid')) {
+            schemaType = "Mosque";
+          } else if (cat.includes('grocery') || cat.includes('supermarket')) {
+            schemaType = "GroceryStore";
+          }
+
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": schemaType,
+            "name": initialData.name,
+            "description": description,
+            "image": ogImage,
+            "url": fullUrl,
+            "priceRange": initialData.priceRange || "$$",
+            "address": initialData.address ? {
+              "@type": "PostalAddress",
+              "streetAddress": initialData.address,
+              "addressLocality": "Ottawa",
+              "addressRegion": "ON",
+              "postalCode": initialData.postalCode || "",
+              "addressCountry": "CA"
+            } : undefined,
+            "telephone": initialData.phone || undefined,
+            "geo": initialData.lat && initialData.lng ? {
+              "@type": "GeoCoordinates",
+              "latitude": parseFloat(initialData.lat),
+              "longitude": parseFloat(initialData.lng)
+            } : undefined
+          };
+
+          // If there's high-quality review averages, inject AggregateRating
+          if (initialData.rating && initialData.reviewCount) {
+            schemaData.aggregateRating = {
+              "@type": "AggregateRating",
+              "ratingValue": parseFloat(initialData.rating).toFixed(1),
+              "reviewCount": parseInt(initialData.reviewCount) || 1,
+              "bestRating": "5",
+              "worstRating": "1"
+            };
+          }
+        } else if (routeType === 'news') {
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": fullUrl
+            },
+            "headline": initialData.title,
+            "image": ogImage ? [ogImage] : undefined,
+            "datePublished": initialData.publishDate || initialData.createdAt || new Date().toISOString(),
+            "dateModified": initialData.updatedAt || initialData.publishDate || new Date().toISOString(),
+            "author": {
+              "@type": "Person",
+              "name": initialData.author || "Halal Ottawa Staff"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Halal Ottawa",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://www.halalottawa.ca/favicon.ico"
+              }
+            },
+            "description": description
+          };
+        } else if (routeType === 'event') {
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": initialData.title,
+            "startDate": initialData.dateTime || new Date().toISOString(),
+            "endDate": initialData.endDateTime || initialData.dateTime || new Date().toISOString(),
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "location": {
+              "@type": "Place",
+              "name": initialData.venue || initialData.location || "Ottawa Community Venue",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": initialData.location || "Ottawa",
+                "addressLocality": "Ottawa",
+                "addressRegion": "ON",
+                "addressCountry": "CA"
+              }
+            },
+            "image": ogImage ? [ogImage] : undefined,
+            "description": description,
+            "offers": {
+              "@type": "Offer",
+              "url": fullUrl,
+              "price": initialData.price || "0",
+              "priceCurrency": "CAD",
+              "availability": "https://schema.org/InStock",
+              "validFrom": initialData.createdAt || new Date().toISOString()
+            },
+            "organizer": {
+              "@type": "Organization",
+              "name": initialData.organizer || "Halal Ottawa Community Partner",
+              "url": "https://www.halalottawa.ca"
+            }
+          };
+        } else if (routeType === 'job') {
+          let empType = ["FULL_TIME"];
+          const t = (initialData.type || '').toUpperCase();
+          if (t.includes('PART')) {
+            empType = ["PART_TIME"];
+          } else if (t.includes('CONTRACT')) {
+            empType = ["CONTRACTOR"];
+          } else if (t.includes('INTERN')) {
+            empType = ["INTERN"];
+          }
+
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "JobPosting",
+            "title": initialData.title,
+            "description": initialData.description || description,
+            "datePosted": initialData.createdAt || new Date().toISOString(),
+            "employmentType": empType,
+            "hiringOrganization": {
+              "@type": "Organization",
+              "name": initialData.company || "Halal Ottawa Partner",
+              "logo": initialData.companyLogo || undefined
+            },
+            "jobLocation": {
+              "@type": "Place",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": initialData.location || "Ottawa",
+                "addressLocality": "Ottawa",
+                "addressRegion": "ON",
+                "addressCountry": "CA"
+              }
+            }
+          };
+        }
+
+        const breadcrumbItems = [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://www.halalottawa.ca"
+          }
+        ];
+
+        if (routeType === 'listing') {
+          const mainCategoryStr = Array.isArray(initialData.category) && initialData.category.length > 0 
+            ? initialData.category[0] 
+            : (typeof initialData.category === 'string' ? initialData.category : 'listings');
+          
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": mainCategoryStr,
+            "item": `https://www.halalottawa.ca/${mainCategoryStr.toLowerCase()}`
+          });
+
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 3,
+            "name": initialData.name,
+            "item": fullUrl
+          });
+        } else if (routeType === 'news') {
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": "News",
+            "item": "https://www.halalottawa.ca/news"
+          });
+
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 3,
+            "name": initialData.title,
+            "item": fullUrl
+          });
+        } else if (routeType === 'event') {
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Events",
+            "item": "https://www.halalottawa.ca/events"
+          });
+
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 3,
+            "name": initialData.title,
+            "item": fullUrl
+          });
+        } else if (routeType === 'job') {
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Jobs",
+            "item": "https://www.halalottawa.ca/jobs"
+          });
+
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 3,
+            "name": initialData.title,
+            "item": fullUrl
+          });
+        }
+
+        const breadcrumbSchema = {
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": breadcrumbItems
+        };
+
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
+      }
+      
+      if (initialData) {
+        extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
+      }
+
+      html = html.replace('</head>', `${extraTags}\n  </head>`);
+    }
+
+    return { html, isNotFound };
+  }
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "spa",
+      appType: "custom", // Use custom mode to allow our wildcard handler to inject SSI tags before sending to client
     });
     app.use(vite.middlewares);
+
+    app.get("*", async (req, res, next) => {
+      // Ignore API routes, HMR sockets, and filenames with dot properties
+      if (req.path.startsWith("/api") || req.path.includes(".")) {
+        return next();
+      }
+      try {
+        const rawTemplate = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+        // Apply Vite HTML transformations (e.g. inject hot reload module client)
+        const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
+        
+        // Execute server-side meta injection (SSI)
+        const { html, isNotFound } = await getInjectedHTML(template, req.path);
+        res.status(isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(html);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
+
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, {
@@ -1084,521 +1616,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     app.get("*", async (req, res) => {
       try {
         const indexPath = path.join(distPath, "index.html");
-        let html = fs.readFileSync(indexPath, "utf-8");
-        
-        // Basic SEO injection for specific routes
-        let title = "Halal Ottawa - Halal Places in Ottawa";
-        let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
-        let ogImage = "https://www.halalottawa.ca/default-og.jpg";
-        
-        const urlPath = req.path;
-        
-        let initialData: any = null;
-        let routeType: string = '';
-        const pathParts = urlPath.split('/').filter(Boolean);
-        let isNotFound = false;
-
-        const isSingleSegmentValid = (segment: string): boolean => {
-          const s = segment.toLowerCase();
-          const knownStatic = new Set([
-            "listings", "news", "events", "jobs", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register"
-          ]);
-          if (knownStatic.has(s)) return true;
-          
-          const knownCategories = new Set([
-            'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
-          ]);
-          const knownTypes = new Set([
-            'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
-          ]);
-          const knownCuisines = new Set([
-            'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
-          ]);
-          
-          return knownCategories.has(s) || knownTypes.has(s) || knownCuisines.has(s);
-        };
-
-        const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
-          const p1 = part1.toLowerCase();
-          const p2 = part2.toLowerCase();
-          if (p1 === "profile" && p2 === "edit") return true;
-          if (p1 === "listings" && p2 === "add") return true;
-          if (p1 === "events" && p2 === "add") return true;
-          if (p1 === "jobs" && p2 === "add") return true;
-          if (p1 === "news" && p2 === "add") return true;
-          if (p1 === "tools" && p2 === "qibla") return true;
-          return false;
-        };
-
-        if (pathParts.length === 1 && !isSingleSegmentValid(pathParts[0])) {
-          isNotFound = true;
-        } else if (pathParts.length > 3) {
-          isNotFound = true;
-        }
-
-        // Fetch data for dynamic routes if possible using cached Firebase connection to avoid blocking disk I/O and dynamic import latency
-        const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-        if (fs.existsSync(configPath)) {
-          if (!cachedFirebaseConfig) {
-            try {
-              cachedFirebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            } catch (err) {
-              console.error("Error parsing firebase config json:", err);
-            }
-          }
-
-          if (cachedFirebaseConfig) {
-            if (!cachedFirestoreUtils) {
-              try {
-                const { initializeApp, getApps } = await import("firebase/app");
-                const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
-                cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy };
-              } catch (err) {
-                console.error("Error lazy-importing firebase web SDK utils in server:", err);
-              }
-            }
-
-            if (cachedFirestoreUtils && !cachedDb) {
-              try {
-                const { initializeApp, getApps, getFirestore } = cachedFirestoreUtils;
-                cachedFbApp = getApps().find((app: any) => app.name === "server-app") || initializeApp(cachedFirebaseConfig, "server-app");
-                cachedDb = getFirestore(cachedFbApp, cachedFirebaseConfig.firestoreDatabaseId);
-              } catch (err) {
-                console.error("Error creating firebase app instance in server:", err);
-              }
-            }
-          }
-        }
-
-        if (cachedDb && cachedFirestoreUtils) {
-          const db = cachedDb;
-          const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = cachedFirestoreUtils;
-          
-          // Home Page Pre-fetch
-          if (pathParts.length === 0) {
-            routeType = 'home';
-            try {
-              const qListings = query(
-                collection(db, 'listings'), 
-                where('isApproved', '==', true), 
-                where('isFeatured', '==', true), 
-                limit(8)
-              );
-              const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
-              const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
-              const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
-              
-              const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
-                getDocs(qListings), getDocs(qNews), getDocs(qEvents), getDocs(qJobs)
-              ]);
-              
-              const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              
-              let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-              newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
-              
-              let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-              eventsData = eventsData.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 8);
-              
-              let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-              jobsData = jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
-              
-              initialData = {
-                listings: listingsData,
-                news: newsData,
-                events: eventsData,
-                jobs: jobsData,
-                timestamp: Date.now()
-              };
-            } catch(e) {
-              console.error("Error pre-fetching home data", e);
-            }
-          }
-          // Dynamic Route Data Pre-fetch and 404 enforcement
-          else if (pathParts.length === 2) {
-            const p0 = pathParts[0].toLowerCase();
-            const p1 = pathParts[1];
-            
-            if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
-              isNotFound = false;
-            } else if (p0 === 'go') {
-              try {
-                const linkRef = doc(db, 'short_links', p1);
-                const linkSnap = await getDoc(linkRef);
-                if (!linkSnap.exists()) {
-                  isNotFound = true;
-                }
-              } catch (e) {
-                console.error("Error fetching short link details", e);
-              }
-            } else if (p0 === 'news') {
-              try {
-                const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                  isNotFound = true;
-                } else {
-                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-                  title = `${data.title} | Halal Ottawa`;
-                  description = data.content?.substring(0, 160) || description;
-                  if (data.coverImage) ogImage = data.coverImage;
-                  initialData = data;
-                  routeType = 'news';
-                }
-              } catch (e) {
-                console.error("Error fetching news details", e);
-              }
-            } else if (p0 === 'events') {
-              try {
-                const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                  isNotFound = true;
-                } else {
-                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-                  title = `${data.title} | Halal Ottawa Events`;
-                  description = data.description?.substring(0, 160) || description;
-                  if (data.coverImage) ogImage = data.coverImage;
-                  initialData = data;
-                  routeType = 'event';
-                }
-              } catch (e) {
-                console.error("Error fetching event details", e);
-              }
-            } else if (p0 === 'jobs') {
-              try {
-                const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                  isNotFound = true;
-                } else {
-                  const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
-                  title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
-                  description = data.description?.substring(0, 160) || description;
-                  if (data.companyLogo) ogImage = data.companyLogo;
-                  initialData = data;
-                  routeType = 'job';
-                }
-              } catch (e) {
-                console.error("Error fetching job details", e);
-              }
-            } else if (p0 === 'listings' || isSingleSegmentValid(p0)) {
-              try {
-                // Try fetching by Firestore Document ID first
-                const listingDocRef = doc(db, 'listings', p1);
-                const listingDocSnap = await getDoc(listingDocRef);
-                let data: any = null;
-                
-                if (listingDocSnap.exists()) {
-                  data = { id: listingDocSnap.id, ...listingDocSnap.data() };
-                } else {
-                  // Fallback to querying by slug field if document ID does not exist
-                  const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
-                  const snap = await getDocs(q);
-                  if (!snap.empty) {
-                    data = { id: snap.docs[0].id, ...snap.docs[0].data() };
-                  }
-                }
-
-                if (!data) {
-                  isNotFound = true;
-                } else {
-                  title = `${data.name} | Halal Ottawa`;
-                  description = data.description?.substring(0, 160) || description;
-                  if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
-                  initialData = data;
-                  routeType = 'listing';
-                }
-              } catch (e) {
-                console.error("Error fetching listing details", e);
-              }
-            } else {
-              isNotFound = true;
-            }
-          }
-          else if (pathParts.length === 3) {
-            const p0 = pathParts[0].toLowerCase();
-            const p1 = pathParts[1].toLowerCase();
-            const docId = pathParts[2];
-            if (p1 === 'edit' && ['listings', 'events', 'jobs', 'news'].includes(p0)) {
-              try {
-                const collName = p0 === 'jobs' ? 'jobs' : p0;
-                const dSnap = await getDoc(doc(db, collName, docId));
-                if (!dSnap.exists()) {
-                  isNotFound = true;
-                }
-              } catch (err) {
-                console.error("Error checking edit page doc", err);
-              }
-            } else {
-              isNotFound = true;
-            }
-          }
-        }
-
-        // Simple string replacement for basic SEO tags
-        html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-        html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`);
-        
-        // Inject OG tags if not present
-        if (!html.includes('property="og:title"')) {
-          let extraTags = `
-    <meta property="og:title" content="${title}" />
-    <meta property="og:description" content="${description}" />
-    <meta property="og:image" content="${ogImage}" />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-          `;
-
-          // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
-          if (pathParts.length === 2 && initialData) {
-            let schemaData: any = {
-              "@context": "https://schema.org",
-              "@type": "WebPage",
-              "name": title,
-              "description": description,
-              "image": ogImage,
-              "url": `https://www.halalottawa.ca${urlPath}`
-            };
-
-            const fullUrl = `https://www.halalottawa.ca${urlPath}`;
-
-            if (routeType === 'listing') {
-              // Decide specific type if restaurant, mosque, grocery, etc.
-              let schemaType = "LocalBusiness";
-              const cat = (initialData.category || '').toString().toLowerCase();
-              if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
-                schemaType = "Restaurant";
-              } else if (cat.includes('mosque') || cat.includes('masjid')) {
-                schemaType = "Mosque";
-              } else if (cat.includes('grocery') || cat.includes('supermarket')) {
-                schemaType = "GroceryStore";
-              }
-
-              schemaData = {
-                "@context": "https://schema.org",
-                "@type": schemaType,
-                "name": initialData.name,
-                "description": description,
-                "image": ogImage,
-                "url": fullUrl,
-                "priceRange": initialData.priceRange || "$$",
-                "address": initialData.address ? {
-                  "@type": "PostalAddress",
-                  "streetAddress": initialData.address,
-                  "addressLocality": "Ottawa",
-                  "addressRegion": "ON",
-                  "postalCode": initialData.postalCode || "",
-                  "addressCountry": "CA"
-                } : undefined,
-                "telephone": initialData.phone || undefined,
-                "geo": initialData.lat && initialData.lng ? {
-                  "@type": "GeoCoordinates",
-                  "latitude": parseFloat(initialData.lat),
-                  "longitude": parseFloat(initialData.lng)
-                } : undefined
-              };
-
-              // If there's high-quality review averages, inject AggregateRating
-              if (initialData.rating && initialData.reviewCount) {
-                schemaData.aggregateRating = {
-                  "@type": "AggregateRating",
-                  "ratingValue": parseFloat(initialData.rating).toFixed(1),
-                  "reviewCount": parseInt(initialData.reviewCount) || 1,
-                  "bestRating": "5",
-                  "worstRating": "1"
-                };
-              }
-            } else if (routeType === 'news') {
-              schemaData = {
-                "@context": "https://schema.org",
-                "@type": "NewsArticle",
-                "mainEntityOfPage": {
-                  "@type": "WebPage",
-                  "@id": fullUrl
-                },
-                "headline": initialData.title,
-                "image": ogImage ? [ogImage] : undefined,
-                "datePublished": initialData.publishDate || initialData.createdAt || new Date().toISOString(),
-                "dateModified": initialData.updatedAt || initialData.publishDate || new Date().toISOString(),
-                "author": {
-                  "@type": "Person",
-                  "name": initialData.author || "Halal Ottawa Staff"
-                },
-                "publisher": {
-                  "@type": "Organization",
-                  "name": "Halal Ottawa",
-                  "logo": {
-                    "@type": "ImageObject",
-                    "url": "https://www.halalottawa.ca/favicon.ico"
-                  }
-                },
-                "description": description
-              };
-            } else if (routeType === 'event') {
-              schemaData = {
-                "@context": "https://schema.org",
-                "@type": "Event",
-                "name": initialData.title,
-                "startDate": initialData.dateTime || new Date().toISOString(),
-                "endDate": initialData.endDateTime || initialData.dateTime || new Date().toISOString(),
-                "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-                "eventStatus": "https://schema.org/EventScheduled",
-                "location": {
-                  "@type": "Place",
-                  "name": initialData.venue || initialData.location || "Ottawa Community Venue",
-                  "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": initialData.location || "Ottawa",
-                    "addressLocality": "Ottawa",
-                    "addressRegion": "ON",
-                    "addressCountry": "CA"
-                  }
-                },
-                "image": ogImage ? [ogImage] : undefined,
-                "description": description,
-                "offers": {
-                  "@type": "Offer",
-                  "url": fullUrl,
-                  "price": initialData.price || "0",
-                  "priceCurrency": "CAD",
-                  "availability": "https://schema.org/InStock",
-                  "validFrom": initialData.createdAt || new Date().toISOString()
-                },
-                "organizer": {
-                  "@type": "Organization",
-                  "name": initialData.organizer || "Halal Ottawa Community Partner",
-                  "url": "https://www.halalottawa.ca"
-                }
-              };
-            } else if (routeType === 'job') {
-              let empType = ["FULL_TIME"];
-              const t = (initialData.type || '').toUpperCase();
-              if (t.includes('PART')) {
-                empType = ["PART_TIME"];
-              } else if (t.includes('CONTRACT')) {
-                empType = ["CONTRACTOR"];
-              } else if (t.includes('INTERN')) {
-                empType = ["INTERN"];
-              }
-
-              schemaData = {
-                "@context": "https://schema.org",
-                "@type": "JobPosting",
-                "title": initialData.title,
-                "description": initialData.description || description,
-                "datePosted": initialData.createdAt || new Date().toISOString(),
-                "employmentType": empType,
-                "hiringOrganization": {
-                  "@type": "Organization",
-                  "name": initialData.company || "Halal Ottawa Partner",
-                  "logo": initialData.companyLogo || undefined
-                },
-                "jobLocation": {
-                  "@type": "Place",
-                  "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": initialData.location || "Ottawa",
-                    "addressLocality": "Ottawa",
-                    "addressRegion": "ON",
-                    "addressCountry": "CA"
-                  }
-                }
-              };
-            }
-
-            const breadcrumbItems = [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": "https://www.halalottawa.ca"
-              }
-            ];
-
-            if (routeType === 'listing') {
-              const mainCategoryStr = Array.isArray(initialData.category) && initialData.category.length > 0 
-                ? initialData.category[0] 
-                : (typeof initialData.category === 'string' ? initialData.category : 'listings');
-              
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 2,
-                "name": mainCategoryStr,
-                "item": `https://www.halalottawa.ca/${mainCategoryStr.toLowerCase()}`
-              });
-
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 3,
-                "name": initialData.name,
-                "item": fullUrl
-              });
-            } else if (routeType === 'news') {
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 2,
-                "name": "News",
-                "item": "https://www.halalottawa.ca/news"
-              });
-
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 3,
-                "name": initialData.title,
-                "item": fullUrl
-              });
-            } else if (routeType === 'event') {
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Events",
-                "item": "https://www.halalottawa.ca/events"
-              });
-
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 3,
-                "name": initialData.title,
-                "item": fullUrl
-              });
-            } else if (routeType === 'job') {
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 2,
-                "name": "Jobs",
-                "item": "https://www.halalottawa.ca/jobs"
-              });
-
-              breadcrumbItems.push({
-                "@type": "ListItem",
-                "position": 3,
-                "name": initialData.title,
-                "item": fullUrl
-              });
-            }
-
-            const breadcrumbSchema = {
-              "@context": "https://schema.org",
-              "@type": "BreadcrumbList",
-              "itemListElement": breadcrumbItems
-            };
-
-            extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
-            extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
-          }
-          
-          if (initialData) {
-            extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
-          }
-
-          html = html.replace('</head>', `${extraTags}\n  </head>`);
-        }
-
-        // if (isNotFound) {
-        //   res.status(404);
-        // }
-        res.send(html);
+        const template = fs.readFileSync(indexPath, "utf-8");
+        const { html, isNotFound } = await getInjectedHTML(template, req.path);
+        res.status(isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(html);
       } catch (err) {
         console.error("Error serving index.html:", err);
         res.sendFile(path.join(distPath, "index.html"));

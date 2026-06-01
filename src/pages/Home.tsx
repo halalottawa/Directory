@@ -82,11 +82,9 @@ export const Home: React.FC = () => {
         }
         const isAdmin = user?.role === 'admin';
 
-        // Fetch Latest Listings
+        // Fetch Latest Listings - query all for robustness and filter client-side like Listings page
         const qListings = query(
-          collection(db, 'listings'), 
-          where('isApproved', '==', true),
-          limit(50)
+          collection(db, 'listings')
         );
 
         // Fetch Latest News
@@ -112,11 +110,27 @@ export const Home: React.FC = () => {
           getDocs(qJobs)
         ]);
 
+        const parseTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val.toDate === 'function') {
+            return val.toDate().getTime();
+          }
+          if (typeof val.seconds === 'number') {
+            return val.seconds * 1000;
+          }
+          const d = new Date(val);
+          return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+
         const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        const sortedListings = listingsData
-          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        const filteredListings = listingsData.filter(l => {
+          if (user?.role === 'admin') return true;
+          return l.isApproved || (user && l.submittedBy === user.uid);
+        });
+        const sortedListings = filteredListings
+          .sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt))
           .slice(0, 8);
-        setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 8));
+        setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));
 
         const newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
         

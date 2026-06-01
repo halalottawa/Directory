@@ -277,8 +277,9 @@ export const CategoryListings: React.FC = () => {
            formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
            formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
            formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
+           matchedType ? `Halal ${formattedCategory} in Ottawa` :
            matchedCuisine ? `Halal ${formattedCategory} Restaurants in Ottawa` :
-           formattedCategory}
+           `Halal ${formattedCategory} in Ottawa`}
         </h1>
         <Link 
           to="/listings/add" 
