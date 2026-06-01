@@ -1057,6 +1057,54 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
+  // Helper functions for secure character escaping and robust schema URLs in server
+  function escapeHtmlText(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function escapeHtmlAttr(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function getAbsoluteUrl(urlStr: string): string {
+    if (!urlStr) return "https://www.halalottawa.ca/default-og.jpg";
+    if (urlStr.startsWith("http://") || urlStr.startsWith("https://") || urlStr.startsWith("data:")) {
+      return urlStr;
+    }
+    return `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;
+  }
+
+  function cleanPriceStr(priceVal: any): string {
+    if (priceVal === undefined || priceVal === null) return "0";
+    const str = String(priceVal).trim();
+    if (str.toLowerCase() === 'free' || str === '0') return "0";
+    const numOnly = str.replace(/[^0-9.]/g, '');
+    return numOnly || "0";
+  }
+
+  function normalizeCategoryToSlug(cat: string): string {
+    if (!cat) return 'listings';
+    const c = cat.toLowerCase().trim();
+    if (c.includes('restaurant')) return 'restaurants';
+    if (c.includes('mosque') || c.includes('masjid')) return 'mosques';
+    if (c.includes('organization')) return 'organizations';
+    if (c.includes('grocery')) return 'grocery';
+    if (c.includes('clothing')) return 'clothing';
+    if (c.includes('school')) return 'schools';
+    if (c.includes('butcher')) return 'butchers';
+    return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
+  }
+
   async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean }> {
     let html = template;
     
@@ -1212,7 +1260,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} | Halal Ottawa`;
               description = data.content?.substring(0, 160) || description;
-              if (data.coverImage) ogImage = data.coverImage;
+              if (data.coverImage) ogImage = getAbsoluteUrl(data.coverImage);
               initialData = data;
               routeType = 'news';
             }
@@ -1229,7 +1277,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} | Halal Ottawa Events`;
               description = data.description?.substring(0, 160) || description;
-              if (data.coverImage) ogImage = data.coverImage;
+              if (data.coverImage) ogImage = getAbsoluteUrl(data.coverImage);
               initialData = data;
               routeType = 'event';
             }
@@ -1246,7 +1294,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
               description = data.description?.substring(0, 160) || description;
-              if (data.companyLogo) ogImage = data.companyLogo;
+              if (data.companyLogo) ogImage = getAbsoluteUrl(data.companyLogo);
               initialData = data;
               routeType = 'job';
             }
@@ -1276,7 +1324,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             } else {
               title = `${data.name} | Halal Ottawa`;
               description = data.description?.substring(0, 160) || description;
-              if (data.photos && data.photos.length > 0) ogImage = data.photos[0];
+              if (data.photos && data.photos.length > 0) ogImage = getAbsoluteUrl(data.photos[0]);
               initialData = data;
               routeType = 'listing';
             }
@@ -1307,16 +1355,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
     }
 
-    // Simple string replacement for basic SEO tags
-    html = html.replace(/<title>.*?<\/title>/, `<title>${title}</title>`);
-    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${description}" />`);
+    // Simple string replacement for basic SEO tags with safe HTML escaping
+    html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtmlText(title)}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
     
     // Inject OG tags if not present
     if (!html.includes('property="og:title"')) {
       let extraTags = `
-    <meta property="og:title" content="${title}" />
-    <meta property="og:description" content="${description}" />
-    <meta property="og:image" content="${ogImage}" />
+    <meta property="og:title" content="${escapeHtmlAttr(title)}" />
+    <meta property="og:description" content="${escapeHtmlAttr(description)}" />
+    <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
       `;
@@ -1341,9 +1389,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
             schemaType = "Restaurant";
           } else if (cat.includes('mosque') || cat.includes('masjid')) {
-            schemaType = "Mosque";
+            schemaType = "PlaceOfWorship";
           } else if (cat.includes('grocery') || cat.includes('supermarket')) {
             schemaType = "GroceryStore";
+          } else if (cat.includes('butcher')) {
+            schemaType = "FoodEstablishment";
           }
 
           schemaData = {
@@ -1353,7 +1403,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "description": description,
             "image": ogImage,
             "url": fullUrl,
-            "priceRange": initialData.priceRange || "$$",
             "address": initialData.address ? {
               "@type": "PostalAddress",
               "streetAddress": initialData.address,
@@ -1362,7 +1411,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               "postalCode": initialData.postalCode || "",
               "addressCountry": "CA"
             } : undefined,
-            "telephone": initialData.phone || undefined,
+            "telephone": initialData.phoneNumber || undefined,
             "geo": initialData.lat && initialData.lng ? {
               "@type": "GeoCoordinates",
               "latitude": parseFloat(initialData.lat),
@@ -1370,11 +1419,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             } : undefined
           };
 
+          // priceRange is only valid for Commercial Local Businesses
+          if (schemaType !== "PlaceOfWorship") {
+            schemaData.priceRange = initialData.priceRange || "$$";
+          }
+
           // If there's high-quality review averages, inject AggregateRating
-          if (initialData.rating && initialData.reviewCount) {
+          if (initialData.averageRating && initialData.reviewCount) {
             schemaData.aggregateRating = {
               "@type": "AggregateRating",
-              "ratingValue": parseFloat(initialData.rating).toFixed(1),
+              "ratingValue": parseFloat(initialData.averageRating).toFixed(1),
               "reviewCount": parseInt(initialData.reviewCount) || 1,
               "bestRating": "5",
               "worstRating": "1"
@@ -1431,7 +1485,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "offers": {
               "@type": "Offer",
               "url": fullUrl,
-              "price": initialData.price || "0",
+              "price": cleanPriceStr(initialData.price),
               "priceCurrency": "CAD",
               "availability": "https://schema.org/InStock",
               "validFrom": initialData.createdAt || new Date().toISOString()
@@ -1459,17 +1513,18 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "title": initialData.title,
             "description": initialData.description || description,
             "datePosted": initialData.createdAt || new Date().toISOString(),
+            "validThrough": new Date((initialData.createdAt ? new Date(initialData.createdAt) : new Date()).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
             "employmentType": empType,
             "hiringOrganization": {
               "@type": "Organization",
               "name": initialData.company || "Halal Ottawa Partner",
-              "logo": initialData.companyLogo || undefined
+              "logo": initialData.companyLogo ? getAbsoluteUrl(initialData.companyLogo) : undefined
             },
             "jobLocation": {
               "@type": "Place",
               "address": {
                 "@type": "PostalAddress",
-                "streetAddress": initialData.location || "Ottawa",
+                "streetAddress": initialData.location && initialData.location !== 'Ottawa' ? initialData.location : undefined,
                 "addressLocality": "Ottawa",
                 "addressRegion": "ON",
                 "addressCountry": "CA"
@@ -1492,11 +1547,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             ? initialData.category[0] 
             : (typeof initialData.category === 'string' ? initialData.category : 'listings');
           
+          const catSlug = normalizeCategoryToSlug(mainCategoryStr);
+
           breadcrumbItems.push({
             "@type": "ListItem",
             "position": 2,
             "name": mainCategoryStr,
-            "item": `https://www.halalottawa.ca/${mainCategoryStr.toLowerCase()}`
+            "item": `https://www.halalottawa.ca/${catSlug}`
           });
 
           breadcrumbItems.push({

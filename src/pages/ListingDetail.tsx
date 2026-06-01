@@ -416,12 +416,12 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
             "@type": (() => {
               switch(mainCategoryStr) {
                 case 'Restaurants': return 'Restaurant';
-                case 'Mosques': return 'Mosque';
+                case 'Mosques': return 'PlaceOfWorship';
                 case 'Grocery': return 'GroceryStore';
                 case 'Clothing': return 'ClothingStore';
                 case 'Schools': return 'School';
                 case 'Organizations': return 'Organization';
-                case 'Butchers': return 'MeatStore';
+                case 'Butchers': return 'FoodEstablishment';
                 default: return 'LocalBusiness';
               }
             })(),

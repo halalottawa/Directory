@@ -25,6 +25,54 @@ const staticUrls = [
   "/tools/qibla"
 ];
 
+// Helper functions for secure character escaping and robust schema URLs
+function escapeHtmlText(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function escapeHtmlAttr(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function getAbsoluteUrl(urlStr: string): string {
+  if (!urlStr) return "https://www.halalottawa.ca/default-og.jpg";
+  if (urlStr.startsWith("http://") || urlStr.startsWith("https://") || urlStr.startsWith("data:")) {
+    return urlStr;
+  }
+  return `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;
+}
+
+function cleanPriceStr(priceVal: any): string {
+  if (priceVal === undefined || priceVal === null) return "0";
+  const str = String(priceVal).trim();
+  if (str.toLowerCase() === 'free' || str === '0') return "0";
+  const numOnly = str.replace(/[^0-9.]/g, '');
+  return numOnly || "0";
+}
+
+function normalizeCategoryToSlug(cat: string): string {
+  if (!cat) return 'listings';
+  const c = cat.toLowerCase().trim();
+  if (c.includes('restaurant')) return 'restaurants';
+  if (c.includes('mosque') || c.includes('masjid')) return 'mosques';
+  if (c.includes('organization')) return 'organizations';
+  if (c.includes('grocery')) return 'grocery';
+  if (c.includes('clothing')) return 'clothing';
+  if (c.includes('school')) return 'schools';
+  if (c.includes('butcher')) return 'butchers';
+  return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
+}
+
 // Helper to ensure directory exists
 function ensureDirectoryExists(filePath: string) {
   const dirname = path.dirname(filePath);
@@ -177,15 +225,15 @@ async function prerender() {
         
         let categoryPath = 'listings';
         if (Array.isArray(data.category) && data.category.length > 0) {
-          categoryPath = data.category[0].toLowerCase();
+          categoryPath = normalizeCategoryToSlug(data.category[0]);
         } else if (typeof data.category === 'string') {
-          categoryPath = data.category.toLowerCase();
+          categoryPath = normalizeCategoryToSlug(data.category);
         }
 
         const url = `/${categoryPath}/${idPath}`;
         const title = `${data.name} | Halal Ottawa`;
         const description = data.description?.substring(0, 160) || "Discover verified halal details, reviews, and address info.";
-        const ogImage = (data.photos && data.photos.length > 0) ? data.photos[0] : "https://www.halalottawa.ca/default-og.jpg";
+        const ogImage = getAbsoluteUrl((data.photos && data.photos.length > 0) ? data.photos[0] : "");
 
         pagesToPrerender.push({
           urlPath: url,
@@ -218,7 +266,7 @@ async function prerender() {
         const url = `/news/${idPath}`;
         const title = `${data.title} | Halal Ottawa`;
         const description = data.content?.substring(0, 160) || "Read latest updates and news regarding the Ottawa halal and Muslim community.";
-        const ogImage = data.coverImage || "https://www.halalottawa.ca/default-og.jpg";
+        const ogImage = getAbsoluteUrl(data.coverImage || "");
 
         pagesToPrerender.push({
           urlPath: url,
@@ -240,7 +288,7 @@ async function prerender() {
         const url = `/events/${idPath}`;
         const title = `${data.title} | Halal Ottawa Events`;
         const description = data.description?.substring(0, 160) || "Join community events, classes, and lectures happening across Ottawa.";
-        const ogImage = data.coverImage || "https://www.halalottawa.ca/default-og.jpg";
+        const ogImage = getAbsoluteUrl(data.coverImage || "");
 
         pagesToPrerender.push({
           urlPath: url,
@@ -262,7 +310,7 @@ async function prerender() {
         const url = `/jobs/${idPath}`;
         const title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
         const description = data.description?.substring(0, 160) || "Hiring now: verify salary packages, full-time/part-time perks, and location details.";
-        const ogImage = data.companyLogo || "https://www.halalottawa.ca/default-og.jpg";
+        const ogImage = getAbsoluteUrl(data.companyLogo || "");
 
         pagesToPrerender.push({
           urlPath: url,
@@ -287,14 +335,14 @@ async function prerender() {
     try {
       let html = baseTemplate;
       
-      // Inject standard SEO Tags
-      html = html.replace(/<title>.*?<\/title>/, `<title>${page.title}</title>`);
-      html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${page.description}" />`);
+      // Inject standard SEO Tags with safe HTML escaping
+      html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtmlText(page.title)}</title>`);
+      html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
       
       let extraTags = `
-    <meta property="og:title" content="${page.title}" />
-    <meta property="og:description" content="${page.description}" />
-    <meta property="og:image" content="${page.ogImage}" />
+    <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
+    <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
+    <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
       `;
@@ -318,9 +366,11 @@ async function prerender() {
           if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
             schemaType = "Restaurant";
           } else if (cat.includes('mosque') || cat.includes('masjid')) {
-            schemaType = "Mosque";
+            schemaType = "PlaceOfWorship";
           } else if (cat.includes('grocery') || cat.includes('supermarket')) {
             schemaType = "GroceryStore";
+          } else if (cat.includes('butcher')) {
+            schemaType = "FoodEstablishment";
           }
 
           schemaData = {
@@ -330,7 +380,6 @@ async function prerender() {
             "description": page.description,
             "image": page.ogImage,
             "url": fullUrl,
-            "priceRange": page.initialData.priceRange || "$$",
             "address": page.initialData.address ? {
               "@type": "PostalAddress",
               "streetAddress": page.initialData.address,
@@ -339,7 +388,7 @@ async function prerender() {
               "postalCode": page.initialData.postalCode || "",
               "addressCountry": "CA"
             } : undefined,
-            "telephone": page.initialData.phone || undefined,
+            "telephone": page.initialData.phoneNumber || undefined,
             "geo": page.initialData.lat && page.initialData.lng ? {
               "@type": "GeoCoordinates",
               "latitude": parseFloat(page.initialData.lat),
@@ -347,10 +396,15 @@ async function prerender() {
             } : undefined
           };
 
-          if (page.initialData.rating && page.initialData.reviewCount) {
+          // priceRange is only valid for Commercial Local Businesses
+          if (schemaType !== "PlaceOfWorship") {
+            schemaData.priceRange = page.initialData.priceRange || "$$";
+          }
+
+          if (page.initialData.averageRating && page.initialData.reviewCount) {
             schemaData.aggregateRating = {
               "@type": "AggregateRating",
-              "ratingValue": parseFloat(page.initialData.rating).toFixed(1),
+              "ratingValue": parseFloat(page.initialData.averageRating).toFixed(1),
               "reviewCount": parseInt(page.initialData.reviewCount) || 1,
               "bestRating": "5",
               "worstRating": "1"
@@ -407,7 +461,7 @@ async function prerender() {
             "offers": {
               "@type": "Offer",
               "url": fullUrl,
-              "price": page.initialData.price || "0",
+              "price": cleanPriceStr(page.initialData.price),
               "priceCurrency": "CAD",
               "availability": "https://schema.org/InStock",
               "validFrom": page.initialData.createdAt || new Date().toISOString()
@@ -435,17 +489,18 @@ async function prerender() {
             "title": page.initialData.title,
             "description": page.initialData.description || page.description,
             "datePosted": page.initialData.createdAt || new Date().toISOString(),
+            "validThrough": new Date((page.initialData.createdAt ? new Date(page.initialData.createdAt) : new Date()).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
             "employmentType": empType,
             "hiringOrganization": {
               "@type": "Organization",
               "name": page.initialData.company || "Halal Ottawa Partner",
-              "logo": page.initialData.companyLogo || undefined
+              "logo": page.initialData.companyLogo ? getAbsoluteUrl(page.initialData.companyLogo) : undefined
             },
             "jobLocation": {
               "@type": "Place",
               "address": {
                 "@type": "PostalAddress",
-                "streetAddress": page.initialData.location || "Ottawa",
+                "streetAddress": page.initialData.location && page.initialData.location !== 'Ottawa' ? page.initialData.location : undefined,
                 "addressLocality": "Ottawa",
                 "addressRegion": "ON",
                 "addressCountry": "CA"
@@ -468,11 +523,13 @@ async function prerender() {
             ? page.initialData.category[0] 
             : (typeof page.initialData.category === 'string' ? page.initialData.category : 'listings');
           
+          const catSlug = normalizeCategoryToSlug(mainCategoryStr);
+
           breadcrumbItems.push({
             "@type": "ListItem",
             "position": 2,
             "name": mainCategoryStr,
-            "item": `https://www.halalottawa.ca/${mainCategoryStr.toLowerCase()}`
+            "item": `https://www.halalottawa.ca/${catSlug}`
           });
 
           breadcrumbItems.push({

@@ -54,10 +54,20 @@ export const SEO: React.FC<SEOProps> = ({
 
       {/* Structured Data (JSON-LD) */}
       {structuredData && (
-        <script 
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
+        Array.isArray(structuredData)
+          ? (structuredData as Array<any>).map((schema, i) => (
+              <script 
+                key={i}
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+              />
+            ))
+          : (
+              <script 
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+              />
+            )
       )}
     </Helmet>
   );
