@@ -8,6 +8,12 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
       return url;
     }
 
+    // Direct return for custom uploaded files (R2, Blob, Local disk uploads)
+    // as they are already resized (max 1200x900) and optimized to lossy WebP at 80 quality upon upload
+    if (lowerUrl.includes('uploads/')) {
+      return url;
+    }
+
     // Google User Content (Google My Business, Google Photos, etc.)
     if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
       // Remove any existing sizing parameters (e.g., =wxxx-hxxx, =sxxx)
