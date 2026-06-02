@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText, Send } from 'lucide-react';
+import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +50,116 @@ export const AddListing: React.FC = () => {
     Saturday: { open: '09:00', close: '17:00', closed: true },
     Sunday: { open: '09:00', close: '17:00', closed: true },
   });
+
+  const [isFetchingAI, setIsFetchingAI] = useState(false);
+  const [isFetchingField, setIsFetchingField] = useState({
+    address: false,
+    phoneNumber: false,
+    openingHours: false,
+    email: false,
+    website: false,
+  });
+
+  const handleFetchAIInfo = async (field?: 'address' | 'phoneNumber' | 'openingHours' | 'email' | 'website') => {
+    if (!formData.name.trim()) {
+      toast.error('Please enter a business name first so the AI knows what to search for.');
+      return;
+    }
+
+    if (field) {
+      setIsFetchingField(prev => ({ ...prev, [field]: true }));
+    } else {
+      setIsFetchingAI(true);
+    }
+
+    try {
+      const response = await fetch('/api/admin/fetch-listing-ai-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          currentAddress: formData.address,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to fetch details via AI';
+        try {
+          const errJSON = JSON.parse(errorText);
+          errorMessage = errJSON.error || errorMessage;
+        } catch (_) {}
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const updates: Partial<typeof formData> = {};
+      const updatedFieldsLog: string[] = [];
+
+      if (!field || field === 'address') {
+        if (data.address) {
+          updates.address = data.address;
+          updatedFieldsLog.push('Address');
+          try {
+            const suburbName = await getSuburbFromAddress(data.address);
+            if (suburbName) {
+              updates.suburb = suburbName;
+              updatedFieldsLog.push('Suburb');
+            }
+          } catch (subErr) {
+            console.warn('Suburb detection failed during AI update:', subErr);
+          }
+        }
+      }
+
+      if (!field || field === 'phoneNumber') {
+        if (data.phoneNumber) {
+          updates.phoneNumber = data.phoneNumber;
+          updatedFieldsLog.push('Phone Number');
+        }
+      }
+
+      if (!field || field === 'openingHours') {
+        if (data.openingHours) {
+          updates.openingHours = data.openingHours;
+          updatedFieldsLog.push('Opening Hours');
+        }
+      }
+
+      if (!field || field === 'email') {
+        if (data.email) {
+          updates.email = data.email;
+          updatedFieldsLog.push('Email');
+        }
+      }
+
+      if (!field || field === 'website') {
+        if (data.website) {
+          updates.website = data.website;
+          updatedFieldsLog.push('Website');
+        }
+      }
+
+      setFormData(prev => ({ ...prev, ...updates }));
+
+      if (updatedFieldsLog.length > 0) {
+        toast.success(`Successfully updated ${updatedFieldsLog.join(', ')} via AI!`);
+      } else {
+        toast.info('AI search completed but returned no changes.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching details via AI:', err);
+      toast.error(`AI Fetching failed: ${err.message || 'Unknown error'}`);
+    } finally {
+      if (field) {
+        setIsFetchingField(prev => ({ ...prev, [field]: false }));
+      } else {
+        setIsFetchingAI(false);
+      }
+    }
+  };
 
   const formatTime = (time: string) => {
     if (!time) return '';
@@ -176,37 +286,54 @@ export const AddListing: React.FC = () => {
               />
             </div>
 
-            <div className="relative md:col-span-2">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Address"
-                required
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                onBlur={async () => {
-                  if (formData.address.trim()) {
-                    setIsDetectingSuburb(true);
-                    try {
-                      const detected = await getSuburbFromAddress(formData.address);
-                      if (detected) {
-                        setFormData(prev => ({ ...prev, suburb: detected }));
-                        toast.success(`Automatically detected suburb: ${detected}`);
+            <div className="relative md:col-span-2 flex items-center gap-2">
+              <div className="relative flex-1">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Address"
+                  required
+                  className="w-full pl-14 pr-12 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onBlur={async () => {
+                    if (formData.address.trim()) {
+                      setIsDetectingSuburb(true);
+                      try {
+                        const detected = await getSuburbFromAddress(formData.address);
+                        if (detected) {
+                          setFormData(prev => ({ ...prev, suburb: detected }));
+                          toast.success(`Automatically detected suburb: ${detected}`);
+                        }
+                      } catch (e) {
+                        console.warn(e);
+                      } finally {
+                        setIsDetectingSuburb(false);
                       }
-                    } catch (e) {
-                      console.warn(e);
-                    } finally {
-                      setIsDetectingSuburb(false);
                     }
-                  }
-                }}
-              />
-              {isDetectingSuburb && (
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
-                  <Loader2 className="w-3 h-3 animate-spin text-[#e90b35]" />
-                  <span>Detecting suburb...</span>
-                </div>
+                  }}
+                />
+                {isDetectingSuburb && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-gray-400">
+                    <Loader2 className="w-3 h-3 animate-spin text-[#e90b35]" />
+                    <span>Detecting suburb...</span>
+                  </div>
+                )}
+              </div>
+              {user?.role === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
+                  onClick={() => handleFetchAIInfo('address')}
+                  title="Autofill Address with AI"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {isFetchingField.address ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
               )}
             </div>
 
@@ -286,49 +413,117 @@ export const AddListing: React.FC = () => {
               </div>
             )}
 
-            <div className="relative md:col-span-1">
-              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="tel"
-                placeholder="Phone Number"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              />
+            <div className="relative md:col-span-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                />
+              </div>
+              {user?.role === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
+                  onClick={() => handleFetchAIInfo('phoneNumber')}
+                  title="Autofill Phone with AI"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {isFetchingField.phoneNumber ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+              )}
             </div>
 
-            <div className="relative md:col-span-1">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="email"
-                placeholder="Email"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
+            <div className="relative md:col-span-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="email"
+                  placeholder="Email"
+                  className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+              </div>
+              {user?.role === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
+                  onClick={() => handleFetchAIInfo('email')}
+                  title="Autofill Email with AI"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {isFetchingField.email ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+              )}
             </div>
 
-            <div className="relative md:col-span-1">
-              <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Website"
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                value={formData.website}
-                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-              />
+            <div className="relative md:col-span-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Website"
+                  className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                />
+              </div>
+              {user?.role === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
+                  onClick={() => handleFetchAIInfo('website')}
+                  title="Autofill Website with AI"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {isFetchingField.website ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+              )}
             </div>
 
-            <div className="relative md:col-span-1">
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Hours"
-                readOnly
-                onClick={() => setShowHoursModal(true)}
-                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all cursor-pointer"
-                value={formData.openingHours}
-              />
+            <div className="relative md:col-span-1 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Hours"
+                  readOnly
+                  onClick={() => setShowHoursModal(true)}
+                  className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all cursor-pointer"
+                  value={formData.openingHours}
+                />
+              </div>
+              {user?.role === 'admin' && (
+                <button
+                  type="button"
+                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
+                  onClick={() => handleFetchAIInfo('openingHours')}
+                  title="Autofill Hours with AI"
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                >
+                  {isFetchingField.openingHours ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                </button>
+              )}
             </div>
 
             {showHoursModal && (

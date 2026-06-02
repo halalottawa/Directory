@@ -1197,12 +1197,11 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col transition-all group"
             >
               <div className="relative h-48 w-full shrink-0">
-                {related.photos && related.photos.length > 0 ? (
+                {related.photos && related.photos[0] && related.photos[0].trim() !== '' ? (
                   <img 
                     src={getOptimizedImageUrl(related.photos[0], 400, 192)} 
                     alt={related.name} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    crossOrigin="anonymous" 
                     loading="lazy"
                     width="400"
                     height="192"

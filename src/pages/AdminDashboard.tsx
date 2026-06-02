@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus } from 'lucide-react';
+import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus, Upload, FileText } from 'lucide-react';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
-import { GoogleGenAI, Type } from '@google/genai';
+// All Gemini API calls have been migrated to secure server-side routes to protect API keys and ensure permission consistency.
 import { Pagination } from '../components/Pagination';
 import { uploadFile } from '../utils/storageUtils';
 
@@ -95,37 +95,15 @@ export const AdminDashboard: React.FC = () => {
   const [subscriberTab, setSubscriberTab] = useState<'all' | 'registered' | 'guests'>('all');
   const [subscriberStatusFilter, setSubscriberStatusFilter] = useState<'all' | 'subscribed' | 'unsubscribed'>('all');
 
-  const generateWithRetry = async (ai: any, prompt: string, toastId: any, maxRetries = 6) => {
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    let retries = 0;
-    while (retries < maxRetries) {
-      try {
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
-          contents: prompt,
-          config: {
-            tools: [{ googleSearch: {} }]
-          }
-        });
-        return response;
-      } catch (error: any) {
-        if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota')) {
-          retries++;
-          if (retries >= maxRetries) {
-            throw new Error("You have exceeded your Gemini API quota. Please wait a few minutes and try again, or check your Google Cloud billing details.");
-          }
-          // Exponential backoff capped at 60 seconds
-          const backoff = Math.min(Math.pow(2, retries) * 5000, 60000);
-          const waitTime = backoff + Math.random() * 2000;
-          toast.loading(`Rate limit hit. Retrying in ${Math.round(waitTime/1000)}s...`, { id: toastId });
-          await delay(waitTime);
-        } else {
-          throw error;
-        }
-      }
-    }
-    throw new Error('Max retries exceeded');
-  };
+  // Newsletter bulk email list import states
+  const [activeImportMethod, setActiveImportMethod] = useState<'single' | 'bulk'>('single');
+  const [bulkInputText, setBulkInputText] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const [parsedSubscribers, setParsedSubscribers] = useState<{ email: string; name: string; location: string; status: 'valid' | 'invalid' | 'duplicate' | 'exists'; errorMsg?: string }[]>([]);
+  const [isImportingEmails, setIsImportingEmails] = useState(false);
+  const [emailImportProgress, setEmailImportProgress] = useState({ current: 0, total: 0 });
+
+
 
   // Import from Google Maps states
   const [importPlaceName, setImportPlaceName] = useState('');
@@ -476,6 +454,174 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setIsSubmittingSub(false);
     }
+  };
+
+  // Bulk Import functions
+  const parseSubscribersText = (text: string) => {
+    const lines = text.split(/\r?\n/);
+    const results: { email: string; name: string; location: string; status: 'valid' | 'invalid' | 'duplicate' | 'exists'; errorMsg?: string }[] = [];
+    const emailSet = new Set<string>();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    lines.forEach((line) => {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return;
+
+      let parts: string[] = [];
+      if (trimmedLine.includes(',')) {
+        // Simple CSV parser ignoring commas inside quotes
+        const matches = trimmedLine.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || trimmedLine.split(',');
+        parts = matches.map(p => p.replace(/^"|"$/g, '').trim());
+      } else if (trimmedLine.includes(';')) {
+        parts = trimmedLine.split(';').map(p => p.trim());
+      } else if (trimmedLine.includes('\t')) {
+        parts = trimmedLine.split('\t').map(p => p.trim());
+      } else {
+        parts = [trimmedLine];
+      }
+
+      if (parts.length === 0 || !parts[0]) return;
+
+      // Smart index locator: see which part is the actual email
+      let emailIdx = parts.findIndex(p => emailRegex.test(p));
+      if (emailIdx === -1) {
+        emailIdx = parts.findIndex(p => p.includes('@'));
+      }
+
+      let email = '';
+      let name = '';
+      let location = 'Ottawa, ON';
+
+      if (emailIdx !== -1) {
+        email = parts[emailIdx].toLowerCase().trim();
+        const remain = parts.filter((_, idx) => idx !== emailIdx);
+        if (remain.length > 0) name = remain[0];
+        if (remain.length > 1) location = remain[1];
+      } else {
+        email = parts[0].toLowerCase().trim();
+        if (parts.length > 1) name = parts[1];
+        if (parts.length > 2) location = parts[2];
+      }
+
+      // Filter header row triggers
+      if (
+        email === 'email' || 
+        email === 'email address' || 
+        email === 'email_address' || 
+        email === 'subscriber email'
+      ) {
+        return;
+      }
+
+      const isValid = emailRegex.test(email);
+      let status: 'valid' | 'invalid' | 'duplicate' | 'exists' = 'valid';
+      let errorMsg = '';
+
+      if (!isValid) {
+        status = 'invalid';
+        errorMsg = 'Invalid email address form';
+      } else if (emailSet.has(email)) {
+        status = 'duplicate';
+        errorMsg = 'Duplicate in uploaded list';
+      } else {
+        const isRegistered = allUsers.some(u => u.email?.toLowerCase() === email && u.consentToUpdates);
+        const isStandalone = standaloneSubscribers.some(s => s.email.toLowerCase() === email && s.status !== 'unsubscribed');
+        if (isRegistered || isStandalone) {
+          status = 'exists';
+          errorMsg = 'Already subscribed';
+        } else {
+          emailSet.add(email);
+        }
+      }
+
+      results.push({
+        email,
+        name: name || 'Guest Subscriber',
+        location: location || 'Ottawa, ON',
+        status,
+        errorMsg
+      });
+    });
+
+    setParsedSubscribers(results);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === 'string') {
+        setBulkInputText(text);
+        parseSubscribersText(text);
+        toast.success(`Loaded file: ${file.name}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExecuteBulkImport = async () => {
+    const toImport = parsedSubscribers.filter(sub => sub.status === 'valid');
+    if (toImport.length === 0) {
+      toast.error('No new, valid subscribers to import.');
+      return;
+    }
+
+    setIsImportingEmails(true);
+    setEmailImportProgress({ current: 0, total: toImport.length });
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < toImport.length; i++) {
+      const sub = toImport[i];
+      try {
+        await setDoc(doc(db, 'subscribers', sub.email), {
+          email: sub.email,
+          name: sub.name,
+          createdAt: new Date().toISOString(),
+          status: 'subscribed',
+          unsubscribedAt: null,
+          location: sub.location
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`Error importing ${sub.email}:`, err);
+        failCount++;
+      }
+      setEmailImportProgress({ current: i + 1, total: toImport.length });
+    }
+
+    setIsImportingEmails(false);
+    toast.success(`Bulk integration complete! Imported ${successCount} new subscribers.${failCount > 0 ? ` Failed: ${failCount}.` : ''}`);
+    
+    // Clear forms and refresh
+    setBulkInputText('');
+    setParsedSubscribers([]);
+    fetchData();
   };
 
   const handleUnsubscribeSubscriber = async (sub: { id: string; email: string; type: 'Registered' | 'Guest' }) => {
@@ -866,20 +1012,12 @@ export const AdminDashboard: React.FC = () => {
     const toastId = toast.loading(`Starting import for ${places.length} places...`);
 
     try {
-      // Initialize Gemini API
-      const apiKey = process.env.GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Gemini API key is missing.');
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
-      const { addDoc, query, where, getDocs, serverTimestamp } = await import('firebase/firestore');
-
+      const { query, where, getDocs, collection } = await import('firebase/firestore');
       const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       for (let i = 0; i < places.length; i++) {
         if (i > 0) {
-          toast.loading(`Waiting to prevent rate limits...`, { id: toastId });
+          toast.loading(`Waiting 5 seconds to prevent rate limits...`, { id: toastId });
           await delay(5000); // 5 second base delay between requests
         }
 
@@ -887,80 +1025,21 @@ export const AdminDashboard: React.FC = () => {
         toast.loading(`Importing ${i + 1} of ${places.length}: ${placeName}...`, { id: toastId });
         
         try {
-          const prompt = `Search comprehensively for "${placeName} in Ottawa or Gatineau area" using Google Search. Look at their Google Business Profile, Uber Eats, Skip The Dishes, DoorDash, official website, social media (Instagram, Facebook), Yelp, TripAdvisor, Wheree, and customer reviews.
-Extract the following details:
-- Name of the place
-- Phone number
-- Address (stop at the city/province level, do NOT include the postal code or country. e.g., "123 Main St, Ottawa, ON")
-- Email (if available, otherwise empty string)
-- Website (if available, otherwise empty string)
-- Working hours (format as a single readable string day by day separated by comma. Add a space between the time and AM/PM, capitalize AM/PM, and add spaces around the dash. e.g., "Monday: 9 AM - 5 PM, Tuesday: 9 AM - 5 PM, Wednesday: 9 AM - 5 PM, Thursday: 9 AM - 5 PM, Friday: 9 AM - 5 PM, Saturday: 10 AM - 2 PM, Sunday: Closed")
-- A valid image URL for the main photo. You MUST extract a DIRECT image link from their Google Business Profile, UberEats, SkipTheDishes, or DoorDash page. 
-  Examples of CORRECT links:
-  - Google My Business: "https://lh3.googleusercontent.com/p/..." or "https://lh3.googleusercontent.com/gps-cs-s/..."
-  - UberEats: "https://tb-static.uber.com/prod/image-proc/processed_images/..."
-  If you cannot find a DIRECT image URL matching these patterns in the search text, return an empty string "". DO NOT return a link to a webpage (like a Google Maps link or an UberEats store page). DO NOT guess or make up a URL.
+          // Call the secure server-side proxy
+          const response = await fetch('/api/admin/import-place-ai-info', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ placeName })
+          });
 
-Determine one or more suitable 'categories' from this exact list (pick multiple if applicable): ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'].
-Important: If the place is a Grocery store or Butcher shop, only include 'Restaurants' as an additional category if it has a very prominent and distinct restaurant section serving food. If it just sells raw meat or groceries with a small takeout counter, stick to 'Grocery' and/or 'Butchers'.
-
-If the category includes 'Restaurants', please use the information from UberEats, DoorDash, SkipTheDishes, Facebook, or Instagram to find specific details about their menu, specialties, and atmosphere.
-Write an exactly 3-paragraph neutral, objective description of the place suitable for a local community directory. 
-- Paragraph 1: General overview and introduction to the place.
-- Paragraphs 2 and 3: Specific details about the main services, products, popular menu items, and specialties. (Divide these details across two paragraphs to ensure it is highly readable and not a single massive block of text).
-Focus strictly on the details based on your search across all these platforms. DO NOT mention customer reviews, ratings, people's opinions, or the address/location of the place in the description itself.
-Also, if it is a restaurant, determine one or more suitable 'cuisines' from this exact list (pick multiple if applicable): ['Turkish', 'Middle Eastern', 'Moroccan', 'Lebanese', 'Syrian', 'Pakistani', 'Afghani', 'Indian', 'Persian', 'Chinese', 'Mediterranean', 'Thai', 'Korean', 'Italian', 'Bangladeshi', 'Mexican', 'Ethiopian'].
-And determine one or more suitable 'types' from this exact list (pick multiple if applicable): ['Bakery', 'Pizza', 'Burgers', 'Cafés', 'Seafood', 'Steakhouse', 'Shawarma', 'Poutine', 'Brunch', 'Breakfast', 'Pho', 'Ramen', 'Fried Chicken', 'Buffet', 'Tacos'].
-
-Return the result strictly as a valid JSON object matching the following schema. CRITICAL: Do NOT use inner double quotes (") inside any of your string values (use single quotes (') instead if needed) to prevent JSON parsing errors. Ensure all strings are properly escaped. Do NOT wrap the JSON in markdown blocks (like \`\`\`json). Return ONLY the raw JSON string.
-
-{
-  "name": "string",
-  "phone": "string",
-  "address": "string",
-  "email": "string",
-  "website": "string",
-  "workingHours": "string",
-  "photoUrl": "string",
-  "description": "string",
-  "category": ["string"],
-  "cuisine": ["string"],
-  "type": ["string"]
-}`;
-
-          const response = await generateWithRetry(ai, prompt, toastId);
-
-          let text = response.text;
-          if (!text) throw new Error('No response from AI');
-          
-          // Clean up potential markdown formatting if the model still includes it
-          text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-          
-          // Extract JSON from the response text
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) {
-            throw new Error('Failed to extract JSON from AI response: ' + text);
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `HTTP error ${response.status}`);
           }
-          
-          let jsonString = jsonMatch[0];
-          let data;
-          
-          try {
-            data = JSON.parse(jsonString);
-          } catch (e) {
-            console.warn('Initial JSON parse failed, attempting cleanup...', e);
-            // Fix common AI JSON errors: unescaped control characters or bad escape sequences
-            // Remove common bad escape sequences like \x or single backslashes that aren't valid escapes
-            const cleanedJson = jsonString
-              .replace(/\\([^"\\\/bfnrtu])/g, '$1') // Remove backslashes that don't precede a valid escape char
-              .replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
-            
-            try {
-              data = JSON.parse(cleanedJson);
-            } catch (e2) {
-              throw new Error('Failed to parse JSON from AI response even after cleanup: ' + jsonString);
-            }
-          }
+
+          const data = await response.json();
           
           // Check for duplicates
           const q = query(collection(db, 'listings'), where('name', '==', data.name));
@@ -1027,7 +1106,7 @@ Return the result strictly as a valid JSON object matching the following schema.
         } catch (err: any) {
           console.error(`Failed to import ${placeName}:`, err);
           failCount++;
-          if (err instanceof Error && err.message.includes('quota')) {
+          if (err instanceof Error && (err.message.includes('quota') || err.message.includes('limit'))) {
             toast.error(`Process stopped at "${placeName}": Auto-retry failed. You have exceeded your Gemini API quota.`, { id: toastId });
             break;
           }
@@ -1176,61 +1255,72 @@ Return the result strictly as a valid JSON object matching the following schema.
   };
 
   const handleRefreshSingleListing = async (listing: any) => {
-    const apiKey = (process.env as any).GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      toast.error("API Key not found.");
-      return;
-    }
-    const toastId = toast.loading(`Refreshing categories for ${listing.name}...`);
-    const { updateDoc, doc } = await import('firebase/firestore');
-    const ai = new GoogleGenAI({ apiKey });
-
+    const toastId = toast.loading(`Searching internet for ${listing.name} details...`);
     try {
-      const prompt = `Search comprehensively for "${listing.name}" located at "${listing.address}" in Ottawa/Gatineau area using Google Search. Look at their Google Business Profile, Uber Eats, Skip The Dishes, official website, social media (Instagram/Facebook), Yelp, TripAdvisor, Wheree, and customer reviews.
-      
-Based on all this information, double check and refresh the tags for this listing:
-1. CATEGORIES: Choose exactly from ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'].
-   - Only assign 'Restaurants' if it is clearly a restaurant, cafe, bakery, or prominently serves food.
-   - For mosques, assign 'Mosques'.
-   - For grocery or butchers, only assign 'Restaurants' if they have a prominent and distinct restaurant section serving food.
-2. CUISINE: From ['Turkish', 'Middle Eastern', 'Moroccan', 'Lebanese', 'Syrian', 'Pakistani', 'Afghani', 'Indian', 'Persian', 'Chinese', 'Mediterranean', 'Thai', 'Korean', 'Italian', 'Bangladeshi', 'Mexican', 'Ethiopian'].
-3. TYPE: From ['Bakery', 'Pizza', 'Burgers', 'Cafés', 'Seafood', 'Steakhouse', 'Shawarma', 'Poutine', 'Brunch', 'Breakfast', 'Pho', 'Ramen', 'Fried Chicken', 'Buffet', 'Tacos'].
+      const response = await fetch('/api/admin/fetch-listing-ai-info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: listing.name,
+          currentAddress: listing.address || '',
+        }),
+      });
 
-Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double quotes (") inside any of your string values (use single quotes (') instead if needed) to prevent JSON parsing errors. Ensure all strings are properly escaped. Do NOT wrap the JSON in markdown blocks. Return ONLY the raw JSON string:
-{"category":["string"], "cuisine":["string"], "type":["string"]}`;
-      
-      const response = await generateWithRetry(ai, prompt, toastId, 2);
-      const text = response.text || '';
-      const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-      if (jsonMatch) {
-          let cleaned = jsonMatch[0];
-          if (cleaned.startsWith('[')) cleaned = cleaned.slice(1, -1);
-          const data = JSON.parse(cleaned);
-          if (data.category && Array.isArray(data.category)) {
-            const isRest = data.category.includes('Restaurants');
-            await updateDoc(doc(db, 'listings', listing.id), {
-              category: data.category,
-              types: isRest && Array.isArray(data.type) ? data.type : [],
-              cuisine: isRest && Array.isArray(data.cuisine) ? data.cuisine : []
-            });
-            toast.success(`Successfully refreshed ${listing.name}`, { id: toastId });
-            fetchData();
-          } else {
-            throw new Error("Invalid format returned");
-          }
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = 'Failed to fetch details via AI';
+        try {
+          const errJSON = JSON.parse(errorText);
+          errorMessage = errJSON.error || errorMessage;
+        } catch (_) {}
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      const { updateDoc, doc } = await import('firebase/firestore');
+
+      const updates: any = {};
+      const updatedFieldsLog: string[] = [];
+
+      if (data.address && data.address !== listing.address) {
+        updates.address = data.address;
+        updatedFieldsLog.push('Address');
+      }
+      if (data.phoneNumber && data.phoneNumber !== listing.phoneNumber) {
+        updates.phoneNumber = data.phoneNumber;
+        updatedFieldsLog.push('Phone Number');
+      }
+      if (data.openingHours && data.openingHours !== listing.openingHours) {
+        updates.openingHours = data.openingHours;
+        updatedFieldsLog.push('Working Hours');
+      }
+      if (data.email && data.email !== listing.email) {
+        updates.email = data.email;
+        updatedFieldsLog.push('Email');
+      }
+      if (data.website && data.website !== listing.website) {
+        updates.website = data.website;
+        updatedFieldsLog.push('Website');
+      }
+
+      if (updatedFieldsLog.length > 0) {
+        await updateDoc(doc(db, 'listings', listing.id), updates);
+        toast.success(`Successfully updated ${updatedFieldsLog.join(', ')} for ${listing.name}`, { id: toastId });
+        fetchData();
       } else {
-        throw new Error("Could not parse JSON");
+        toast.info(`Checked ${listing.name}, but all details are already up to date.`, { id: toastId });
       }
     } catch (e: any) {
-      console.error(`Failed to refresh ${listing.name}`, e);
+      console.error(`Failed to refresh listing ${listing.name}`, e);
       toast.error(`Failed to refresh ${listing.name}: ${e.message}`, { id: toastId });
     }
   };
-
   const handleDeepRefreshAllTags = async () => {
     let completedIds: string[] = [];
     try {
-      const saved = localStorage.getItem('refreshCategoriesCompletedIds');
+      const saved = localStorage.getItem('refreshDetailsCompletedIds');
       if (saved) completedIds = JSON.parse(saved);
       // clean up just in case listings were deleted
       completedIds = completedIds.filter(id => approvedListings.some(l => l.id === id));
@@ -1241,8 +1331,8 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
     const targetListings = approvedListings.filter(l => !completedIds.includes(l.id));
 
     if (targetListings.length === 0) {
-      localStorage.removeItem('refreshCategoriesCompletedIds');
-      toast.info("All listings have already been refreshed. The tracker has been reset so you can run it again if needed.");
+      localStorage.removeItem('refreshDetailsCompletedIds');
+      toast.info("All listings have already been synced. The tracker has been reset so you can run it again if needed.");
       return;
     }
 
@@ -1250,86 +1340,67 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
 
     setConfirmModal({
       isOpen: true,
-      title: isResuming ? 'Resume Refresh Categories' : 'Refresh Categories',
+      title: isResuming ? 'Resume Syncing Details' : 'Sync All Details with AI',
       message: isResuming 
-        ? `You previously paused or hit a rate limit. There are ${targetListings.length} listings remaining to update. Do you want to resume?`
-        : 'This will use the Gemini AI to search for information across Google, Uber Eats, Skip the Dishes, official websites, social media, Yelp, TripAdvisor, Google Business Profile, and reviews for ALL approved listings to double check their top-level categories (Restaurants, Mosques, Butchers, Grocery, etc) as well as their cuisines and types. This process will take a considerable amount of time. Do you want to proceed?',
-      confirmText: isResuming ? 'Resume Refresh' : 'Start Refresh',
+        ? `You previously paused or hit a limit. There are ${targetListings.length} listings remaining to update. Do you want to resume?`
+        : 'This will use the Gemini AI with Google Search grounding to search across the internet (official websites, social media, Google, Yelp, business records, etc.) to fetch the most up-to-date address, working hours, phone number, website, and email for ALL approved listings. This process will take some time due to search grounding. Do you want to proceed?',
+      confirmText: isResuming ? 'Resume Setup' : 'Start Sync',
       confirmVariant: 'primary',
       onConfirm: async () => {
         setConfirmModal(null);
         setIsBatchUpdating(true);
-        const apiKey = (process.env as any).GEMINI_API_KEY || (import.meta as any).env.VITE_GEMINI_API_KEY;
-        if (!apiKey) {
-          toast.error("API Key not found.");
-          setIsBatchUpdating(false);
-          return;
-        }
         const toastId = toast.loading(`Refreshing ${targetListings.length} listings...`);
-        const ai = new GoogleGenAI({ apiKey });
         const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-        
-        let quotaHit = false;
+        const { updateDoc, doc } = await import('firebase/firestore');
 
         try {
           for (let i = 0; i < targetListings.length; i++) {
             const listing = targetListings[i];
-            toast.loading(`Updating ${i + 1}/${targetListings.length}: ${listing.name}`, { id: toastId });
-            const prompt = `Search comprehensively for "${listing.name}" located at "${listing.address}" in Ottawa/Gatineau area using Google Search. Look at their Google Business Profile, Uber Eats, Skip The Dishes, official website, social media (Instagram/Facebook), Yelp, TripAdvisor, Wheree, and customer reviews.
-            
-Based on all this information, double check and refresh the tags for this listing:
-1. CATEGORIES: Choose exactly from ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'].
-   - Only assign 'Restaurants' if it is clearly a restaurant, cafe, bakery, or prominently serves food.
-   - For mosques, assign 'Mosques'.
-   - For grocery or butchers, only assign 'Restaurants' if they have a prominent and distinct restaurant section serving food.
-2. CUISINE: From ['Turkish', 'Middle Eastern', 'Moroccan', 'Lebanese', 'Syrian', 'Pakistani', 'Afghani', 'Indian', 'Persian', 'Chinese', 'Mediterranean', 'Thai', 'Korean', 'Italian', 'Bangladeshi', 'Mexican', 'Ethiopian'].
-3. TYPE: From ['Bakery', 'Pizza', 'Burgers', 'Cafés', 'Seafood', 'Steakhouse', 'Shawarma', 'Poutine', 'Brunch', 'Breakfast', 'Pho', 'Ramen', 'Fried Chicken', 'Buffet', 'Tacos'].
-
-Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double quotes (") inside any of your string values (use single quotes (') instead if needed) to prevent JSON parsing errors. Ensure all strings are properly escaped. Do NOT wrap the JSON in markdown blocks. Return ONLY the raw JSON string:
-{"category":["string"], "cuisine":["string"], "type":["string"]}`;
+            toast.loading(`Syncing ${i + 1}/${targetListings.length}: ${listing.name}`, { id: toastId });
             
             try {
-              const response = await generateWithRetry(ai, prompt, toastId);
-              const text = response.text || '';
-              const jsonMatch = text.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
-              if (jsonMatch) {
-                  let cleaned = jsonMatch[0];
-                  if (cleaned.startsWith('[')) cleaned = cleaned.slice(1, -1);
-                  const data = JSON.parse(cleaned);
-                  if (data.category && Array.isArray(data.category)) {
-                    const isRest = data.category.includes('Restaurants');
-                    await updateDoc(doc(db, 'listings', listing.id), {
-                      category: data.category,
-                      types: isRest && Array.isArray(data.type) ? data.type : [],
-                      cuisine: isRest && Array.isArray(data.cuisine) ? data.cuisine : []
-                    });
-                  }
+              const res = await fetch('/api/admin/fetch-listing-ai-info', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  name: listing.name,
+                  currentAddress: listing.address || '',
+                }),
+              });
+
+              if (res.ok) {
+                const data = await res.json();
+                const updates: any = {};
+
+                if (data.address && data.address !== listing.address) updates.address = data.address;
+                if (data.phoneNumber && data.phoneNumber !== listing.phoneNumber) updates.phoneNumber = data.phoneNumber;
+                if (data.openingHours && data.openingHours !== listing.openingHours) updates.openingHours = data.openingHours;
+                if (data.email && data.email !== listing.email) updates.email = data.email;
+                if (data.website && data.website !== listing.website) updates.website = data.website;
+
+                if (Object.keys(updates).length > 0) {
+                  await updateDoc(doc(db, 'listings', listing.id), updates);
+                }
               }
-              
-              // Only push to completed tracking array if no errors were thrown
+
               completedIds.push(listing.id);
-              localStorage.setItem('refreshCategoriesCompletedIds', JSON.stringify(completedIds));
+              localStorage.setItem('refreshDetailsCompletedIds', JSON.stringify(completedIds));
               
             } catch (e: any) {
               console.error(`Failed to update ${listing.name}`, e);
-              if (e instanceof Error && e.message.includes('quota')) {
-                 toast.error(`Process stopped at "${listing.name}": Auto-retry failed. You have exceeded your Gemini API quota.`, { id: toastId });
-                 quotaHit = true;
-                 break;
-              }
             }
-            if (quotaHit) break;
-            await delay(5000);
+            // Sleep 3 seconds between requests to be gentle on search grounding / API rates
+            await delay(3000);
           }
           
-          if (!quotaHit) {
-            toast.success('Refresh completed for all listings!', { id: toastId });
-            localStorage.removeItem('refreshCategoriesCompletedIds');
-          }
+          toast.success('Information sync completed for all listings!', { id: toastId });
+          localStorage.removeItem('refreshDetailsCompletedIds');
           
           fetchData();
         } catch (err) {
-          toast.error('Refresh encountered an error.', { id: toastId });
+          toast.error('Sync encountered an error.', { id: toastId });
         } finally {
           setIsBatchUpdating(false);
         }
@@ -1455,7 +1526,7 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                <button 
                  onClick={() => handleRefreshSingleListing(item)}
                  className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                 title="Refresh AI Categories"
+                 title="Autofill and Update Details via AI (Address, Phone, Hours, Email, Website)"
                >
                  <RefreshCw className="w-4 h-4" />
                </button>
@@ -1673,10 +1744,11 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
                 <button
                   onClick={handleDeepRefreshAllTags}
                   disabled={isBatchUpdating}
+                  title="Sync address, hours, phone number, website, and email online for all approved listings"
                   className="px-4 py-2.5 h-fit self-start bg-blue-50 text-blue-600 font-bold rounded-xl hover:bg-blue-100 disabled:opacity-50 transition-colors flex items-center gap-2 whitespace-nowrap text-sm border border-blue-200"
                 >
                   {isBatchUpdating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  Refresh Categories
+                  Sync Details via AI
                 </button>
               </div>
             </div>
@@ -2416,47 +2488,227 @@ Return strict JSON matching the schema below. CRITICAL: Do NOT use inner double 
               </div>
             </div>
 
-            {/* Quick Add Form with Location Support */}
-            <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100/50">
-              <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Add Custom Email Subscriber</h4>
-              <form onSubmit={handleAddCustomSubscriber} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div>
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter subscriber email..."
-                    value={newSubEmail}
-                    onChange={(e) => setNewSubEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Enter full name (optional)..."
-                    value={newSubName}
-                    onChange={(e) => setNewSubName(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Location, e.g. Ottawa, ON"
-                    value={newSubLocation}
-                    onChange={(e) => setNewSubLocation(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
-                  />
-                </div>
+            {/* Quick Add Form & Bulk Import with Location Support */}
+            <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100/50 space-y-4">
+              <div className="flex border-b border-gray-200">
                 <button
-                  type="submit"
-                  disabled={isSubmittingSub}
-                  className="px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                  type="button"
+                  onClick={() => setActiveImportMethod('single')}
+                  className={`pb-3 text-xs font-bold uppercase tracking-wider relative transition-all mr-6 cursor-pointer ${
+                    activeImportMethod === 'single'
+                      ? 'text-[#e90b35] border-b-2 border-[#e90b35]'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  {isSubmittingSub ? 'Adding...' : 'Add Subscriber'}
+                  Add Single Subscriber
                 </button>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => setActiveImportMethod('bulk')}
+                  className={`pb-3 text-xs font-bold uppercase tracking-wider relative transition-all cursor-pointer ${
+                    activeImportMethod === 'bulk'
+                      ? 'text-[#e90b35] border-b-2 border-[#e90b35]'
+                      : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Import Emails List (Bulk)
+                </button>
+              </div>
+
+              {activeImportMethod === 'single' ? (
+                <form onSubmit={handleAddCustomSubscriber} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="Enter subscriber email..."
+                      value={newSubEmail}
+                      onChange={(e) => setNewSubEmail(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Full Name (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="Enter full name (optional)..."
+                      value={newSubName}
+                      onChange={(e) => setNewSubName(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Location</label>
+                    <input
+                      type="text"
+                      placeholder="Location, e.g. Ottawa, ON"
+                      value={newSubLocation}
+                      onChange={(e) => setNewSubLocation(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35] transition-all"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      type="submit"
+                      disabled={isSubmittingSub}
+                      className="w-full px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {isSubmittingSub ? 'Adding...' : 'Add Subscriber'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Drag and Drop with fallback click */}
+                    <div
+                      onDragEnter={handleDrag}
+                      onDragOver={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all ${
+                        dragActive 
+                          ? 'border-[#e90b35] bg-[#e90b35]/5' 
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <Upload className={`w-8 h-8 mb-2 ${dragActive ? 'text-[#e90b35]' : 'text-gray-400'}`} />
+                      <p className="text-xs font-bold text-gray-700">Drag and drop your subscriber list here</p>
+                      <p className="text-[10px] text-gray-400 mt-1 mb-3">Accepts .csv or .txt files</p>
+                      
+                      <label className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl text-[11px] transition-all cursor-pointer">
+                        Choose File
+                        <input
+                          type="file"
+                          accept=".csv,.txt"
+                          onChange={handleFileChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Clipboard Paste Box */}
+                    <div className="flex flex-col">
+                      <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Or Paste Raw Subscriber Lists</label>
+                      <textarea
+                        value={bulkInputText}
+                        onChange={(e) => {
+                          setBulkInputText(e.target.value);
+                          parseSubscribersText(e.target.value);
+                        }}
+                        placeholder="one_subscriber@domain.com, John Doe, Ottawa, ON&#10;another_sub@domain.com, Jane Smith&#10;third_subscriber@ottawa.ca"
+                        className="w-full flex-1 min-h-[140px] p-3 text-xs bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#e90b35]/20 focus:border-[#e90b35]"
+                      />
+                      <p className="text-[9px] text-gray-400 mt-1.5">
+                        Formats: <strong>email</strong>, <strong>name</strong>, <strong>location</strong> (one per line, comma or semicolon separated).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* CSV / Live Upload Preview Grid */}
+                  {parsedSubscribers.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-gray-100/80 p-4 space-y-3">
+                      <div className="flex justify-between items-center border-b border-gray-150 pb-2">
+                        <div>
+                          <h5 className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">Loaded Elements Preview</h5>
+                          <p className="text-[10px] text-gray-500">Review list rows status before batch upload</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkInputText('');
+                            setParsedSubscribers([]);
+                          }}
+                          className="text-[10px] font-semibold text-gray-400 hover:text-gray-600 flex items-center gap-1 cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" /> Clear Preview
+                        </button>
+                      </div>
+
+                      {/* Bulk Analysis Info */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs text-slate-800">
+                        <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
+                          <span className="text-gray-400 block text-[9px] font-bold uppercase">Total Checked</span>
+                          <span className="font-extrabold text-gray-800 text-sm mt-0.5 block">{parsedSubscribers.length}</span>
+                        </div>
+                        <div className="bg-green-50/50 p-2 rounded-xl border border-green-100/30">
+                          <span className="text-green-600 block text-[9px] font-bold uppercase">Ready to Import</span>
+                          <span className="font-extrabold text-green-700 text-sm mt-0.5 block">
+                            {parsedSubscribers.filter(s => s.status === 'valid').length}
+                          </span>
+                        </div>
+                        <div className="bg-yellow-50/50 p-2 rounded-xl border border-yellow-100/30">
+                          <span className="text-yellow-600 block text-[9px] font-bold uppercase">Skipping / Existing</span>
+                          <span className="font-extrabold text-yellow-700 text-sm mt-0.5 block">
+                            {parsedSubscribers.filter(s => s.status === 'exists').length}
+                          </span>
+                        </div>
+                        <div className="bg-rose-50/50 p-2 rounded-xl border border-rose-100/30">
+                          <span className="text-rose-600 block text-[9px] font-bold uppercase">Invalid / Dups</span>
+                          <span className="font-extrabold text-rose-700 text-sm mt-0.5 block">
+                            {parsedSubscribers.filter(s => s.status === 'invalid' || s.status === 'duplicate').length}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Display Preview list */}
+                      <div className="overflow-x-auto max-h-[180px] overflow-y-auto border border-gray-50 rounded-xl">
+                        <table className="w-full text-left text-[11px] text-slate-700">
+                          <thead className="bg-gray-50 text-gray-500 uppercase tracking-wider text-[9px] sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2">No.</th>
+                              <th className="px-3 py-2">Email</th>
+                              <th className="px-3 py-2">Default Name</th>
+                              <th className="px-3 py-2">Location</th>
+                              <th className="px-3 py-2">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {parsedSubscribers.map((item, index) => {
+                              const statusStyles = {
+                                valid: 'bg-green-100 text-green-800 border border-green-200/50',
+                                invalid: 'bg-red-100 text-red-800 border border-red-200/50',
+                                duplicate: 'bg-orange-100 text-orange-800 border border-orange-200/50',
+                                exists: 'bg-yellow-100 text-yellow-800 border border-yellow-200/50'
+                              }[item.status];
+
+                              return (
+                                <tr key={index} className="hover:bg-gray-50/60 font-medium">
+                                  <td className="px-3 py-2 text-gray-400">{index + 1}</td>
+                                  <td className="px-3 py-2 text-gray-800 font-bold">{item.email}</td>
+                                  <td className="px-3 py-2 text-gray-505">{item.name}</td>
+                                  <td className="px-3 py-2 text-gray-505">{item.location}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${statusStyles}`}>
+                                      {item.status === 'valid' ? 'Ready' : (item.errorMsg || item.status)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          type="button"
+                          disabled={isImportingEmails || parsedSubscribers.filter(s => s.status === 'valid').length === 0}
+                          onClick={handleExecuteBulkImport}
+                          className="px-5 py-2.5 bg-[#e90b35] hover:bg-[#d00a30] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl shadow-sm shadow-[#e90b35]/10 flex items-center gap-2 transition-all cursor-pointer"
+                        >
+                          <Check className="w-4 h-4" />
+                          {isImportingEmails 
+                            ? `Importing (${emailImportProgress.current}/${emailImportProgress.total})...` 
+                            : `Import ${parsedSubscribers.filter(s => s.status === 'valid').length} New Subscribers`}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Filtering Dashboard */}

@@ -363,7 +363,7 @@ export const Profile: React.FC = () => {
                         <div className="flex items-center gap-3 mb-4">
                           <div className="w-10 h-10 aspect-square rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
                             {listing.photos && listing.photos[0] ? (
-                              <img src={(listing.photos[0]) || undefined} alt={listing.name || "Listing photo"} className="w-full h-full object-cover" crossOrigin="anonymous" />
+                              <img src={(listing.photos[0]) || undefined} alt={listing.name || "Listing photo"} className="w-full h-full object-cover" />
                             ) : (
                               <Activity className="w-5 h-5 text-gray-400" />
                             )}

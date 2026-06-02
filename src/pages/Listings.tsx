@@ -9,7 +9,7 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
@@ -179,24 +179,79 @@ export const Listings: React.FC = () => {
         title="Listings" 
         description="Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community." 
         canonicalUrl="https://www.halalottawa.ca/listings" 
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Listings",
-              "item": "https://www.halalottawa.ca/listings"
-            }
-          ]
-        }}
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Listings",
+                "item": "https://www.halalottawa.ca/listings"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            "name": "All Halal Listings in Ottawa",
+            "description": "Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community.",
+            "url": "https://www.halalottawa.ca/listings",
+            "numberOfItems": currentListings.length,
+            "itemListElement": currentListings.map((listing, index) => {
+              const cat = Array.isArray(listing.category) && listing.category.length > 0 
+                ? listing.category[0] 
+                : (typeof listing.category === 'string' ? listing.category : 'listings');
+              
+              const listingType = (() => {
+                switch(cat) {
+                  case 'Restaurants': return 'Restaurant';
+                  case 'Mosques': return 'PlaceOfWorship';
+                  case 'Grocery': return 'GroceryStore';
+                  case 'Clothing': return 'ClothingStore';
+                  case 'Schools': return 'School';
+                  case 'Organizations': return 'Organization';
+                  case 'Butchers': return 'FoodEstablishment';
+                  default: return 'LocalBusiness';
+                }
+              })();
+
+              return {
+                "@type": "ListItem",
+                "position": index + 1,
+                "item": {
+                  "@type": listingType,
+                  "name": listing.name,
+                  "description": listing.description || `Read reviews and get details for ${listing.name} in Ottawa.`,
+                  "url": getAbsoluteUrl(getListingUrl(listing)),
+                  "image": listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined,
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": listing.address,
+                    "addressLocality": "Ottawa",
+                    "addressRegion": "ON",
+                    "addressCountry": "CA"
+                  },
+                  "telephone": listing.phoneNumber || undefined,
+                  ...(listing.reviewCount && listing.reviewCount > 0 ? {
+                    "aggregateRating": {
+                      "@type": "AggregateRating",
+                      "ratingValue": listing.averageRating || 5,
+                      "reviewCount": listing.reviewCount
+                    }
+                  } : {})
+                }
+              };
+            })
+          }
+        ]}
       />
 
       <AdDisplay />
