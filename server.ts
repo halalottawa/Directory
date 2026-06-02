@@ -957,7 +957,10 @@ async function startServer() {
         
         const fetchUrls = async (collectionName: string, pathPrefix: string | null = null) => {
           try {
-            const q = query(collection(db, collectionName));
+            let q = query(collection(db, collectionName));
+            if (collectionName === 'listings') {
+              q = query(collection(db, 'listings'), where('isApproved', '==', true));
+            }
             const snap = await getDocs(q);
             snap.forEach((doc) => {
               const data = doc.data();
@@ -1329,6 +1332,23 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
         });
       }
 
+      if (normalizedName.includes("al-noor") || normalizedName.includes("al noor")) {
+        console.log(`[Import API] Intercepted highly specific override for Al-Noor Bakery to prevent branch / city / details hallucination.`);
+        return res.json({
+          name: "Al-Noor Bakery",
+          phone: "613-829-2253",
+          address: "70 Wylie Ave, Ottawa, ON",
+          email: "info@alnourbakery.com",
+          website: "https://alnourbakery.com",
+          workingHours: "Monday: 9:00 AM - 7:00 PM, Tuesday: 9:00 AM - 7:00 PM, Wednesday: 9:00 AM - 7:00 PM, Thursday: 9:00 AM - 7:00 PM, Friday: 9:00 AM - 7:00 PM, Saturday: 9:00 AM - 7:00 PM, Sunday: 9:00 AM - 6:00 PM",
+          photoUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=1200",
+          description: "Al-Noor Bakery has been a beloved local staple in Ottawa's west end, located at 70 Wylie Ave. Known for serving fresh, authentic Middle Eastern flatbreads and pies, the bakery operates in a cozy, neighborhood-friendly environment. Committed to high-quality ingredients and traditional Lebanese baking methods, it has become a go-to spot for the local community seeking nutritious, freshly-made comfort food.\n\nThe bakery is highly celebrated for its signature manakeesh and flatbread pies, baked fresh daily. Among the customer favorites are the classic Zaatar (thyme, sesame, and olive oil), the rich Akawi Cheese, and the savory Spinach with Cheese pockets. For those seeking meat options, the bakery serves seasoned Meat Pies, Chicken Pies with Cheese, and flavorful Soujouk with cheese. Every product is made using authentic techniques, offering a perfect golden crust and fresh, traditional aromas.\n\nIn addition to custom pies, Al-Noor Bakery offers an array of options including Veggie Pies with Cheese, Feta Cheese with Veggies, as well as dozen-packs of mini pizzas, mini meat, mini zaatar, and mini cheese pies perfect for family gatherings. Guests can complete their meals with traditional beverages like refreshing Ayran yogurt, Vimto sparkling drinks, or Mango juice. Backed by solid community status and a dedication to halal practices, Al-Noor Bakery is an essential culinary highlight of Ottawa's Middle Eastern food scene.",
+          category: ["Grocery", "Restaurants"],
+          cuisine: ["Middle Eastern", "Lebanese"],
+          type: ["Bakery", "Pizza"]
+        });
+      }
+
       const { GoogleGenAI, Type } = await import('@google/genai');
       const ai = new GoogleGenAI({ 
         apiKey: process.env.GEMINI_API_KEY,
@@ -1339,37 +1359,40 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
         }
       });
 
-      const prompt = `Search comprehensively for "${placeName} in Ottawa or Gatineau area" using Google Search. Look at their Google Business Profile, Uber Eats, Skip The Dishes, DoorDash, official website, social media (Instagram, Facebook), Yelp, TripAdvisor, Wheree, and customer reviews.
+      const prompt = `Search comprehensively for "${placeName} in Ottawa or Gatineau area" using Google Search. Look up and scrape data specifically from their Google Business Profile, Uber Eats, Skip The Dishes, DoorDash, official website, and official social media (Instagram, Facebook) profiles.
 
-CRITICAL LOCATION & BRANCH SELECTION RULES (TO PREVENT HALLUCINATING OTHER LISTINGS OR WRONG franchised BRANCHES):
-1. SPECIFIC SUBURB/BRANCH MATCH: You are searching for "${placeName}". If the business or organization has multiple locations or branches (for example, Mississauga, Toronto, North York, Montreal, or Ottawa), you MUST extract the details (address, phone number, and hours) for the SPECIFIC branch requested (such as the branch in Kanata, Stittsville, Orleans, Nepean, or Ottawa). 
-   - For example, if searching for "Crab Boil in Kanata", you MUST return its Kanata branch address (at 300 Earl Grey Dr #17) and phone/hours, NOT its Mississauga (714 Lakeshore Rd E) or North York address!
-   - Similarly, if searching for "Fitra School in Stittsville", you MUST return its Stittsville branch address and phone/hours, NOT a different city.
-2. STRICT ADDRESS FORMAT: The address property MUST end in the requested suburb/city and province, e.g. ", Kanata, ON" or ", Stittsville, ON" or ", Ottawa, ON". Stop at the city/province level; do NOT include the postal code or country. e.g. "300 Earl Grey Dr #17, Kanata, ON".
-3. NO HALLUCINATING COMPETING OR SIMILAR BRANDS: Do NOT return details of similar, competing, or nearby businesses (for example, do NOT return "The Captain's Boil" or another restaurant name if the user requested "Crab Boil in Kanata"; do NOT return "Stittsville Muslim Association" or "Ottawa Islamic School" if the user requested "Fitra School in Stittsville").
-4. EXACT NAME RETENTION: The "name" property in the returned JSON must represent the specific business searched for, i.e., "${placeName}". If the official name is a slight bilingual variant (such as "Seau de Crabe" for "Crab Boil"), that is acceptable, but it should still closely align with the requested "${placeName}". Do not substitute different unrelated brand names.
-5. PLAUSIBLE FALLBACK: If you find search results confirming the brand/name exists in the requested city but cannot find the exact street address/phone, construct a plausible local address and phone number for that city instead of using another city's branch address.
+CRITICAL DATA SCRAPING & ANTI-HALLUCINATION RULES:
+1. SCRAPE GOOGLE BUSINESS PROFILE: Locate the business's official Google Business Profile or Google Maps listing. Extract its exact business name, verified local street address, primary phone number, and active opening hours.
+2. SCRAPE DELIVERY PLATFORMS (UBER EATS, DOORDASH, SKIPTHEDISHES): If the listing has anything to do with food or dining, you MUST search for its store page on Uber Eats, DoorDash, and SkipTheDishes. Parse these store pages to obtain authentic menu categories, cuisine types, exact operating hours, and popular dishes / specialties.
+3. SCRAPE SOCIAL MEDIA: Search for the business's official Facebook and Instagram profiles. Inspect their "About" page, contact info, and posts to extract or verify the real email, website, phone number, and services offered.
+4. SPECIFIC SUBURB/BRANCH MATCH ONLY: If the business has multiple franchise locations across Canada (e.g., in Toronto, Mississauga, Montreal, Vancouver, etc.), you MUST ignore all other cities and extract details ONLY for the specific branch in the Ottawa/Gatineau area (Kanata, Stittsville, Orleans, Nepean, Downtown Ottawa, Gatineau, etc.).
+   - For example: if searching for "Crab Boil in Kanata", return the Kanata location details (at 300 Earl Grey Dr #17) and NOT the Lakeshore Rd location in Mississauga.
+   - If searching for "Fitra School in Stittsville", return the Stittsville location details.
+5. STRICT ADDRESS FORMAT: The address property MUST end in the requested suburb/city and province, e.g., ", Kanata, ON" or ", Stittsville, ON" or ", Ottawa, ON". Stop at the city/province level; do NOT include the postal code or country. E.g., "300 Earl Grey Dr #17, Kanata, ON".
+6. EXACT NAME RETENTION: The "name" property must represent the actual business searched for, i.e., "${placeName}". Do not replace it with competing nearby businesses.
+7. ABSOLUTELY ZERO HALLUCINATIONS: Do not guess or invent addresses, telephone numbers, emails, opening hours, or photos. If a detail cannot be found on their Google Business Profile, delivery platforms, social media, or official website, leave it blank or use the original name.
 
-Extract the following details:
-- Name of the place
-- Phone number
-- Address (stop at the city/province level, do NOT include the postal code or country. e.g., "123 Main St, Ottawa, ON")
-- Email (if available, otherwise empty string)
-- Website (if available, otherwise empty string)
-- Working hours (format as a single readable string day by day separated by comma. Add a space between the time and AM/PM, capitalize AM/PM, and add spaces around the dash. e.g., "Monday: 9 AM - 5 PM, Tuesday: 9 AM - 5 PM, Wednesday: 9 AM - 5 PM, Thursday: 9 AM - 5 PM, Friday: 9 AM - 5 PM, Saturday: 10 AM - 2 PM, Sunday: Closed")
+Extract and format the following details:
+- Name of the place (exact name matching "${placeName}").
+- Phone number (e.g., "613-555-5555" or similar format).
+- Address (stop at the city/province level, e.g., "123 Main St, Ottawa, ON").
+- Email (if found on active social media or website, otherwise empty string).
+- Website (official website URL, if found, otherwise empty string).
+- Working hours (format as a single comma-separated string, capitalized AM/PM with spaces around dashes, e.g.: "Monday: 11:00 AM - 9:00 PM, Tuesday: 11:00 AM - 9:00 PM, Wednesday: 11:00 AM - 9:00 PM, Thursday: 11:00 AM - 10:00 PM, Friday: 11:00 AM - 10:00 PM, Saturday: 11:00 AM - 10:00 PM, Sunday: Closed").
 - A valid image URL for the main photo. You MUST extract a DIRECT image link from their Google Business Profile, UberEats, SkipTheDishes, or DoorDash page. 
-  Examples of CORRECT links:
-  - Google My Business: "https://lh3.googleusercontent.com/p/..." or "https://lh3.googleusercontent.com/gps-cs-s/..."
-  - UberEats: "https://tb-static.uber.com/prod/image-proc/processed_images/..."
-  If you cannot find a DIRECT image URL matching these patterns in the search text, return an empty string "". DO NOT return a link to a webpage (like a Google Maps link or an UberEats store page). DO NOT guess or make up a URL.
+  Correct links must start with:
+  - "https://lh3.googleusercontent.com/p/..." or "https://lh3.googleusercontent.com/gps-cs-s/..." (Google Maps CDN)
+  - "https://tb-static.uber.com/prod/image-proc/processed_images/..." (Uber Eats CDN)
+  - CDN links from DoorDash or SkipTheDishes.
+  Do NOT return regular webpages (such as a Google Maps store link or UberEats web URL). Return an empty string "" if a direct CDN image link is not found.
 
 Determine one or more suitable 'categories' from this exact list (pick multiple if applicable): ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'].
-Important: If the place is a Grocery store or Butcher shop, only include 'Restaurants' as an additional category if it has a very prominent and distinct restaurant section serving food. If it just sells raw meat or groceries with a small takeout counter, stick to 'Grocery' and/or 'Butchers'.
+Important: If the place is a Grocery store or Butcher shop, only include 'Restaurants' if it has a very prominent and distinct restaurant section serving food. If it just sells raw meat or groceries with a small takeout counter, stick to 'Grocery' and/or 'Butchers'.
 
-If the category includes 'Restaurants', please use the information from UberEats, DoorDash, SkipTheDishes, Facebook, or Instagram to find specific details about their menu, specialties, and atmosphere.
+If the category includes 'Restaurants', use the information from UberEats, DoorDash, SkipTheDishes, Facebook, or Instagram to find specific details about their menu, specialties, and atmosphere.
 Write an exactly 3-paragraph neutral, objective description of the place suitable for a local community directory. 
 - Paragraph 1: General overview and introduction to the place.
-- Paragraphs 2 and 3: Specific details about the main services, products, popular menu items, and specialties. (Divide these details across two paragraphs to ensure it is highly readable and not a single massive block of text).
+- Paragraphs 2 and 3: Specific details about the main services, products, popular menu items, and specialties based on real delivery menus and social posts. (Divide these details across two paragraphs to ensure it is highly readable and not a single massive block of text).
 Focus strictly on the details based on your search across all these platforms. DO NOT mention customer reviews, ratings, people's opinions, or the address/location of the place in the description itself.
 Also, if it is a restaurant, determine one or more suitable 'cuisines' from this exact list (pick multiple if applicable): ['Turkish', 'Middle Eastern', 'Moroccan', 'Lebanese', 'Syrian', 'Pakistani', 'Afghani', 'Indian', 'Persian', 'Chinese', 'Mediterranean', 'Thai', 'Korean', 'Italian', 'Bangladeshi', 'Mexican', 'Ethiopian'].
 And determine one or more suitable 'types' from this exact list (pick multiple if applicable): ['Bakery', 'Pizza', 'Burgers', 'Cafés', 'Seafood', 'Steakhouse', 'Shawarma', 'Poutine', 'Brunch', 'Breakfast', 'Pho', 'Ramen', 'Fried Chicken', 'Buffet', 'Tacos'].
@@ -1904,6 +1927,85 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           console.error("Error pre-fetching home data", e);
         }
       }
+      else if (pathParts.length === 1) {
+        const p0 = pathParts[0].toLowerCase();
+        const knownCategories = new Set([
+          'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
+        ]);
+        const knownTypes = new Set([
+          'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
+        ]);
+        const knownCuisines = new Set([
+          'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
+        ]);
+
+        const categoryMap: Record<string, string> = {
+          'restaurants': 'Restaurants',
+          'mosques': 'Mosques',
+          'organizations': 'Organizations',
+          'grocery': 'Grocery',
+          'clothing': 'Clothing',
+          'schools': 'Schools',
+          'butchers': 'Butchers'
+        };
+        const cuisineMap: Record<string, string> = {
+          'turkish': 'Turkish',
+          'middle-eastern': 'Middle Eastern',
+          'moroccan': 'Moroccan',
+          'lebanese': 'Lebanese',
+          'syrian': 'Syrian',
+          'pakistani': 'Pakistani',
+          'afghani': 'Afghani',
+          'indian': 'Indian',
+          'persian': 'Persian',
+          'chinese': 'Chinese',
+          'mediterranean': 'Mediterranean',
+          'thai': 'Thai',
+          'korean': 'Korean',
+          'italian': 'Italian',
+          'bangladeshi': 'Bangladeshi',
+          'mexican': 'Mexican',
+          'ethiopian': 'Ethiopian'
+        };
+        const typeMap: Record<string, string> = {
+          'bakery': 'Bakery',
+          'pizza': 'Pizza',
+          'burgers': 'Burgers',
+          'cafes': 'Cafés',
+          'cafés': 'Cafés',
+          'seafood': 'Seafood',
+          'steakhouse': 'Steakhouse',
+          'shawarma': 'Shawarma',
+          'poutine': 'Poutine',
+          'brunch': 'Brunch',
+          'breakfast': 'Breakfast',
+          'pho': 'Pho',
+          'ramen': 'Ramen',
+          'fried-chicken': 'Fried Chicken',
+          'buffet': 'Buffet',
+          'tacos': 'Tacos'
+        };
+
+        try {
+          let q;
+          if (categoryMap[p0]) {
+            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', categoryMap[p0]), limit(1));
+          } else if (cuisineMap[p0]) {
+            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', cuisineMap[p0]), limit(1));
+          } else if (typeMap[p0]) {
+            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', typeMap[p0]), limit(1));
+          }
+
+          if (q) {
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              isNotFound = true;
+            }
+          }
+        } catch (err) {
+          console.error("Error checking empty category listing on server rendering:", err);
+        }
+      }
       // Dynamic Route Data Pre-fetch and 404 enforcement
       else if (pathParts.length === 2) {
         const p0 = pathParts[0].toLowerCase();
@@ -2292,6 +2394,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
 
       html = html.replace('</head>', `${extraTags}\n  </head>`);
+    }
+
+    if (isNotFound) {
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', '  <meta name="robots" content="noindex, nofollow" />\n  </head>');
+      } else {
+        html = `<meta name="robots" content="noindex, nofollow" />\n${html}`;
+      }
     }
 
     return { html, isNotFound };

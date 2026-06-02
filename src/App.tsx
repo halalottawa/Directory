@@ -1,9 +1,11 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { isAppWrapper } from './utils/platform';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 
 // Lazy load pages
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -47,6 +49,24 @@ import { Toaster } from 'sonner';
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.faviconUrl) {
+          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+          if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.getElementsByTagName('head')[0].appendChild(link);
+          }
+          link.href = data.faviconUrl;
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   if (loading) {
     return (

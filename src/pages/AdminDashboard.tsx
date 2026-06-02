@@ -73,6 +73,8 @@ export const AdminDashboard: React.FC = () => {
   // Settings states
   const [siteLogoUrl, setSiteLogoUrl] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
+  const [faviconUrl, setFaviconUrl] = useState('');
+  const [isFaviconUploading, setIsFaviconUploading] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [isCoverUploading, setIsCoverUploading] = useState(false);
   const [isPushImageUploading, setIsPushImageUploading] = useState(false);
@@ -165,6 +167,7 @@ export const AdminDashboard: React.FC = () => {
         const settingsData = settingsSnap.data();
         if (settingsData.logoUrl) setSiteLogoUrl(settingsData.logoUrl);
         if (settingsData.coverImageUrl) setCoverImageUrl(settingsData.coverImageUrl);
+        if (settingsData.faviconUrl) setFaviconUrl(settingsData.faviconUrl);
       }
 
       setPendingListings(listings.filter(i => !i.isApproved));
@@ -247,6 +250,23 @@ export const AdminDashboard: React.FC = () => {
       console.error(error);
     } finally {
       setIsCoverUploading(false);
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setIsFaviconUploading(true);
+    try {
+      const url = await uploadFile(file, 'settings', 'favicon');
+      await setDoc(doc(db, 'settings', 'general'), { faviconUrl: url }, { merge: true });
+      setFaviconUrl(url);
+      toast.success('Site favicon updated successfully.');
+    } catch (error: any) {
+      toast.error('Error: ' + (error?.message || String(error)));
+      console.error(error);
+    } finally {
+      setIsFaviconUploading(false);
     }
   };
 
@@ -1791,27 +1811,27 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-1">Global Listing Cover Image</h3>
-                <p className="text-xs text-gray-500 mb-4">Upload a cover image used for all single listings pages.</p>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Site Favicon</h3>
+                <p className="text-xs text-gray-500 mb-4">Upload a favicon (ico/png) to display in the browser tab.</p>
                 <div className="flex items-center gap-4">
-                  {coverImageUrl ? (
-                    <div className="w-32 h-20 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
-                      <img src={coverImageUrl} alt="Global Cover" className="w-full h-full object-cover" />
+                  {faviconUrl ? (
+                    <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-center">
+                      <img src={faviconUrl} alt="Site Favicon" className="max-w-full max-h-full object-contain" />
                     </div>
                   ) : (
-                    <div className="w-32 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
-                      <span className="text-xs">No Cover</span>
+                    <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
+                      <span className="text-xs">No Icon</span>
                     </div>
                   )}
                   <div>
                     <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
-                      {isCoverUploading ? 'Uploading...' : 'Upload Cover'}
+                      {isFaviconUploading ? 'Uploading...' : 'Upload Favicon'}
                       <input 
                         type="file" 
                         accept="image/*" 
-                        onChange={handleCoverUpload} 
+                        onChange={handleFaviconUpload} 
                         className="hidden" 
-                        disabled={isCoverUploading} 
+                        disabled={isFaviconUploading} 
                       />
                     </label>
                   </div>
