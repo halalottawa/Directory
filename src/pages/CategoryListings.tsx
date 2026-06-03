@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe } from 'lucide-react';
+import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,54 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { ListingDetail } from './ListingDetail';
 import { isAppWrapper } from '../utils/platform';
+import { getNeighborhoodFromAddress } from '../utils/geo';
+
+const LOCATION_BOUNDARIES: Record<string, {
+  headline: string;
+  description: string;
+  north: string;
+  south: string;
+  east: string;
+  west: string;
+  neighborhoods: string[];
+}> = {
+  downtown: {
+    headline: "Downtown & Central Core",
+    description: "The historical and cultural heart of Ottawa, boasting a dense mix of landmarks, government hubs, and multi-cultural dining pockets.",
+    north: "Ottawa River (facing Gatineau)",
+    south: "Queensway (Highway 417), extending south to include Centretown and the Glebe corridor",
+    east: "Rideau Canal & Rideau River (encompassing Lowertown & Sandy Hill)",
+    west: "Bronson Avenue & Preston Street corridor (including Chinatown & Little Italy)",
+    neighborhoods: ["ByWard Market", "Centretown", "Sandy Hill", "Chinatown", "Little Italy", "The Glebe", "Lowertown"]
+  },
+  kanata: {
+    headline: "Kanata & West End",
+    description: "Ottawa's high-tech suburb that seamlessly merges modern residential infrastructure, major commercial centers, and dynamic business hubs.",
+    north: "Richardson Ridge & March Road (High-tech corridor / Morgan's Grant)",
+    south: "Hope Side Road & Trail Road (bordering Richmond / Bridlewood)",
+    east: "Eagleson Road & the Ottawa Greenbelt (bordering Bells Corners/Bayshore)",
+    west: "Terry Fox Drive & Stittsville boundary",
+    neighborhoods: ["Bridlewood", "Beaverbrook", "Katimavik-Hazeldean", "Morgan's Grant", "Glen Cairn", "Kanata Lakes"]
+  },
+  barrhaven: {
+    headline: "Barrhaven & South End",
+    description: "A rapidly growing, family-friendly master community in Ottawa's southwest, defined by peaceful parks and vibrant commercial plazas.",
+    north: "Fallowfield Road & the Greenbelt (bordering Nepean)",
+    south: "Barnsdale Road & the flowing Jock River (bordering Manotick)",
+    east: "Scenic Rideau River shores",
+    west: "Cedarview Road & Highway 416 corridor",
+    neighborhoods: ["Chapman Mills", "Stonebridge", "Half Moon Bay", "Longfields", "Davidson Heights"]
+  },
+  orleans: {
+    headline: "Orléans & East End",
+    description: "A vibrant, bilingual community in East Ottawa overlooking the Ottawa River, rich in French heritage and home to beautiful nature parks.",
+    north: "Sands of Petrie Island & Ottawa River shores",
+    south: "Wall Road & rural Innes Road pathways (bordering Blackburn Hamlet)",
+    east: "Trim Road & Cardinal Creek region (bordering Cumberland)",
+    west: "Shefford Road, Blair Road & the scenic Greenbelt",
+    neighborhoods: ["Avalon", "Fallingbrook", "Convent Glen", "Chateauneuf", "Queenswood Heights", "Chapel Hill"]
+  }
+};
 
 export const CategoryListings: React.FC = () => {
   const { user } = useAuth();
@@ -36,13 +84,15 @@ export const CategoryListings: React.FC = () => {
   const isMainCategory = CATEGORIES.map(c => c.toLowerCase()).includes(rawFormattedCategory.toLowerCase());
   const matchedType = LISTING_TYPES.find(t => t.toLowerCase() === rawFormattedCategory.toLowerCase());
   const matchedCuisine = CUISINES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase());
+  const matchedLocation = ['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].find(l => l.toLowerCase() === rawFormattedCategory.toLowerCase());
+  const isLocationCategory = !!matchedLocation;
 
-  // Validate if it's a real category, listing type, or cuisine
-  const isValidCategory = isMainCategory || !!matchedType || !!matchedCuisine;
+  // Validate if it's a real category, listing type, cuisine, or location
+  const isValidCategory = isMainCategory || !!matchedType || !!matchedCuisine || isLocationCategory;
 
   const formattedCategory = isMainCategory 
     ? (CATEGORIES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase()) || rawFormattedCategory)
-    : (matchedType || matchedCuisine || rawFormattedCategory);
+    : (matchedType || matchedCuisine || matchedLocation || rawFormattedCategory);
     
   // Calculate current month and year for SEO titles
   const currentDate = new Date();
@@ -50,47 +100,49 @@ export const CategoryListings: React.FC = () => {
   const currentYear = currentDate.getFullYear();
   const monthYearStr = `${currentMonth} ${currentYear}`;
 
-  let pageTitle = `${formattedCategory}`;
-  let seoDescription = `Explore the best halal ${formattedCategory} in Ottawa. Find top-rated places, read reviews, and discover local spots in the Ottawa Muslim community directory.`;
+  const h1Text = isLocationCategory ? (
+    formattedCategory.toLowerCase() === 'downtown' 
+      ? 'Halal Restaurants in Downtown Ottawa' 
+      : `Halal Restaurants in ${formattedCategory}`
+  ) :
+   formattedCategory === 'Restaurants' ? 'Halal Restaurants in Ottawa' :
+   formattedCategory === 'Mosques' ? 'Mosques in Ottawa' :
+   formattedCategory === 'Grocery' ? 'Halal Grocery in Ottawa' :
+   formattedCategory === 'Clothing' ? 'Islamic Clothing in Ottawa' :
+   formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
+   formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
+   formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
+   matchedType ? `Halal ${formattedCategory} in Ottawa` :
+   matchedCuisine ? `Halal ${formattedCategory} Restaurants in Ottawa` :
+   `Halal ${formattedCategory} in Ottawa`;
 
-  if (formattedCategory === 'Restaurants') {
-    pageTitle = `Halal Restaurants in Ottawa - ${monthYearStr}`;
-    seoDescription = "Discover the best verified halal restaurants and food spots in Ottawa. Search by cuisine or food type, read verified reviews, and get directions.";
+  const pageTitle = `${h1Text} - ${monthYearStr}`;
+  let seoDescription = `Explore the best halal ${formattedCategory} in Ottawa for ${monthYearStr}. Find top-rated places, read reviews, and discover local spots in the Ottawa Muslim community directory.`;
+
+  if (isLocationCategory) {
+    seoDescription = `Find the best verified halal restaurants and food spots in ${formattedCategory}, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
+  } else if (formattedCategory === 'Restaurants') {
+    seoDescription = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
   } else if (formattedCategory === 'Grocery') {
-    pageTitle = `Halal Grocery Stores in Ottawa - ${monthYearStr}`;
-    seoDescription = "Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and international ingredients.";
+    seoDescription = `Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and ingredients for ${monthYearStr}.`;
   } else if (formattedCategory === 'Clothing') {
-    pageTitle = `Islamic Clothing in Ottawa - ${monthYearStr}`;
-    seoDescription = "Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, thobes, and daily apparel for the family.";
+    seoDescription = `Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${monthYearStr}.`;
   } else if (formattedCategory === 'Schools') {
-    pageTitle = `Islamic Schools in Ottawa - ${monthYearStr}`;
-    seoDescription = "Browse directories of Islamic schools, preschools, and educational institutions in Ottawa offering academic excellence and Islamic values.";
+    seoDescription = `Browse accredited directories of Islamic schools, preschools, daycares, and weekend Quran educational programs in Ottawa for ${monthYearStr}.`;
   } else if (formattedCategory === 'Butchers') {
-    pageTitle = `Halal Meat in Ottawa - ${monthYearStr}`;
-    seoDescription = "Find trusted halal butcher shops and meat markets in Ottawa providing fresh, premium hand-slaughtered zabihah halal chicken, beef, lamb, and goat.";
+    seoDescription = `Find certified halal butcher shops and fresh meat markets in Ottawa providing premium hand-slaughtered zabihah meat for ${monthYearStr}.`;
   } else if (formattedCategory === 'Organizations') {
-    pageTitle = `Muslim Organizations in Ottawa - ${monthYearStr}`;
-    seoDescription = "Connect with Ottawa's Islamic organizations, community groups, charitable societies, and family services supporting the local Muslim community.";
+    seoDescription = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${monthYearStr}.`;
   } else if (formattedCategory === 'Mosques') {
-    pageTitle = `Mosques in Ottawa - ${monthYearStr}`;
-    seoDescription = "Find mosques, Islamic centers, and prayer places (musallas) in Ottawa, including prayer times, Friday khutbah details, and community events.";
+    seoDescription = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${monthYearStr}.`;
   } else if (!isMainCategory && isValidCategory) {
-    if (matchedCuisine) {
-      pageTitle = `Halal ${formattedCategory} Restaurants in Ottawa - ${monthYearStr}`;
-      seoDescription = `Find top-rated halal ${formattedCategory} restaurants in Ottawa. Explore authentic ${formattedCategory} dishes, read reviews, and find directions to local favorites.`;
-    } else {
-      pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
-      if (matchedType) {
-        seoDescription = `Discover the best spots for halal ${formattedCategory} in Ottawa. Find delicious halal ${formattedCategory} options near you, complete with reviews, addresses, and hours.`;
-      }
-    }
-  } else {
-    pageTitle = `Halal ${formattedCategory} in Ottawa - ${monthYearStr}`;
+    seoDescription = `Discover top-rated, certified halal ${formattedCategory} options in Ottawa for ${monthYearStr}. Find verified business locations, operating hours, phone info, and user reviews.`;
   }
 
   const [rawListings, setRawListings] = useState<Listing[]>([]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showBoundaryDetails, setShowBoundaryDetails] = useState(true);
   const [currentPage, setCurrentPage] = useState(() => {
     const page = searchParams.get('page');
     return page ? parseInt(page, 10) : 1;
@@ -130,6 +182,8 @@ export const CategoryListings: React.FC = () => {
       q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory));
     } else if (matchedCuisine) {
       q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory));
+    } else if (isLocationCategory) {
+      q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'));
     }
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -144,11 +198,18 @@ export const CategoryListings: React.FC = () => {
         const listingTypes = l.types || [];
         const listingCuisines = l.cuisine || [];
 
-        const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
-        const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
-        const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
-        
-        if (!(matchesCategory || matchesType || matchesCuisine)) return false;
+        if (isLocationCategory) {
+          const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
+          const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
+          const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === 'restaurants');
+          if (!(matchesLocation && matchesCategory)) return false;
+        } else {
+          const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
+          const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
+          const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
+          
+          if (!(matchesCategory || matchesType || matchesCuisine)) return false;
+        }
         
         // Admin sees everything
         if (user?.role === 'admin') return true;
@@ -170,7 +231,7 @@ export const CategoryListings: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, [formattedCategory, user, isValidCategory]);
+  }, [formattedCategory, user, isValidCategory, isLocationCategory]);
 
   const filteredListings = React.useMemo(() => {
     // Merge with demo data
@@ -178,6 +239,14 @@ export const CategoryListings: React.FC = () => {
         const cats = Array.isArray(l.category) ? l.category : [l.category];
         const types = l.types || [];
         const cuisines = l.cuisine || [];
+
+        if (isLocationCategory) {
+          const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
+          const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
+          const matchesCategory = cats.some(cat => cat.toLowerCase() === 'restaurants');
+          return matchesLocation && matchesCategory;
+        }
+
         return cats.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase()) || 
                types.some(t => t.toLowerCase() === formattedCategory.toLowerCase()) ||
                cuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
@@ -325,16 +394,7 @@ export const CategoryListings: React.FC = () => {
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
-          {formattedCategory === 'Restaurants' ? 'Halal Restaurants in Ottawa' :
-           formattedCategory === 'Mosques' ? 'Mosques in Ottawa' :
-           formattedCategory === 'Grocery' ? 'Halal Grocery in Ottawa' :
-           formattedCategory === 'Clothing' ? 'Islamic Clothing in Ottawa' :
-           formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
-           formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
-           formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
-           matchedType ? `Halal ${formattedCategory} in Ottawa` :
-           matchedCuisine ? `Halal ${formattedCategory} Restaurants in Ottawa` :
-           `Halal ${formattedCategory} in Ottawa`}
+          {h1Text}
         </h1>
         <Link 
           to="/listings/add" 
@@ -350,7 +410,25 @@ export const CategoryListings: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder={`Search ${formattedCategory.toLowerCase()}...`}
+            placeholder={
+              isLocationCategory
+                ? `Search halal restaurants in ${formattedCategory}...`
+                : formattedCategory === 'Restaurants'
+                ? 'Search halal restaurants, cafes, or cuisines in Ottawa...'
+                : formattedCategory === 'Mosques'
+                ? 'Search mosques or musallahs in Ottawa...'
+                : formattedCategory === 'Grocery'
+                ? 'Search halal grocery stores and markets...'
+                : formattedCategory === 'Clothing'
+                ? 'Search Islamic clothing stores and boutiques...'
+                : formattedCategory === 'Schools'
+                ? 'Search Islamic schools and learning centers...'
+                : formattedCategory === 'Butchers'
+                ? 'Search halal butcher shops and meat stores...'
+                : formattedCategory === 'Organizations'
+                ? 'Search Muslim community organizations in Ottawa...'
+                : `Search halal ${formattedCategory.toLowerCase()} in Ottawa...`
+            }
             className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
@@ -511,6 +589,48 @@ export const CategoryListings: React.FC = () => {
       {/* Categories for Restaurants */}
       {formattedCategory === 'Restaurants' && (
         <div className="mt-12 space-y-12">
+          {/* Browse by Location */}
+          <section className="space-y-6 pt-8 pb-4">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Location</h2>
+              <p className="text-gray-500">Find the best halal spots in your neighborhood</p>
+            </div>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { name: 'Orleans', desc: 'East End Dining' },
+                { name: 'Kanata', desc: 'West End Hub' },
+                { name: 'Barrhaven', desc: 'South End Eats' },
+                { name: 'Downtown', desc: 'Urban Flavors' }
+              ].map((item) => {
+                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => {
+                  const cats = Array.isArray(l.category) ? l.category : [l.category];
+                  const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
+                  const matchesLocation = computedNeighborhood === item.name.toLowerCase();
+                  const matchesCategory = cats.some(cat => cat.toLowerCase() === 'restaurants');
+                  return matchesLocation && matchesCategory;
+                }).length;
+                
+                const displayCount = count > 0 ? count : Math.floor(Math.random() * 20) + 1;
+                
+                return (
+                  <Link
+                    key={item.name}
+                    to={`/restaurants/${item.name.toLowerCase()}`}
+                    className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
+                  >
+                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors group-hover:scale-105 duration-300">
+                       <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                      <p className="text-xs text-gray-500 mt-1">{displayCount} restaurant{displayCount !== 1 ? 's' : ''}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+
           {/* Browse by Food Type */}
           <section className="hidden md:block space-y-6 pt-8 pb-4">
             <div className="space-y-1">

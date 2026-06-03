@@ -58,6 +58,11 @@ const FAQItem: React.FC<{ question: string, answer: string, isOpen: boolean, onT
 };
 
 export const Home: React.FC = () => {
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+  const currentYear = currentDate.getFullYear();
+  const monthYearStr = `${currentMonth} ${currentYear}`;
+
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start', slidesToScroll: 1 }, [Autoplay({ delay: 3000, stopOnInteraction: false })]);
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
@@ -209,8 +214,9 @@ export const Home: React.FC = () => {
     <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
-        description="Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa. Stay updated with local Muslim community news, events, and jobs."
+        description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities."
         canonicalUrl={getAbsoluteUrl("")}
+        disableSuffix={true}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -235,7 +241,7 @@ export const Home: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search restaurants, mosques, jobs..."
+            placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
             className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#e90b35] focus:border-transparent transition-all outline-none"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

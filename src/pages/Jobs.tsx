@@ -17,6 +17,7 @@ export const Jobs: React.FC = () => {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>(DEMO_JOBS);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
@@ -107,9 +108,10 @@ export const Jobs: React.FC = () => {
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title="Jobs" 
-        description="Explore local job opportunities and careers tailored for the Ottawa Muslim community." 
+        title="Jobs in Ottawa - Halal Ottawa" 
+        description="Find local Halal employment and career listings in the Ottawa area. Browse open roles at respectful, modern workplaces or post a new job vacancy." 
         canonicalUrl="https://www.halalottawa.ca/jobs" 
+        disableSuffix={true}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -146,7 +148,7 @@ export const Jobs: React.FC = () => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search jobs..."
+          placeholder="Search halal-friendly careers, jobs, and hiring opportunities in Ottawa..."
           className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

@@ -137,10 +137,11 @@ export const JobDetail: React.FC = () => {
     <>
       <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
         <SEO
-        title={`${job.title} at ${job.company}`}
-        description={job.description.length > 150 ? job.description.substring(0, 150) + '...' : job.description}
+        title={`${job.title} | ${job.company}`}
+        description={`Compare requirement details and apply for the ${job.title} (${job.type}) position at ${job.company} in ${job.location}. Explore career tasks, qualifications, salary, and online application guidelines.`}
         canonicalUrl={`https://www.halalottawa.ca/jobs/${slug}`}
         ogImage={job.companyLogo || undefined}
+        disableSuffix={true}
         structuredData={[
           {
             "@context": "https://schema.org/",

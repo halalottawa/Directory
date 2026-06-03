@@ -11,6 +11,10 @@ const staticUrls = [
   "/events",
   "/jobs",
   "/restaurants",
+  "/restaurants/orleans",
+  "/restaurants/kanata",
+  "/restaurants/barrhaven",
+  "/restaurants/downtown",
   "/mosques",
   "/organizations",
   "/grocery",
@@ -120,43 +124,60 @@ async function prerender() {
   const pagesToPrerender: PageToPrerender[] = [];
 
   // 1. Prepare Static Pages
+  const currentDate = new Date();
+  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+  const currentYear = currentDate.getFullYear();
+  const monthYearStr = `${currentMonth} ${currentYear}`;
+
   for (const url of staticUrls) {
     let title = "Halal Ottawa - Halal Places in Ottawa";
-    let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
+    let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
     if (url === "/news") {
-      title = "Halal Ottawa News - Articles & Muslim Community Highlights";
-      description = "Stay updated with the latest news, stories, and developments in the Ottawa Muslim community.";
+      title = "Ottawa News - Halal Ottawa";
+      description = "Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region.";
     } else if (url === "/events") {
-      title = "Halal Ottawa Events - Ottawa Muslim Community Events";
-      description = "Discover upcoming events, seminars, fund raisers, and social gatherings in the Ottawa Muslim community.";
+      title = "Halal Events in Ottawa - Halal Ottawa";
+      description = "Discover upcoming Islamic lectures, halaqas, local seminars, fundraisers, festivals, and social networking meetups in the Ottawa Muslim community.";
     } else if (url === "/jobs") {
-      title = "Halal Ottawa Jobs - Halal Career Opportunities in Ottawa";
-      description = "Browse halal career opportunities, postings, and jobs within Ottawa-based businesses and establishments.";
+      title = "Jobs in Ottawa - Halal Ottawa";
+      description = "Find local Halal employment and career listings in the Ottawa area. Browse open roles at respectful, modern workplaces or post a new job vacancy.";
     } else if (url === "/restaurants") {
-      title = "Halal Restaurants in Ottawa | Halal Ottawa";
-      description = "Browse and discover verified Halal restaurants, cafes, and eateries across Ottawa.";
+      title = `Halal Restaurants in Ottawa - ${monthYearStr}`;
+      description = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
+    } else if (url === "/restaurants/orleans") {
+      title = `Halal Restaurants in Orleans - ${monthYearStr}`;
+      description = `Find the best verified halal restaurants and food spots in Orleans, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
+    } else if (url === "/restaurants/kanata") {
+      title = `Halal Restaurants in Kanata - ${monthYearStr}`;
+      description = `Find the best verified halal restaurants and food spots in Kanata, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
+    } else if (url === "/restaurants/barrhaven") {
+      title = `Halal Restaurants in Barrhaven - ${monthYearStr}`;
+      description = `Find the best verified halal restaurants and food spots in Barrhaven, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
+    } else if (url === "/restaurants/downtown") {
+      title = `Halal Restaurants in Downtown Ottawa - ${monthYearStr}`;
+      description = `Find the best verified halal restaurants and food spots in Downtown, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
     } else if (url === "/mosques") {
-      title = "Mosques & Musallahs in Ottawa | Halal Ottawa";
-      description = "Find local mosques, prayer times, and Musallahs in public spaces around Ottawa.";
+      title = `Mosques in Ottawa - ${monthYearStr}`;
+      description = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${monthYearStr}.`;
     } else if (url === "/grocery") {
-      title = "Halal Grocery Stores in Ottawa | Halal Ottawa";
-      description = "Find grocery stores, halal meat shops, and international supermarkets selling halal ingredients in Ottawa.";
+      title = `Halal Grocery in Ottawa - ${monthYearStr}`;
+      description = `Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and ingredients for ${monthYearStr}.`;
     } else if (url === "/organizations") {
-      title = "Islamic Organizations in Ottawa | Halal Ottawa";
-      description = "Find community organizations, halal associations, charities, and support networks in Ottawa.";
+      title = `Muslim Organizations in Ottawa - ${monthYearStr}`;
+      description = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${monthYearStr}.`;
     } else if (url === "/clothing") {
-      title = "Islamic Clothing & Shops in Ottawa | Halal Ottawa";
-      description = "Discover boutiques, modesty clothing stores, and suppliers of Islamic attire in Ottawa.";
+      title = `Islamic Clothing in Ottawa - ${monthYearStr}`;
+      description = `Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${monthYearStr}.`;
     } else if (url === "/schools") {
-      title = "Islamic Schools & Education in Ottawa | Halal Ottawa";
-      description = "Find Islamic private schools, daycare centers, weekend Quran programs, and colleges in Ottawa.";
+      title = `Islamic Schools in Ottawa - ${monthYearStr}`;
+      description = `Browse accredited directories of Islamic schools, preschools, daycares, and weekend Quran educational programs in Ottawa for ${monthYearStr}.`;
     } else if (url === "/butchers") {
-      title = "Halal Butchers & Meat Shops in Ottawa | Halal Ottawa";
-      description = "Find verified halal standard meat shops, poultry, and local butchers in Ottawa.";
+      title = `Halal Butchers in Ottawa - ${monthYearStr}`;
+      description = `Find certified halal butcher shops and fresh meat markets in Ottawa providing premium hand-slaughtered zabihah meat for ${monthYearStr}.`;
     } else if (url === "/faq") {
-      title = "Frequently Asked Questions | Halal Ottawa";
+      title = "FAQ | Halal Ottawa";
       description = "Got questions about the Halal Ottawa platform? Check out our compiled list of FAQs.";
     } else if (url === "/terms") {
       title = "Terms of Service | Halal Ottawa";
@@ -164,6 +185,9 @@ async function prerender() {
     } else if (url === "/privacy-policy") {
       title = "Privacy Policy | Halal Ottawa";
       description = "Learn how your personal details, submissions, and metrics are secured and managed on Halal Ottawa.";
+    } else if (url === "/tools/qibla") {
+      title = "Ottawa Qibla Direction - Halal Ottawa";
+      description = "Find the Qibla direction online accurately using your device compass and location in Ottawa.";
     }
 
     const relativeFilePath = url === "/" ? "index.html" : `${url.substring(1)}/index.html`;
@@ -340,12 +364,24 @@ async function prerender() {
       html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
       
       let extraTags = `
+    <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
       `;
+
+      if (page.urlPath === "/" || page.routeType === "home") {
+        const websiteSchema = {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Halal Ottawa",
+          "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
+          "url": "https://www.halalottawa.ca/"
+        };
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
+      }
 
       // Inject JSON-LD Schema standard Markup structures
       if (page.initialData) {

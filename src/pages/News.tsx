@@ -104,9 +104,10 @@ export const News: React.FC = () => {
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title="News" 
-        description="Read the latest news, announcements, and updates from the Ottawa Muslim community." 
+        title="Ottawa News - Halal Ottawa" 
+        description="Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region." 
         canonicalUrl={getAbsoluteUrl("news")} 
+        disableSuffix={true}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -145,7 +146,7 @@ export const News: React.FC = () => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search news articles..."
+          placeholder="Search community news, announcements, and articles..."
           className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

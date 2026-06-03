@@ -17,6 +17,7 @@ export const Events: React.FC = () => {
   const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>(DEMO_EVENTS);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
@@ -106,9 +107,10 @@ export const Events: React.FC = () => {
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title="Events" 
-        description="Find upcoming Islamic events, meetups, classes, and halaqas in the Ottawa Muslim community." 
+        title="Halal Events in Ottawa - Halal Ottawa" 
+        description="Discover upcoming Islamic lectures, halaqas, local seminars, fundraisers, festivals, and social networking meetups in the Ottawa Muslim community." 
         canonicalUrl="https://www.halalottawa.ca/events" 
+        disableSuffix={true}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -145,7 +147,7 @@ export const Events: React.FC = () => {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <input
           type="text"
-          placeholder="Search events..."
+          placeholder="Search upcoming community events, meetups, and classes in Ottawa..."
           className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}

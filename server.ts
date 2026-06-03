@@ -1841,6 +1841,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       if (p1 === "jobs" && p2 === "add") return true;
       if (p1 === "news" && p2 === "add") return true;
       if (p1 === "tools" && p2 === "qibla") return true;
+      if (p1 === "restaurants" && ["orleans", "kanata", "barrhaven", "downtown"].includes(p2)) return true;
       return false;
     };
 
@@ -2013,6 +2014,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         
         if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
           isNotFound = false;
+          if (p0 === 'restaurants' && ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase())) {
+            const locName = p1.charAt(0).toUpperCase() + p1.slice(1).toLowerCase();
+            const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+            const currentYear = new Date().getFullYear();
+            title = `Halal Restaurants in ${locName}, Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
+            description = `Find the best verified halal restaurants and food spots in ${locName}, Ottawa. Search by cuisine or food type, read verified reviews, and get directions.`;
+            routeType = 'location';
+          }
         } else if (p0 === 'go') {
           try {
             const linkRef = doc(db, 'short_links', p1);
@@ -2135,12 +2144,24 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     // Inject OG tags if not present
     if (!html.includes('property="og:title"')) {
       let extraTags = `
+    <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
       `;
+
+      if (pathParts.length === 0) {
+        const websiteSchema = {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "Halal Ottawa",
+          "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
+          "url": "https://www.halalottawa.ca/"
+        };
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
+      }
 
       // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
       if (pathParts.length === 2 && initialData) {

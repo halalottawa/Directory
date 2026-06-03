@@ -16,6 +16,7 @@ import { isAppWrapper } from '../utils/platform';
 
 export const Listings: React.FC = () => {
   const { user } = useAuth();
+
   const { subcategory } = useParams();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -272,7 +273,7 @@ export const Listings: React.FC = () => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search listings..."
+            placeholder="Search halal businesses, mosques, and organizations in Ottawa..."
             className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}

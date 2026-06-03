@@ -433,7 +433,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
       <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
-        description={listing.description.length > 150 ? listing.description.substring(0, 150) + '...' : listing.description}
+        description={`Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`}
         canonicalUrl={getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`)}
         ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
         structuredData={[

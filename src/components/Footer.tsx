@@ -5,42 +5,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 
-// Inline zero-cost SVG Brand Icons
-const FaFacebook: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
-  </svg>
-);
-
-const FaInstagram: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-  </svg>
-);
-
-const FaLinkedin: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
-    <rect width="4" height="12" x="2" y="9" />
-    <circle cx="4" cy="4" r="2" />
-  </svg>
-);
-
-const FaTiktok: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
-  </svg>
-);
-
-const FaReddit: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M17 11.5a1.5 1.5 0 0 1-2.5 1.1 6.5 6.5 0 0 1-5 0A1.5 1.5 0 0 1 7 11.5c0-1 1-1.5 2.5-1.5s2.5.5 2.5 1.5" />
-    <path d="M12 8a2 2 0 1 1-2-2h4" />
-  </svg>
-);
+import { FaFacebook, FaInstagram, FaLinkedin, FaTiktok, FaReddit } from 'react-icons/fa6';
 
 export const Footer: React.FC = () => {
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
@@ -114,14 +79,14 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Contact */}
+          {/* Locations */}
           <div className="space-y-6">
-            <h3 className="text-white font-bold text-lg tracking-tight">Contact Us</h3>
+            <h3 className="text-white font-bold text-lg tracking-tight">Locations</h3>
             <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
-                <span className="text-gray-400 text-sm">Ottawa, Ontario, Canada</span>
-              </li>
+              <li><Link to="/restaurants/orleans" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Orleans</Link></li>
+              <li><Link to="/restaurants/kanata" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Kanata</Link></li>
+              <li><Link to="/restaurants/barrhaven" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Barrhaven</Link></li>
+              <li><Link to="/restaurants/downtown" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Downtown</Link></li>
             </ul>
           </div>
         </div>

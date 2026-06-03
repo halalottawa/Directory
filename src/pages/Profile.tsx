@@ -161,7 +161,7 @@ export const Profile: React.FC = () => {
   return (
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
       <SEO 
-        title={`${user.name} | Profile`} 
+        title="Profile" 
         description={`Profile page for ${user.name} on Halal Ottawa.`} 
         noindex={true}
       />
