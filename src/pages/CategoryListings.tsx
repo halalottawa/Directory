@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp } from 'lucide-react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
@@ -178,19 +178,40 @@ export const CategoryListings: React.FC = () => {
 
     const fetchListings = async () => {
       try {
-        // Build targeted query depending on the facet type to fetch from firestore efficiently
-        let q = query(collection(db, 'listings'));
-        if (isMainCategory) {
-          q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory));
-        } else if (matchedType) {
-          q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory));
-        } else if (matchedCuisine) {
-          q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory));
-        } else if (isLocationCategory) {
-          q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'));
+        let snapshot;
+        try {
+          // Attempt optimal target queries with isApproved filter first (requires composite indexes)
+          let q;
+          if (isMainCategory) {
+            q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
+          } else if (matchedType) {
+            q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
+          } else if (matchedCuisine) {
+            q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
+          } else if (isLocationCategory) {
+            q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'), where('isApproved', '==', true), limit(100));
+          } else {
+            q = query(collection(db, 'listings'), where('isApproved', '==', true), limit(100));
+          }
+          snapshot = await getDocs(q);
+        } catch (idxError) {
+          console.warn("Index not found or failed query with isApproved filter. Falling back to non-indexed query.", idxError);
+          // Fallback to query without isApproved filter, which uses standard index & gets filtered client-side anyway
+          let q;
+          if (isMainCategory) {
+            q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory), limit(100));
+          } else if (matchedType) {
+            q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory), limit(100));
+          } else if (matchedCuisine) {
+            q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory), limit(100));
+          } else if (isLocationCategory) {
+            q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'), limit(100));
+          } else {
+            q = query(collection(db, 'listings'), limit(100));
+          }
+          snapshot = await getDocs(q);
         }
 
-        const snapshot = await getDocs(q);
         if (!isMounted) return;
 
         const firestoreListings = snapshot.docs.map(doc => ({

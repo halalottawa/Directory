@@ -264,11 +264,29 @@ async function startServer() {
       
       const finalName = `${cleanName}.webp`;
 
+      // If it is already hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
+      if (
+        url.includes('.r2.dev') ||
+        url.includes('.r2.cloudflarestorage.com') ||
+        url.includes('.public.blob.vercel-storage.com')
+      ) {
+        return res.json({ url });
+      }
+
       // Check if it is already our local url or uploaded URL containing /uploads/
       const uploadsIdx = url.indexOf('/uploads/');
       if (uploadsIdx !== -1) {
-        const relativeUrl = url.substring(uploadsIdx);
-        return res.json({ url: relativeUrl });
+        // Only strip if it does not belong to some external host (unless it matches localhost or run.app)
+        const isExternal = url.startsWith('http') && 
+                           !url.includes('localhost') && 
+                           !url.includes('127.0.0.1') && 
+                           !url.includes('.run.app') && 
+                           !url.includes('halalottawa.ca') &&
+                           !url.includes('halal-ottawa');
+        if (!isExternal) {
+          const relativeUrl = url.substring(uploadsIdx);
+          return res.json({ url: relativeUrl });
+        }
       }
 
       console.log(`Downloading image from URL: ${url}`);
@@ -376,6 +394,15 @@ async function startServer() {
         res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         return res.sendFile(filePath);
       }
+
+      // Fallback to Cloudflare R2 if it is not on local filesystem
+      const r2Account = process.env.R2_ACCOUNT_ID;
+      const r2Bucket = process.env.R2_BUCKET_NAME;
+      const r2Url = process.env.R2_PUBLIC_URL;
+      if (r2Url || (r2Account && r2Bucket)) {
+        const baseUrl = r2Url ? r2Url.replace(/\/$/, "") : `https://${r2Bucket}.${r2Account}.r2.cloudflarestorage.com`;
+        return res.redirect(`${baseUrl}/uploads/${req.params.key}`);
+      }
     } catch (e) {
       console.error("Error serving blob:", e);
     }
@@ -420,6 +447,31 @@ async function startServer() {
           const uploadPath = path.join(uploadDir, filename);
           if (fs.existsSync(uploadPath)) {
             buffer = fs.readFileSync(uploadPath);
+          }
+        }
+
+        // Fallback: If not found locally but we have Cloudflare R2 configured, fetch it from R2
+        if (!buffer && relativePath.startsWith("uploads/")) {
+          const r2Url = process.env.R2_PUBLIC_URL;
+          const r2Account = process.env.R2_ACCOUNT_ID;
+          const r2Bucket = process.env.R2_BUCKET_NAME;
+          if (r2Url || (r2Account && r2Bucket)) {
+            const baseUrl = r2Url ? r2Url.replace(/\/$/, "") : `https://${r2Bucket}.${r2Account}.r2.cloudflarestorage.com`;
+            const fullR2Url = `${baseUrl}/${relativePath}`;
+            try {
+              const fetchRes = await fetch(fullR2Url, {
+                headers: {
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                  "Accept": "image/*"
+                }
+              });
+              if (fetchRes.ok) {
+                const ab = await fetchRes.arrayBuffer();
+                buffer = Buffer.from(ab);
+              }
+            } catch (err) {
+              console.error("Failed to fetch image from R2 fallback inside optimize endpoint:", err);
+            }
           }
         }
       }

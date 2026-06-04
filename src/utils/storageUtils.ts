@@ -1,6 +1,33 @@
 export async function uploadFromUrl(url: string, fileName?: string): Promise<string> {
+  // If it's already an absolute URL hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
+  if (
+    url.includes('.r2.dev') ||
+    url.includes('.r2.cloudflarestorage.com') ||
+    url.includes('.public.blob.vercel-storage.com')
+  ) {
+    return url;
+  }
+
+  // Only strip if it is a relative path starting with /uploads/
+  if (url.startsWith('/uploads/')) {
+    return url;
+  }
+
   const uploadsIdx = url.indexOf('/uploads/');
   if (uploadsIdx !== -1) {
+    // If it's an absolute URL and not from our own domain group, we should probably fetch/upload it.
+    // But if it starts with the active origin, we can strip it.
+    if (url.startsWith('http')) {
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        if (origin && url.startsWith(origin)) {
+          return url.substring(uploadsIdx);
+        }
+      } catch (e) {
+        // Safe fallback
+      }
+      return url; // Keep custom cloud storage/external domains intact
+    }
     return url.substring(uploadsIdx);
   }
   if (!url.startsWith('http')) return url;

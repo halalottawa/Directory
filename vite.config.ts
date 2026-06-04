@@ -42,6 +42,15 @@ export default defineConfig(({mode}) => {
               }
               if (id.includes('lucide') || id.includes('react-icons')) {
                 return 'vendor-icons';
+                }
+              if (id.includes('leaflet') || id.includes('react-leaflet')) {
+                return 'vendor-leaflet';
+              }
+              if (id.includes('embla-carousel')) {
+                return 'vendor-embla';
+              }
+              if (id.includes('date-fns')) {
+                return 'vendor-date-fns';
               }
               return 'vendor';
             }

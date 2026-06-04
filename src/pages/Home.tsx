@@ -121,27 +121,60 @@ export const Home: React.FC = () => {
           );
         }
 
-        // Fetch Latest News
-        const qNews = isAdmin
-          ? query(collection(db, 'news'), limit(20))
-          : query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
+        // Fetch Latest News with fallback to unordered query if Firestore composite index is not yet built
+        const fetchNews = async () => {
+          try {
+            const q = isAdmin
+              ? query(collection(db, 'news'), orderBy('createdAt', 'desc'), limit(8))
+              : query(collection(db, 'news'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
+            return await getDocs(q);
+          } catch (error) {
+            console.warn("Index not found for ordered news. Falling back to unordered larger fetch.", error);
+            const qFallback = isAdmin
+              ? query(collection(db, 'news'), limit(80))
+              : query(collection(db, 'news'), where('isApproved', '==', true), limit(80));
+            return await getDocs(qFallback);
+          }
+        };
 
-        // Fetch Events
-        const qEvents = isAdmin
-          ? query(collection(db, 'events'), limit(20))
-          : query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
+        // Fetch Events with fallback
+        const fetchEvents = async () => {
+          try {
+            const q = isAdmin
+              ? query(collection(db, 'events'), orderBy('dateTime', 'desc'), limit(10))
+              : query(collection(db, 'events'), where('isApproved', '==', true), orderBy('dateTime', 'desc'), limit(10));
+            return await getDocs(q);
+          } catch (error) {
+            console.warn("Index not found for ordered events. Falling back to unordered larger fetch.", error);
+            const qFallback = isAdmin
+              ? query(collection(db, 'events'), limit(100))
+              : query(collection(db, 'events'), where('isApproved', '==', true), limit(100));
+            return await getDocs(qFallback);
+          }
+        };
 
-        // Fetch Latest Jobs
-        const qJobs = isAdmin
-          ? query(collection(db, 'jobs'), limit(20))
-          : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
+        // Fetch Latest Jobs with fallback
+        const fetchJobs = async () => {
+          try {
+            const q = isAdmin
+              ? query(collection(db, 'jobs'), orderBy('createdAt', 'desc'), limit(6))
+              : query(collection(db, 'jobs'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(6));
+            return await getDocs(q);
+          } catch (error) {
+            console.warn("Index not found for ordered jobs. Falling back to unordered larger fetch.", error);
+            const qFallback = isAdmin
+              ? query(collection(db, 'jobs'), limit(50))
+              : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(50));
+            return await getDocs(qFallback);
+          }
+        };
 
         // Execute all queries in parallel
         const [listingsResult, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
           listingsPromise,
-          getDocs(qNews),
-          getDocs(qEvents),
-          getDocs(qJobs)
+          fetchNews(),
+          fetchEvents(),
+          fetchJobs()
         ]);
 
         const parseTime = (val: any): number => {
@@ -198,9 +231,9 @@ export const Home: React.FC = () => {
         
         const sortedNews = Array.from(mergedNewsMap.values())
           .sort((a, b) => {
-            if (a.isFeatured && !b.isFeatured) return -1;
-            if (!a.isFeatured && b.isFeatured) return 1;
-            return new Date(b.publishDate || b.createdAt || 0).getTime() - new Date(a.publishDate || a.createdAt || 0).getTime();
+            const dateB = new Date(b.publishDate || b.createdAt || 0).getTime();
+            const dateA = new Date(a.publishDate || a.createdAt || 0).getTime();
+            return dateB - dateA;
           })
           .slice(0, 6);
         setLatestNews(sortedNews);
