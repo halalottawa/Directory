@@ -1040,6 +1040,9 @@ ${currentAddress ? `Existing address hint to narrow down search: "${currentAddre
 Use Google Search grounding tool to retrieve real and active local business hours, complete address, phone number, email address, and official website.
 Do not invent anything. Verify against actual web records or search outcomes.
 
+CRITICAL SOURCE PREFERENCE FOR CONTACT INFO:
+When extracting contact details (address, phone number, email, and website), you MUST prioritize and use official social media profiles (Facebook, Instagram), official business websites, or the official Google Business Profile (Google Maps listing). Do NOT use delivery platforms (like Uber Eats, DoorDash, SkipTheDishes) as primary sources for any core contact details (address, email, phone, website), as they often contain proxy phone numbers, hidden websites, or simplified addresses.
+
 Provide the response as JSON with these exactly formatted fields:
 - "address": The complete, full address in Ottawa, including street address, "Ottawa", province ("ON"), and the verified POSTAL CODE. It is CRITICAL to include the postal code (e.g. "123 O'Connor St, Ottawa, ON K1P 5M9").
 - "phoneNumber": The phone number of the business if available (e.g., "613-555-5555" or similar format), or empty string if not found.
@@ -1362,15 +1365,16 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
       const prompt = `Search comprehensively for "${placeName} in Ottawa or Gatineau area" using Google Search. Look up and scrape data specifically from their Google Business Profile, Uber Eats, Skip The Dishes, DoorDash, official website, and official social media (Instagram, Facebook) profiles.
 
 CRITICAL DATA SCRAPING & ANTI-HALLUCINATION RULES:
-1. SCRAPE GOOGLE BUSINESS PROFILE: Locate the business's official Google Business Profile or Google Maps listing. Extract its exact business name, verified local street address, primary phone number, and active opening hours.
-2. SCRAPE DELIVERY PLATFORMS (UBER EATS, DOORDASH, SKIPTHEDISHES): If the listing has anything to do with food or dining, you MUST search for its store page on Uber Eats, DoorDash, and SkipTheDishes. Parse these store pages to obtain authentic menu categories, cuisine types, exact operating hours, and popular dishes / specialties.
+1. SCRAPE GOOGLE BUSINESS PROFILE & OFFICIAL SITES FIRST: Locate the business's official Google Business Profile (Google Maps listing) or website. Extract its exact business name, verified local street address, primary phone number, and active opening hours.
+2. SCRAPE DELIVERY PLATFORMS ONLY FOR MENU/CUISINES: If the listing has anything to do with food or dining, you may search for its store page on Uber Eats, DoorDash, and SkipTheDishes to obtain authentic menu categories, cuisine types, and popular dishes / specialties. Do NOT use delivery platforms as primary sources for contact details such as phone number, address, or website.
 3. SCRAPE SOCIAL MEDIA: Search for the business's official Facebook and Instagram profiles. Inspect their "About" page, contact info, and posts to extract or verify the real email, website, phone number, and services offered.
 4. SPECIFIC SUBURB/BRANCH MATCH ONLY: If the business has multiple franchise locations across Canada (e.g., in Toronto, Mississauga, Montreal, Vancouver, etc.), you MUST ignore all other cities and extract details ONLY for the specific branch in the Ottawa/Gatineau area (Kanata, Stittsville, Orleans, Nepean, Downtown Ottawa, Gatineau, etc.).
    - For example: if searching for "Crab Boil in Kanata", return the Kanata location details (at 300 Earl Grey Dr #17) and NOT the Lakeshore Rd location in Mississauga.
    - If searching for "Fitra School in Stittsville", return the Stittsville location details.
 5. STRICT ADDRESS FORMAT: The address property MUST end in the requested suburb/city and province, e.g., ", Kanata, ON" or ", Stittsville, ON" or ", Ottawa, ON". Stop at the city/province level; do NOT include the postal code or country. E.g., "300 Earl Grey Dr #17, Kanata, ON".
 6. EXACT NAME RETENTION: The "name" property must represent the actual business searched for, i.e., "${placeName}". Do not replace it with competing nearby businesses.
-7. ABSOLUTELY ZERO HALLUCINATIONS: Do not guess or invent addresses, telephone numbers, emails, opening hours, or photos. If a detail cannot be found on their Google Business Profile, delivery platforms, social media, or official website, leave it blank or use the original name.
+7. PRIMARY CONTACT INFO SOURCES (CRITICAL): For all contact fields (address, phone, email, and website), you MUST prioritize and use information found directly on the business's official website, official Facebook/Instagram pages, or Google Business Profile. Do NOT rely on delivery apps (Uber Eats, DoorDash, SkipTheDishes) for these details, as they lack proper websites/emails and often feature delivery-only phone proxies.
+8. ABSOLUTELY ZERO HALLUCINATIONS: Do not guess or invent addresses, telephone numbers, emails, opening hours, or photos. If a detail cannot be found on their Google Business Profile, delivery platforms, social media, or official website, leave it blank or use the original name.
 
 Extract and format the following details:
 - Name of the place (exact name matching "${placeName}").
@@ -1390,10 +1394,10 @@ Determine one or more suitable 'categories' from this exact list (pick multiple 
 Important: If the place is a Grocery store or Butcher shop, only include 'Restaurants' if it has a very prominent and distinct restaurant section serving food. If it just sells raw meat or groceries with a small takeout counter, stick to 'Grocery' and/or 'Butchers'.
 
 If the category includes 'Restaurants', use the information from UberEats, DoorDash, SkipTheDishes, Facebook, or Instagram to find specific details about their menu, specialties, and atmosphere.
-Write an exactly 3-paragraph neutral, objective description of the place suitable for a local community directory. 
-- Paragraph 1: General overview and introduction to the place.
-- Paragraphs 2 and 3: Specific details about the main services, products, popular menu items, and specialties based on real delivery menus and social posts. (Divide these details across two paragraphs to ensure it is highly readable and not a single massive block of text).
-Focus strictly on the details based on your search across all these platforms. DO NOT mention customer reviews, ratings, people's opinions, or the address/location of the place in the description itself.
+      Write an exactly 3-paragraph neutral, objective description of the place. Crucially, the description must play the role of a direct "description" or "about" section for the listing itself on our platform, introducing the business, what makes it special, and what they offer. 
+      - Paragraph 1: Direct introduction and general description of the place (the "About" section), establishing their identity, what they do, and their unique character or background.
+      - Paragraphs 2 and 3: Specific details about their core services, products, signature or popular menu items, and specialties (such as hand-slaughtered choices or custom crafts) based on real delivery menus, official websites, and social posts. Divide these details nicely across these two paragraphs to make it highly informative, scannable, and attractive to read.
+      Focus strictly on playing the role of a high-quality, welcoming, and verified description of the listing. DO NOT mention offsite customer star reviews/ratings, meta descriptions, search engine SEO tags, or the email/address of the place in the paragraph text itself.
 Also, if it is a restaurant, determine one or more suitable 'cuisines' from this exact list (pick multiple if applicable): ['Turkish', 'Middle Eastern', 'Moroccan', 'Lebanese', 'Syrian', 'Pakistani', 'Afghani', 'Indian', 'Persian', 'Chinese', 'Mediterranean', 'Thai', 'Korean', 'Italian', 'Bangladeshi', 'Mexican', 'Ethiopian'].
 And determine one or more suitable 'types' from this exact list (pick multiple if applicable): ['Bakery', 'Pizza', 'Burgers', 'Cafés', 'Seafood', 'Steakhouse', 'Shawarma', 'Poutine', 'Brunch', 'Breakfast', 'Pho', 'Ramen', 'Fried Chicken', 'Buffet', 'Tacos'].
 
@@ -1608,6 +1612,45 @@ IMPORTANT REQUIRED RULES:
       if (!usedSearch || !data.name || data.name.trim().length === 0 || (!hasWordOverlap && !isFrenchMatch)) {
         console.log(`[Import API] Enforcing/Overriding original name '${placeName}' (returned: '${data.name}') to prevent brand-integrity/hallucination mismatch.`);
         data.name = placeName;
+      }
+
+      // Ensure categories strictly match the allowed list on platform
+      const VALID_CATEGORIES = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
+      if (!data.category) {
+        data.category = ['Organizations'];
+      } else {
+        const rawCats = Array.isArray(data.category) ? data.category : [data.category];
+        const mappedCats = new Set<string>();
+        for (const cat of rawCats) {
+          if (typeof cat !== 'string') continue;
+          const norm = cat.trim().toLowerCase();
+          if (norm === 'restaurants' || norm === 'restaurant' || norm.includes('food') || norm.includes('dining') || norm.includes('cafe') || norm.includes('coffee') || norm.includes('bakery') || norm.includes('pizzeria') || norm.includes('steakhouse') || norm.includes('eatery') || norm.includes('eateries')) {
+            mappedCats.add('Restaurants');
+          } else if (norm === 'mosques' || norm === 'mosque' || norm.includes('masjid') || norm.includes('prayer') || norm.includes('musalla') || norm.includes('islamic center') || norm.includes('mosquée')) {
+            mappedCats.add('Mosques');
+          } else if (norm === 'organizations' || norm === 'organization' || norm.includes('charity') || norm.includes('association') || norm.includes('society') || norm.includes('foundation') || norm.includes('community')) {
+            mappedCats.add('Organizations');
+          } else if (norm === 'grocery' || norm === 'groceries' || norm === 'supermarket' || norm.includes('market') || norm.includes('grocery store') || norm.includes('convenience')) {
+            mappedCats.add('Grocery');
+          } else if (norm === 'clothing' || norm === 'boutique' || norm.includes('apparel') || norm.includes('fashion') || norm.includes('hijab') || norm.includes('abaya') || norm.includes('thobe') || norm.includes('clothes') || norm.includes('wear')) {
+            mappedCats.add('Clothing');
+          } else if (norm === 'schools' || norm === 'school' || norm.includes('academy') || norm.includes('daycare') || norm.includes('educational') || norm.includes('education') || norm.includes('madrasah') || norm.includes('college') || norm.includes('école') || norm.includes('preschool') || norm.includes('kindergarten')) {
+            mappedCats.add('Schools');
+          } else if (norm === 'butchers' || norm === 'butcher' || norm.includes('meat') || norm.includes('zabihah') || norm.includes('zabiha') || norm.includes('butchery')) {
+            mappedCats.add('Butchers');
+          }
+        }
+        
+        // Match verbatim as fallback
+        for (const cat of rawCats) {
+          if (typeof cat !== 'string') continue;
+          const matched = VALID_CATEGORIES.find(vc => vc.toLowerCase() === cat.trim().toLowerCase());
+          if (matched) {
+            mappedCats.add(matched);
+          }
+        }
+
+        data.category = mappedCats.size > 0 ? Array.from(mappedCats) : ['Organizations'];
       }
 
       return res.json(data);

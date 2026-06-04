@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { isAppWrapper } from '../utils/platform';
 
 export const Settings: React.FC = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, requestNotificationPermission } = useAuth();
   const navigate = useNavigate();
   const [updating, setUpdating] = useState(false);
   const [editingType, setEditingType] = useState<'email' | 'push' | 'password' | null>(null);
@@ -78,16 +78,12 @@ export const Settings: React.FC = () => {
       } else {
         updates.pushNotifications = !isNever;
         if (!isNever) updates.pushFrequency = value;
-        // Request permission if enabling push notifications
-        if (!isNever && 'Notification' in window && Notification.permission !== 'granted') {
+        // Request permission and fetch FCM token if enabling push notifications
+        if (!isNever) {
           try {
-            const permission = await Notification.requestPermission();
-            if (permission !== 'granted') {
-              toast.error('Notification permission denied. Please enable it in your browser settings.');
-              updates.pushNotifications = false;
-            }
+            await requestNotificationPermission();
           } catch (err) {
-            console.error('Error requesting permission:', err);
+            console.error('Error requesting push permission:', err);
           }
         }
       }

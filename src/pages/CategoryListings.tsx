@@ -394,7 +394,14 @@ export const CategoryListings: React.FC = () => {
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
-          {h1Text}
+          {formattedCategory.toLowerCase() === 'downtown' ? (
+            <>
+              <span className="hidden md:inline">Halal Restaurants in Downtown Ottawa</span>
+              <span className="md:hidden">Halal Restaurants in Downtown</span>
+            </>
+          ) : (
+            h1Text
+          )}
         </h1>
         <Link 
           to="/listings/add" 

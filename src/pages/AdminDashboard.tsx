@@ -1099,6 +1099,38 @@ export const AdminDashboard: React.FC = () => {
           const baseSlug = generateSlug(data.name);
           const uniqueSlug = await getUniqueSlug(db, 'listings', baseSlug);
 
+          // Standardize categories to match existing valid ones perfectly
+          const VALID_CATEGORIES = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
+          const rawCats = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+          const mappedCats = new Set<string>();
+          for (const cat of rawCats) {
+            if (typeof cat !== 'string') continue;
+            const norm = cat.trim().toLowerCase();
+            if (norm === 'restaurants' || norm === 'restaurant' || norm.includes('food') || norm.includes('dining') || norm.includes('cafe') || norm.includes('coffee') || norm.includes('bakery') || norm.includes('pizzeria') || norm.includes('steakhouse') || norm.includes('eatery') || norm.includes('eateries')) {
+              mappedCats.add('Restaurants');
+            } else if (norm === 'mosques' || norm === 'mosque' || norm.includes('masjid') || norm.includes('prayer') || norm.includes('musalla') || norm.includes('islamic center') || norm.includes('mosquée')) {
+              mappedCats.add('Mosques');
+            } else if (norm === 'organizations' || norm === 'organization' || norm.includes('charity') || norm.includes('association') || norm.includes('society') || norm.includes('foundation') || norm.includes('community')) {
+              mappedCats.add('Organizations');
+            } else if (norm === 'grocery' || norm === 'groceries' || norm === 'supermarket' || norm.includes('market') || norm.includes('grocery store') || norm.includes('convenience')) {
+              mappedCats.add('Grocery');
+            } else if (norm === 'clothing' || norm === 'boutique' || norm.includes('apparel') || norm.includes('fashion') || norm.includes('hijab') || norm.includes('abaya') || norm.includes('thobe') || norm.includes('clothes') || norm.includes('wear')) {
+              mappedCats.add('Clothing');
+            } else if (norm === 'schools' || norm === 'school' || norm.includes('academy') || norm.includes('daycare') || norm.includes('educational') || norm.includes('education') || norm.includes('madrasah') || norm.includes('college') || norm.includes('école') || norm.includes('preschool') || norm.includes('kindergarten')) {
+              mappedCats.add('Schools');
+            } else if (norm === 'butchers' || norm === 'butchar' || norm === 'butcher' || norm.includes('meat') || norm.includes('zabihah') || norm.includes('zabiha') || norm.includes('butchery')) {
+              mappedCats.add('Butchers');
+            }
+          }
+          for (const cat of rawCats) {
+            if (typeof cat !== 'string') continue;
+            const matched = VALID_CATEGORIES.find(vc => vc.toLowerCase() === cat.trim().toLowerCase());
+            if (matched) {
+              mappedCats.add(matched);
+            }
+          }
+          const finalCategories = mappedCats.size > 0 ? Array.from(mappedCats) : ['Organizations'];
+
           await setDoc(doc(db, 'listings', uniqueSlug), {
             name: data.name,
             slug: uniqueSlug,
@@ -1108,9 +1140,9 @@ export const AdminDashboard: React.FC = () => {
             website: data.website,
             openingHours: data.workingHours,
             description: data.description,
-            category: Array.isArray(data.category) && data.category.length > 0 ? data.category : ['Organizations'],
-            types: data.category.includes('Restaurants') ? (Array.isArray(data.type) ? data.type : []) : [],
-            cuisine: data.category.includes('Restaurants') ? (Array.isArray(data.cuisine) ? data.cuisine : []) : [],
+            category: finalCategories,
+            types: finalCategories.includes('Restaurants') ? (Array.isArray(data.type) ? data.type : []) : [],
+            cuisine: finalCategories.includes('Restaurants') ? (Array.isArray(data.cuisine) ? data.cuisine : []) : [],
             photos: photosArray,
             lat: 0, // Default or mock coordinates
             lng: 0,
