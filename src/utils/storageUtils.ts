@@ -1,5 +1,8 @@
 export async function uploadFromUrl(url: string, fileName?: string): Promise<string> {
-  if (url.startsWith('/uploads/')) return url;
+  const uploadsIdx = url.indexOf('/uploads/');
+  if (uploadsIdx !== -1) {
+    return url.substring(uploadsIdx);
+  }
   if (!url.startsWith('http')) return url;
 
   try {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Newspaper, Calendar, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Listing, NewsArticle, Event, Job } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
@@ -87,10 +87,39 @@ export const Home: React.FC = () => {
         }
         const isAdmin = user?.role === 'admin';
 
-        // Fetch Latest Listings - query all for robustness and filter client-side like Listings page
-        const qListings = query(
-          collection(db, 'listings')
-        );
+        let listingsPromise;
+        if (isAdmin) {
+          listingsPromise = getDocs(
+            query(collection(db, 'listings'), orderBy('createdAt', 'desc'), limit(8))
+          );
+        } else if (user) {
+          listingsPromise = Promise.all([
+            getDocs(
+              query(
+                collection(db, 'listings'),
+                where('isApproved', '==', true),
+                orderBy('createdAt', 'desc'),
+                limit(8)
+              )
+            ),
+            getDocs(
+              query(
+                collection(db, 'listings'),
+                where('submittedBy', '==', user.uid),
+                limit(50)
+              )
+            )
+          ]);
+        } else {
+          listingsPromise = getDocs(
+            query(
+              collection(db, 'listings'),
+              where('isApproved', '==', true),
+              orderBy('createdAt', 'desc'),
+              limit(8)
+            )
+          );
+        }
 
         // Fetch Latest News
         const qNews = isAdmin
@@ -108,8 +137,8 @@ export const Home: React.FC = () => {
           : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
 
         // Execute all queries in parallel
-        const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
-          getDocs(qListings),
+        const [listingsResult, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
+          listingsPromise,
           getDocs(qNews),
           getDocs(qEvents),
           getDocs(qJobs)
@@ -127,12 +156,29 @@ export const Home: React.FC = () => {
           return isNaN(d.getTime()) ? 0 : d.getTime();
         };
 
-        const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        const filteredListings = listingsData.filter(l => {
-          if (user?.role === 'admin') return true;
-          return l.isApproved || (user && l.submittedBy === user.uid);
-        });
-        const sortedListings = filteredListings
+        let listingsData: Listing[] = [];
+        if (isAdmin) {
+          listingsData = (listingsResult as any).docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Listing[];
+        } else if (user) {
+          const [approvedSnap, ownSnap] = listingsResult as any;
+          const seen = new Set<string>();
+          const temp: Listing[] = [];
+          for (const doc of approvedSnap.docs) {
+            seen.add(doc.id);
+            temp.push({ id: doc.id, ...doc.data() } as Listing);
+          }
+          for (const doc of ownSnap.docs) {
+            if (!seen.has(doc.id)) {
+              seen.add(doc.id);
+              temp.push({ id: doc.id, ...doc.data() } as Listing);
+            }
+          }
+          listingsData = temp;
+        } else {
+          listingsData = (listingsResult as any).docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Listing[];
+        }
+
+        const sortedListings = listingsData
           .sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt))
           .slice(0, 8);
         setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));

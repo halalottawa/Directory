@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle, Compass } from 'lucide-react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getGeneralSettings } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
@@ -29,13 +28,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-      if (docSnap.exists() && docSnap.data().logoUrl) {
-        setSiteLogoUrl(docSnap.data().logoUrl);
+    getGeneralSettings().then((data) => {
+      if (data && data.logoUrl) {
+        setSiteLogoUrl(data.logoUrl);
       }
     });
-
-    return () => unsub();
   }, []);
 
   const isActive = (path: string) => {

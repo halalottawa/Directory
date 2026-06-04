@@ -1,6 +1,5 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -38,61 +37,53 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   };
 
   return (
-    <AnimatePresence>
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 pb-20 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div 
-        className="fixed inset-0 z-[100] flex items-center justify-center p-4 pb-20"
-        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      />
+      <div 
+        className="relative bg-white rounded-[32px] shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
       >
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        />
-        <motion.div 
-          initial={{ scale: 0.95, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="relative bg-white rounded-[32px] shadow-2xl max-w-sm w-full overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="p-8 space-y-6">
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${iconColors[variant]}`}>
-              <AlertTriangle className="w-8 h-8" />
-            </div>
-            
-            <div className="text-center space-y-2">
-              <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
-              <p className="text-gray-500 leading-relaxed">{message}</p>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={() => {
-                  onConfirm();
-                  onClose();
-                }}
-                className={`w-full py-4 font-bold rounded-2xl transition-all active:scale-95 ${variantColors[variant]}`}
-              >
-                {confirmText}
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full py-4 bg-gray-50 text-gray-600 font-bold rounded-2xl hover:bg-gray-100 transition-all active:scale-95"
-              >
-                {cancelText}
-              </button>
-            </div>
+        <div className="p-8 space-y-6">
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${iconColors[variant]}`}>
+            <AlertTriangle className="w-8 h-8" />
           </div>
           
-          <button 
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </motion.div>
+          <div className="text-center space-y-2">
+            <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
+            <p className="text-gray-500 leading-relaxed">{message}</p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={() => {
+                onConfirm();
+                onClose();
+              }}
+              className={`w-full py-4 font-bold rounded-2xl transition-all active:scale-95 ${variantColors[variant]}`}
+            >
+              {confirmText}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-4 bg-gray-50 text-gray-600 font-bold rounded-2xl hover:bg-gray-100 transition-all active:scale-95"
+            >
+              {cancelText}
+            </button>
+          </div>
+        </div>
+        
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
-    </AnimatePresence>
+    </div>
   );
 };

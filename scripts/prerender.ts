@@ -77,6 +77,46 @@ function normalizeCategoryToSlug(cat: string): string {
   return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
 }
 
+function getPrerenderOptimizedImageUrl(url: string | null | undefined, width: number = 800, height?: number): string | undefined {
+  if (!url) return undefined;
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
+    return url;
+  }
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    let baseUrl = url.split('=')[0];
+    const params = [];
+    if (width) params.push(`w${width}`);
+    if (height) params.push(`h${height}`);
+    params.push('c');
+    return `${baseUrl}=${params.join('-')}`;
+  }
+  if (url.includes('images.unsplash.com')) {
+    try {
+      const urlObj = new URL(url);
+      urlObj.searchParams.set('w', width.toString());
+      if (height) urlObj.searchParams.set('h', height.toString());
+      urlObj.searchParams.set('q', '85');
+      urlObj.searchParams.set('fit', 'crop');
+      urlObj.searchParams.set('auto', 'format');
+      return urlObj.toString();
+    } catch (e) {
+      return url;
+    }
+  }
+  if (url.includes('res.cloudinary.com')) {
+    const parts = url.split('/upload/');
+    if (parts.length === 2) {
+      const transform = `w_${width}${height ? `,h_${height}` : ''},c_fill,q_85,f_auto`;
+      return `${parts[0]}/upload/${transform}/${parts[1]}`;
+    }
+  }
+  const params: string[] = [`url=${encodeURIComponent(url)}`, `w=${width}`];
+  if (height) params.push(`h=${height}`);
+  params.push('q=85');
+  return `/api/optimize-image?${params.join('&')}`;
+}
+
 // Helper to ensure directory exists
 function ensureDirectoryExists(filePath: string) {
   const dirname = path.dirname(filePath);
@@ -371,6 +411,36 @@ async function prerender() {
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
       `;
+
+      // Dynamic LCP image preloads
+      if (page.routeType === "home" || page.urlPath === "/") {
+        // Preload first listing's hero image (width=480, height=240)
+        const firstListing = page.initialData?.listings?.[0];
+        if (firstListing?.photos?.[0]) {
+          const firstListingPhoto = getPrerenderOptimizedImageUrl(firstListing.photos[0], 480, 240);
+          if (firstListingPhoto) {
+            extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(firstListingPhoto)}" fetchpriority="high" />`;
+          }
+        }
+      } else if (page.routeType === "listing" && page.initialData) {
+        // Preload listing's cover photo
+        const hasPhoto = page.initialData.photos && page.initialData.photos.length > 0 && page.initialData.photos[0] && page.initialData.photos[0].trim() !== '';
+        const photoUrl = hasPhoto ? page.initialData.photos[0] : "/ottawa-sunset.webp";
+        const coverPreloadUrl = getPrerenderOptimizedImageUrl(photoUrl, 1920, 600);
+        if (coverPreloadUrl) {
+          extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
+        }
+      } else if (page.routeType === "news" && page.initialData?.coverImage) {
+        const coverPreloadUrl = getPrerenderOptimizedImageUrl(page.initialData.coverImage, 800, 256);
+        if (coverPreloadUrl) {
+          extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
+        }
+      } else if (page.routeType === "event" && page.initialData?.coverImage) {
+        const coverPreloadUrl = getPrerenderOptimizedImageUrl(page.initialData.coverImage, 800, 256);
+        if (coverPreloadUrl) {
+          extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
+        }
+      }
 
       if (page.urlPath === "/" || page.routeType === "home") {
         const websiteSchema = {

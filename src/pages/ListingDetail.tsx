@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Send } from 'lucide-react';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, limit } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, getGeneralSettings } from '../firebase';
 import { Listing, Review } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { DEMO_LISTINGS } from '../constants';
@@ -75,12 +75,11 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   const [settingsCoverUrl, setSettingsCoverUrl] = useState<string>('');
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'general'), (docSnap) => {
-      if (docSnap.exists() && docSnap.data().coverImageUrl) {
-        setSettingsCoverUrl(docSnap.data().coverImageUrl);
+    getGeneralSettings().then((data) => {
+      if (data && data.coverImageUrl) {
+        setSettingsCoverUrl(data.coverImageUrl);
       }
     });
-    return () => unsub();
   }, []);
 
   // Contact Info Modal state

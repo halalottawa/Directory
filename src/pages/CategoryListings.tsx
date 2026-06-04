@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp } from 'lucide-react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
@@ -174,63 +174,76 @@ export const CategoryListings: React.FC = () => {
   useEffect(() => {
     if (!isValidCategory) return;
 
-    // Build targeted query depending on the facet type to fetch from firestore efficiently
-    let q = query(collection(db, 'listings'));
-    if (isMainCategory) {
-      q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory));
-    } else if (matchedType) {
-      q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory));
-    } else if (matchedCuisine) {
-      q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory));
-    } else if (isLocationCategory) {
-      q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'));
-    }
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const firestoreListings = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Listing[];
-      
-      // Filter client-side for better robustness (handles string vs array and pending vs approved)
-      const filtered = firestoreListings.filter(l => {
-        const listingCategories = Array.isArray(l.category) ? l.category : [l.category];
-        const listingTypes = l.types || [];
-        const listingCuisines = l.cuisine || [];
+    let isMounted = true;
 
-        if (isLocationCategory) {
-          const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
-          const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
-          const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === 'restaurants');
-          if (!(matchesLocation && matchesCategory)) return false;
-        } else {
-          const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
-          const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
-          const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
-          
-          if (!(matchesCategory || matchesType || matchesCuisine)) return false;
+    const fetchListings = async () => {
+      try {
+        // Build targeted query depending on the facet type to fetch from firestore efficiently
+        let q = query(collection(db, 'listings'));
+        if (isMainCategory) {
+          q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory));
+        } else if (matchedType) {
+          q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory));
+        } else if (matchedCuisine) {
+          q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory));
+        } else if (isLocationCategory) {
+          q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'));
         }
-        
-        // Admin sees everything
-        if (user?.role === 'admin') return true;
-        
-        // User sees approved listings OR their own pending listings
-        return l.isApproved || (user && l.submittedBy === user.uid);
-      });
 
-      // Sort: Featured first, then by date
-      filtered.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      
-      setRawListings(filtered);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'listings');
-    });
+        const snapshot = await getDocs(q);
+        if (!isMounted) return;
 
-    return () => unsubscribe();
+        const firestoreListings = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Listing[];
+        
+        // Filter client-side for better robustness (handles string vs array and pending vs approved)
+        const filtered = firestoreListings.filter(l => {
+          const listingCategories = Array.isArray(l.category) ? l.category : [l.category];
+          const listingTypes = l.types || [];
+          const listingCuisines = l.cuisine || [];
+
+          if (isLocationCategory) {
+            const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
+            const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
+            const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === 'restaurants');
+            if (!(matchesLocation && matchesCategory)) return false;
+          } else {
+            const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
+            const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
+            const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
+            
+            if (!(matchesCategory || matchesType || matchesCuisine)) return false;
+          }
+          
+          // Admin sees everything
+          if (user?.role === 'admin') return true;
+          
+          // User sees approved listings OR their own pending listings
+          return l.isApproved || (user && l.submittedBy === user.uid);
+        });
+
+        // Sort: Featured first, then by date
+        filtered.sort((a, b) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        
+        setRawListings(filtered);
+      } catch (error) {
+        if (isMounted) {
+          handleFirestoreError(error, OperationType.LIST, 'listings');
+        }
+      }
+    };
+
+    fetchListings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [formattedCategory, user, isValidCategory, isLocationCategory]);
 
   const filteredListings = React.useMemo(() => {

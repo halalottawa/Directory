@@ -264,17 +264,11 @@ async function startServer() {
       
       const finalName = `${cleanName}.webp`;
 
-      // Check if it is already our local url
-      if (url.startsWith('/uploads/')) {
-        const srcPath = path.join(process.cwd(), 'public', url);
-        const outputPath = path.join(uploadDir, finalName);
-        if (fs.existsSync(srcPath)) {
-          if (srcPath !== outputPath) {
-            fs.copyFileSync(srcPath, outputPath);
-          }
-          return res.json({ url: `/uploads/${finalName}` });
-        }
-        return res.json({ url });
+      // Check if it is already our local url or uploaded URL containing /uploads/
+      const uploadsIdx = url.indexOf('/uploads/');
+      if (uploadsIdx !== -1) {
+        const relativeUrl = url.substring(uploadsIdx);
+        return res.json({ url: relativeUrl });
       }
 
       console.log(`Downloading image from URL: ${url}`);

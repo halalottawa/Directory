@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'motion/react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { SEO } from '../components/SEO';
 
@@ -89,15 +88,14 @@ export const FAQ: React.FC = () => {
                     <ChevronDown className="w-5 h-5 text-gray-400" />
                   )}
                 </button>
-                {openIndex === index && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    className="px-6 pb-6 text-gray-600 leading-relaxed"
-                  >
+                <div 
+                  className="transition-all duration-300 ease-in-out overflow-hidden"
+                  style={{ maxHeight: openIndex === index ? '500px' : '0', opacity: openIndex === index ? 1 : 0 }}
+                >
+                  <div className="px-6 pb-6 text-gray-600 leading-relaxed font-normal">
                     {item.answer}
-                  </motion.div>
-                )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
