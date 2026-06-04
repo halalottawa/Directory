@@ -80,7 +80,7 @@ function normalizeCategoryToSlug(cat: string): string {
 function getPrerenderOptimizedImageUrl(url: string | null | undefined, width: number = 800, height?: number): string | undefined {
   if (!url) return undefined;
   const lowerUrl = url.toLowerCase();
-  if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
+  if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/') || lowerUrl.includes('r2.dev') || lowerUrl.includes('r2.cloudflarestorage.com')) {
     return url;
   }
   if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {

@@ -3,8 +3,8 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
 
   try {
     const lowerUrl = url.toLowerCase();
-    // Do not optimize base64 images, SVGs, or Google web UI icons
-    if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
+    // Do not optimize base64 images, SVGs, Google web UI icons, or Cloudflare R2 images
+    if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/') || lowerUrl.includes('r2.dev') || lowerUrl.includes('r2.cloudflarestorage.com')) {
       return url;
     }
 
