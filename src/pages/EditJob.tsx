@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Save, Trash2, Image as ImageIcon, Send, Upload } from 'lucide-react';
 import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -69,6 +69,36 @@ export const EditJob: React.FC = () => {
     };
     fetchJob();
   }, [id, user, navigate]);
+
+  const processingUrls = useRef<string[]>([]);
+  const handleCompanyLogoUrlChange = async (url: string) => {
+    setFormData(prev => ({ ...prev, companyLogo: url }));
+    if (!url) return;
+    
+    const isHttp = url.startsWith('http://') || url.startsWith('https://');
+    const isAlreadyProcessed = 
+      url.includes('.r2.dev') ||
+      url.includes('.r2.cloudflarestorage.com') ||
+      url.includes('.public.blob.vercel-storage.com') ||
+      url.includes('/uploads/');
+
+    if (isHttp && !isAlreadyProcessed) {
+      if (processingUrls.current.includes(url)) return;
+      processingUrls.current.push(url);
+      
+      const toastId = toast.loading('Uploading company logo from URL to R2 Cloudflare...');
+      try {
+        const uploadedUrl = await uploadFromUrl(url, `${formData.company || 'company'}-logo`);
+        setFormData(prev => ({ ...prev, companyLogo: uploadedUrl }));
+        toast.success('Company logo uploaded to R2 from URL successfully', { id: toastId });
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload image from URL', { id: toastId });
+        console.error(err);
+      } finally {
+        processingUrls.current = processingUrls.current.filter(item => item !== url);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +209,7 @@ export const EditJob: React.FC = () => {
                 className="w-full pl-14 pr-12 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.companyLogo}
                 onChange={(e) => setFormData({ ...formData, companyLogo: e.target.value })}
+                onBlur={(e) => handleCompanyLogoUrlChange(e.target.value)}
               />
               <label className="absolute right-4 top-1/2 -translate-y-1/2 p-2 cursor-pointer bg-white rounded-xl shadow-sm text-gray-500 hover:text-[#e90b35] transition-colors border border-gray-100 hover:border-red-100">
                 <Upload className="w-4 h-4" />

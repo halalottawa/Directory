@@ -33,17 +33,6 @@ const FaTiktok: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const FaReddit: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-    <path d="M17 11.5a1.5 1.5 0 0 0-2.586-1.06 6.334 6.334 0 0 0-4.01-1.325l.865-2.72 2.37.5a1 1 0 1 0 .964.76V8" />
-    <circle cx="12" cy="12.5" r="1" />
-    <circle cx="15" cy="12.5" r="1" />
-    <circle cx="9" cy="12.5" r="1" />
-    <path d="M9 15.5c1 1.5 5 1.5 6 0" />
-  </svg>
-);
-
 export const Footer: React.FC = () => {
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
 
@@ -86,9 +75,6 @@ export const Footer: React.FC = () => {
               </a>
               <a href="https://www.tiktok.com/@halalottawa.ca" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="TikTok">
                 <FaTiktok className="w-5 h-5" />
-              </a>
-              <a href="https://www.reddit.com/r/Ottawamuslims/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="Reddit">
-                <FaReddit className="w-5 h-5" />
               </a>
             </div>
           </div>

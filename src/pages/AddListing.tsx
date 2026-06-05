@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, CheckCircle2, Star, Trash2, Facebook, Instagram, Twitter, Smartphone, Upload, Loader2, FileText, Send, Sparkles, RefreshCw } from 'lucide-react';
 import { collection, setDoc, doc } from 'firebase/firestore';
@@ -39,6 +39,38 @@ export const AddListing: React.FC = () => {
     menuItems: [{ category: '', items: [{ name: '', price: '', description: '' }] }] as { category: string; items: { name: string; price: string; description?: string }[] }[],
     socialMediaLinks: [''] as string[],
   });
+
+  const processingUrls = useRef<string[]>([]);
+  const handlePhotoUrlChange = async (url: string) => {
+    setFormData(prev => ({ ...prev, photos: [url] }));
+    if (!url) return;
+
+    const isHttp = url.startsWith('http://') || url.startsWith('https://');
+    const isAlreadyProcessed = 
+      url.includes('.r2.dev') ||
+      url.includes('.r2.cloudflarestorage.com') ||
+      url.includes('.public.blob.vercel-storage.com') ||
+      url.includes('/uploads/');
+
+    if (isHttp && !isAlreadyProcessed) {
+      if (processingUrls.current.includes(url)) return;
+      processingUrls.current.push(url);
+      
+      setIsUploading(true);
+      const toastId = toast.loading('Uploading photo from URL to R2 Cloudflare...');
+      try {
+        const uploadedUrl = await uploadFromUrl(url, `${formData.name || 'listing'}-photo`);
+        setFormData(prev => ({ ...prev, photos: [uploadedUrl] }));
+        toast.success('Photo uploaded to R2 from URL successfully', { id: toastId });
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload image from URL', { id: toastId });
+        console.error(err);
+      } finally {
+        setIsUploading(false);
+        processingUrls.current = processingUrls.current.filter(item => item !== url);
+      }
+    }
+  };
 
   const [showHoursModal, setShowHoursModal] = useState(false);
   const [hours, setHours] = useState({
@@ -609,7 +641,8 @@ export const AddListing: React.FC = () => {
                     placeholder="Photo URL"
                     className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                     value={formData.photos[0] || ''}
-                    onChange={(e) => setFormData({ ...formData, photos: [e.target.value] })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, photos: [e.target.value] }))}
+                    onBlur={(e) => handlePhotoUrlChange(e.target.value)}
                   />
                 </div>
                 <div className="relative">

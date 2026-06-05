@@ -8,12 +8,138 @@ import multer from "multer";
 import fs from "fs";
 import compression from "compression";
 import admin from "firebase-admin";
+import http from "http";
+import https from "https";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
 let cachedFbApp: any = null;
 let cachedDb: any = null;
 let cachedFirestoreUtils: any = null;
+
+function isBufferHtml(buf: Buffer): boolean {
+  if (!buf || buf.length < 4) return false;
+  const str = buf.toString("utf8", 0, Math.min(buf.length, 500)).trim().toLowerCase();
+  return (
+    str.startsWith("<!doctype html") ||
+    str.startsWith("<html") ||
+    (str.startsWith("<") && (str.includes("<head") || str.includes("<body") || str.includes("<script") || str.includes("<div") || (str.includes("<meta") && str.includes("html"))))
+  );
+}
+
+function resolveUrl(relativeUrl: string, baseUrl: string): string {
+  try {
+    return new URL(relativeUrl, baseUrl).toString();
+  } catch (e) {
+    return relativeUrl;
+  }
+}
+
+function extractImageUrlFromHtml(html: string, baseUrl: string): string | null {
+  try {
+    // 1. og:image
+    const ogMatch = html.match(/<meta\s+[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                    html.match(/<meta\s+[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    if (ogMatch && ogMatch[1]) return resolveUrl(ogMatch[1].trim(), baseUrl);
+
+    // 2. twitter:image
+    const twitterMatch = html.match(/<meta\s+[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+                         html.match(/<meta\s+[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+    if (twitterMatch && twitterMatch[1]) return resolveUrl(twitterMatch[1].trim(), baseUrl);
+
+    // 3. apple-touch-icon
+    const appleIconMatch = html.match(/<link\s+[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i);
+    if (appleIconMatch && appleIconMatch[1]) return resolveUrl(appleIconMatch[1].trim(), baseUrl);
+
+    // 4. shortcut icon / icon
+    const iconMatch = html.match(/<link\s+[^>]*rel=["'](?:shortcut\s+)?icon["'][^>]*href=["']([^"']+)["']/i);
+    if (iconMatch && iconMatch[1]) return resolveUrl(iconMatch[1].trim(), baseUrl);
+
+    // 5. Look for any image tag with "logo" in its src or alt, or first image
+    const logoImgMatch = html.match(/<img\s+[^>]*src=["']([^"']*(?:logo|brand|icon|banner|header)[^"']*)["'][^>]*>/i) ||
+                         html.match(/<img\s+[^>]*alt=["']?[^"']*(?:logo|brand)[^"']*["']?[^>]*src=["']([^"']+)["'][^>]*>/i);
+    if (logoImgMatch && logoImgMatch[1]) return resolveUrl(logoImgMatch[1].trim(), baseUrl);
+
+    // 6. First image tag that is webp, png, or jpg
+    const firstImgMatch = html.match(/<img\s+[^>]*src=["']([^"']+\.(?:png|jpg|jpeg|webp|svg)(?:\?[^"']*)?)["']/i);
+    if (firstImgMatch && firstImgMatch[1]) return resolveUrl(firstImgMatch[1].trim(), baseUrl);
+
+  } catch (e) {
+    console.log("Image extraction completed with null result");
+  }
+
+  // Fallback to Google Favicon API (256px resolution) for any webpage link to guarantee a result
+  try {
+    const parsedUrl = new URL(baseUrl);
+    return `https://www.google.com/s2/favicons?sz=256&domain=${parsedUrl.hostname}`;
+  } catch (e) {
+    return null;
+  }
+}
+
+function fetchImageBuffer(urlStr: string, depth = 0): Promise<Buffer> {
+  if (depth > 5) {
+    return Promise.reject(new Error("Maximum redirect/scraping depth reached"));
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const url = new URL(urlStr);
+      const client = url.protocol === "https:" ? https : http;
+      
+      const options = {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+          "Referer": "https://www.google.com/"
+        },
+        rejectUnauthorized: false,
+        timeout: 15000
+      };
+
+      const req = client.get(urlStr, options, (res) => {
+        // Handle redirect codes (301, 302, 303, 307, 308)
+        if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          let redirectUrl = res.headers.location;
+          if (!redirectUrl.startsWith("http")) {
+            redirectUrl = new URL(redirectUrl, urlStr).toString();
+          }
+          return fetchImageBuffer(redirectUrl, depth + 1).then(resolve).catch(reject);
+        }
+
+        if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+          return reject(new Error(`Fetch response status: ${res.statusCode}`));
+        }
+
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          const finalBuffer = Buffer.concat(chunks);
+          if (isBufferHtml(finalBuffer)) {
+            const htmlContent = finalBuffer.toString("utf8");
+            const extractedImgUrl = extractImageUrlFromHtml(htmlContent, urlStr);
+            if (extractedImgUrl && extractedImgUrl !== urlStr) {
+              console.log(`[HTML Scraper] Extracted image "${extractedImgUrl}" from HTML page "${urlStr}"`);
+              return fetchImageBuffer(extractedImgUrl, depth + 1).then(resolve).catch(reject);
+            }
+            return reject(new Error("No image was extractable from the provided HTML document"));
+          }
+          resolve(finalBuffer);
+        });
+      });
+
+      req.on("error", (err) => {
+        reject(err);
+      });
+      
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error("Request timed out"));
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
 
 function getContentTypeFromKey(key: string): string {
   const ext = path.extname(key).toLowerCase();
@@ -290,20 +416,7 @@ async function startServer() {
       }
 
       console.log(`Downloading image from URL: ${url}`);
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'image/*,*/*;q=0.8',
-          'Referer': 'https://www.google.com/'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-      }
-
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      const buffer = await fetchImageBuffer(url);
 
       // Upload to Cloudflare R2 if configured
       const r2Url = await uploadToR2(buffer, finalName, "image/webp");
@@ -459,16 +572,7 @@ async function startServer() {
             const baseUrl = r2Url ? r2Url.replace(/\/$/, "") : `https://${r2Bucket}.${r2Account}.r2.cloudflarestorage.com`;
             const fullR2Url = `${baseUrl}/${relativePath}`;
             try {
-              const fetchRes = await fetch(fullR2Url, {
-                headers: {
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                  "Accept": "image/*"
-                }
-              });
-              if (fetchRes.ok) {
-                const ab = await fetchRes.arrayBuffer();
-                buffer = Buffer.from(ab);
-              }
+              buffer = await fetchImageBuffer(fullR2Url);
             } catch (err) {
               console.error("Failed to fetch image from R2 fallback inside optimize endpoint:", err);
             }
@@ -482,24 +586,12 @@ async function startServer() {
           return res.status(404).send("Image not found");
         }
 
-        const fetchRes = await fetch(imageUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "image/*"
-          }
-        });
-        
-        if (!fetchRes.ok) {
+        try {
+          buffer = await fetchImageBuffer(imageUrl);
+        } catch (fetchErr) {
+          console.log(`[Optimize] Redirecting request for ${imageUrl}`);
           return res.redirect(imageUrl);
         }
-        
-        const contentType = fetchRes.headers.get("content-type");
-        if (contentType && !contentType.startsWith("image/")) {
-          return res.status(400).send("Source URL is not an image");
-        }
-
-        const ab = await fetchRes.arrayBuffer();
-        buffer = Buffer.from(ab);
       }
 
       // Optimize image using sharp
@@ -627,16 +719,7 @@ async function startServer() {
         let buffer: Buffer;
 
         if (url.startsWith("http")) {
-          const fetchRes = await fetch(url, {
-            headers: {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-            },
-          });
-          if (!fetchRes.ok) {
-            throw new Error(`Failed to download ${url}: ${fetchRes.statusText}`);
-          }
-          const arrayBuf = await fetchRes.arrayBuffer();
-          buffer = Buffer.from(arrayBuf);
+          buffer = await fetchImageBuffer(url);
         } else {
           const cleanRelativePath = url.startsWith("/") ? url.slice(1) : url;
           const localFullPath = path.join(process.cwd(), "public", cleanRelativePath);

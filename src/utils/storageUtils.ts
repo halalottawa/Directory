@@ -1,4 +1,4 @@
-export async function uploadFromUrl(url: string, fileName?: string): Promise<string> {
+export async function uploadFromUrl(url: string, fileName?: string, throwOnError: boolean = true): Promise<string> {
   // If it's already an absolute URL hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
   if (
     url.includes('.r2.dev') ||
@@ -49,7 +49,10 @@ export async function uploadFromUrl(url: string, fileName?: string): Promise<str
     const data = await response.json();
     return data.url;
   } catch (error) {
-    console.warn("Failed to upload via proxy, using original URL", error);
+    console.warn("Failed to upload via proxy", error);
+    if (throwOnError) {
+      throw error;
+    }
     return url;
   }
 }

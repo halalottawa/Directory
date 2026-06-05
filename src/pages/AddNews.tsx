@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, ChevronLeft, Send, Upload } from 'lucide-react';
 import { collection, setDoc, doc } from 'firebase/firestore';
@@ -22,6 +22,36 @@ export const AddNews: React.FC = () => {
     coverImage: '',
     slug: '',
   });
+
+  const processingUrls = useRef<string[]>([]);
+  const handleCoverImageUrlChange = async (url: string) => {
+    setFormData(prev => ({ ...prev, coverImage: url }));
+    if (!url) return;
+    
+    const isHttp = url.startsWith('http://') || url.startsWith('https://');
+    const isAlreadyProcessed = 
+      url.includes('.r2.dev') ||
+      url.includes('.r2.cloudflarestorage.com') ||
+      url.includes('.public.blob.vercel-storage.com') ||
+      url.includes('/uploads/');
+
+    if (isHttp && !isAlreadyProcessed) {
+      if (processingUrls.current.includes(url)) return;
+      processingUrls.current.push(url);
+      
+      const toastId = toast.loading('Uploading photo from URL to R2 Cloudflare...');
+      try {
+        const uploadedUrl = await uploadFromUrl(url, `${formData.title || 'news'}-cover`);
+        setFormData(prev => ({ ...prev, coverImage: uploadedUrl }));
+        toast.success('Photo uploaded to R2 from URL successfully', { id: toastId });
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to upload image from URL', { id: toastId });
+        console.error(err);
+      } finally {
+        processingUrls.current = processingUrls.current.filter(item => item !== url);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,6 +139,7 @@ export const AddNews: React.FC = () => {
                 className="w-full pl-14 pr-12 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.coverImage}
                 onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                onBlur={(e) => handleCoverImageUrlChange(e.target.value)}
               />
               <label className="absolute right-4 top-1/2 -translate-y-1/2 p-2 cursor-pointer bg-white rounded-xl shadow-sm text-gray-500 hover:text-[#e90b35] transition-colors border border-gray-100 hover:border-red-100">
                 <Upload className="w-4 h-4" />
