@@ -22,8 +22,8 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [consent, setConsent] = useState(false);
-  const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+  const [consent, setConsent] = useState(true);
+  const [acceptedPolicy, setAcceptedPolicy] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);

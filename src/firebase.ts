@@ -4,15 +4,7 @@ import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
-// Dynamically use the current host as the authDomain on the client-side,
-// ensuring the Firebase Auth iframe is loaded from our own domain.
-// This solves the PageSpeed Cache-Control warning and overcomes third-party cookie restrictions.
 const config = { ...firebaseConfig };
-if (typeof window !== 'undefined' && 
-    !window.location.hostname.includes('localhost') && 
-    !window.location.hostname.includes('127.0.0.1')) {
-  config.authDomain = window.location.host;
-}
 
 const app = initializeApp(config);
 export const auth = getAuth(app);

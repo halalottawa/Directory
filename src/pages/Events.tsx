@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { Event } from '../types';
 import { DEMO_EVENTS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { formatDate, formatTime } from '../utils/dateFormatter';
+import { formatDate, formatTime, formatEventDates } from '../utils/dateFormatter';
 import { AdDisplay } from '../components/AdDisplay';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
@@ -194,7 +194,13 @@ export const Events: React.FC = () => {
               <div className="space-y-1 text-sm text-gray-500">
                 <p className="flex items-center gap-3"><User className="w-4 h-4 text-[#e90b35]" /> {event.organizer}</p>
                 <p className="flex items-center gap-3"><MapPin className="w-4 h-4 text-[#e90b35]" /> {event.location}</p>
-                <p className="flex items-center gap-3"><Calendar className="w-4 h-4 text-[#e90b35]" /> {formatDate(event.dateTime)} at {formatTime(event.dateTime)}</p>
+                <p className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4 text-[#e90b35]" /> 
+                  {event.isMultiDay && event.endDate
+                    ? `${formatEventDates(event.dateTime, event.isMultiDay, event.endDate)}`
+                    : `${formatDate(event.dateTime)} at ${formatTime(event.dateTime)}`
+                  }
+                </p>
               </div>
               <div className="pt-2 flex justify-between items-center">
               </div>

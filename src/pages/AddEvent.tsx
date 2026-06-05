@@ -6,6 +6,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { TimePicker } from '../components/TimePicker';
+import { DateRangePicker } from '../components/DateRangePicker';
 import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { uploadFromUrl, uploadFile } from '../utils/storageUtils';
 import { SEO } from '../components/SEO';
@@ -23,6 +24,8 @@ export const AddEvent: React.FC = () => {
     location: '',
     date: '',
     time: '',
+    isMultiDay: false,
+    endDate: '',
     description: '',
     registrationLink: '',
     coverImage: '',
@@ -37,7 +40,7 @@ export const AddEvent: React.FC = () => {
     setLoading(true);
     try {
       const isAdmin = user.role === 'admin';
-      const { date, time, ...rest } = formData;
+      const { date, time, isMultiDay, endDate, ...rest } = formData;
       const baseSlug = isAdmin && formData.slug 
         ? generateSlug(formData.slug) 
         : generateSlug(formData.title);
@@ -52,6 +55,8 @@ export const AddEvent: React.FC = () => {
         ...rest,
         slug: uniqueSlug,
         dateTime: `${date}T${time}`,
+        isMultiDay,
+        endDate: isMultiDay ? endDate : '',
         coverImage: finalImageUrl,
         lat: 45.4215,
         lng: -75.6972,
@@ -142,18 +147,21 @@ export const AddEvent: React.FC = () => {
               />
             </div>
 
-            <div className="flex gap-4 md:col-span-1">
-              <div className="relative flex-1">
-                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
+            <div className="flex flex-col sm:flex-row gap-4 md:col-span-2">
+              <div className="flex-1">
+                <DateRangePicker
+                  startDate={formData.date}
+                  endDate={formData.endDate}
+                  onChange={(start, end) => setFormData(prev => ({
+                    ...prev,
+                    date: start,
+                    endDate: end,
+                    isMultiDay: !!end
+                  }))}
                   required
-                  className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 />
               </div>
-              <div className="relative flex-1">
+              <div className="w-full sm:w-64">
                 <TimePicker
                   value={formData.time}
                   onChange={(val) => setFormData({ ...formData, time: val })}

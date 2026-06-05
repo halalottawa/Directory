@@ -33,3 +33,41 @@ export const formatTime = (dateString: string | Date): string => {
   
   return `${hours}:${minutesStr} ${ampm}`;
 };
+
+/**
+ * Formats event date(s) elegantly, supporting multi-day display.
+ */
+export const formatEventDates = (dateTimeStr: string | Date, isMultiDay?: boolean, endDateStr?: string): string => {
+  if (!dateTimeStr) return '';
+  const startDate = new Date(dateTimeStr);
+  if (isNaN(startDate.getTime())) return 'Invalid Date';
+
+  if (!isMultiDay || !endDateStr) {
+    return formatDate(startDate);
+  }
+
+  const endDate = new Date(endDateStr);
+  if (isNaN(endDate.getTime())) {
+    return formatDate(startDate);
+  }
+
+  const startYear = startDate.getFullYear();
+  const startMonth = startDate.toLocaleString('en-US', { month: 'long' });
+  const startDay = startDate.getDate();
+
+  const endYear = endDate.getFullYear();
+  const endMonth = endDate.toLocaleString('en-US', { month: 'long' });
+  const endDay = endDate.getDate();
+
+  if (startYear === endYear) {
+    if (startMonth === endMonth) {
+      if (startDay === endDay) {
+        return `${startMonth} ${startDay}, ${startYear}`;
+      }
+      return `${startMonth} ${startDay}–${endDay}, ${startYear}`;
+    }
+    return `${startMonth} ${startDay} – ${endMonth} ${endDay}, ${startYear}`;
+  }
+  return `${startMonth} ${startDay}, ${startYear} – ${endMonth} ${endDay}, ${endYear}`;
+};
+

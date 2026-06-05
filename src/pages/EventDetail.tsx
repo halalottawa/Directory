@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
-import { formatDate, formatTime } from '../utils/dateFormatter';
+import { formatDate, formatTime, formatEventDates } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
@@ -276,7 +276,9 @@ export const EventDetail: React.FC = () => {
           <button 
             onClick={() => handleInfoClick(
               'Date', 
-              `${formatDate(event.dateTime)} at ${formatTime(event.dateTime)}`, 
+              event.isMultiDay && event.endDate
+                ? `${formatEventDates(event.dateTime, event.isMultiDay, event.endDate)} starting at ${formatTime(event.dateTime)}`
+                : `${formatDate(event.dateTime)} at ${formatTime(event.dateTime)}`, 
               <Calendar className="w-6 h-6" />,
               'Add to Calendar',
               addToCalendar

@@ -131,6 +131,8 @@ export interface Event {
   lat: number;
   lng: number;
   dateTime: string;
+  isMultiDay?: boolean;
+  endDate?: string;
   description: string;
   registrationLink?: string;
   isFeatured: boolean;
