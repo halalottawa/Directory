@@ -1267,7 +1267,21 @@ async function startServer() {
       res.header('Content-Type', 'application/xml');
       res.send(xml);
     } catch (e: any) {
-      console.error("Error generating dynamic sitemap:", e);
+      console.error("Error generating dynamic sitemap, serving static build file fallback:", e);
+      try {
+        const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap.xml");
+        if (fs.existsSync(distStaticPath)) {
+          res.header('Content-Type', 'application/xml');
+          return res.sendFile(distStaticPath);
+        }
+        const publicStaticPath = path.resolve(process.cwd(), "public", "sitemap.xml");
+        if (fs.existsSync(publicStaticPath)) {
+          res.header('Content-Type', 'application/xml');
+          return res.sendFile(publicStaticPath);
+        }
+      } catch (fallbackError) {
+        console.error("Static sitemap fallback serve failed:", fallbackError);
+      }
       res.status(500).send('Error generating sitemap');
     }
   });

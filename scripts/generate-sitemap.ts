@@ -140,6 +140,13 @@ async function generateSitemap() {
   const outputPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
   fs.writeFileSync(outputPath, xml);
   console.log(`Sitemap written to ${outputPath}`);
+
+  const distPath = path.resolve(process.cwd(), 'dist');
+  if (fs.existsSync(distPath)) {
+    const distLogPath = path.join(distPath, 'sitemap.xml');
+    fs.writeFileSync(distLogPath, xml);
+    console.log(`Sitemap written to ${distLogPath}`);
+  }
 }
 
 generateSitemap().then(() => process.exit(0)).catch((err) => {
