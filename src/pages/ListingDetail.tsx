@@ -5,7 +5,7 @@ import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, upda
 import { db, getGeneralSettings } from '../firebase';
 import { Listing, Review } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { DEMO_LISTINGS } from '../constants';
+import { DEMO_LISTINGS, CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 import L from 'leaflet';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -44,6 +44,42 @@ const FaTiktok: React.FC<{ className?: string }> = ({ className }) => (
     <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
   </svg>
 );
+
+const getCleanCategoriesAndTags = (listing: any) => {
+  const rawCategories = Array.isArray(listing.category) 
+    ? listing.category 
+    : (listing.category ? [listing.category] : []);
+    
+  const cleanCategories = Array.from(new Set(
+    rawCategories
+      .filter((cat: any) => typeof cat === 'string' && cat.trim() !== '')
+      .map((cat: string) => cat.trim())
+  )).filter((cat: any) => (CATEGORIES as readonly any[]).includes(cat)) as string[];
+  
+  const rawTypes = Array.isArray(listing.types) 
+    ? listing.types 
+    : (listing.types ? [listing.types] : []);
+  const cleanTypes = Array.from(new Set(
+    rawTypes
+      .filter((t: any) => typeof t === 'string' && t.trim() !== '')
+      .map((t: string) => t.trim())
+  )).filter((type: any) => (LISTING_TYPES as readonly any[]).includes(type)) as string[];
+  
+  const rawCuisine = Array.isArray(listing.cuisine) 
+    ? listing.cuisine 
+    : (listing.cuisine ? [listing.cuisine] : []);
+  const cleanCuisine = Array.from(new Set(
+    rawCuisine
+      .filter((c: any) => typeof c === 'string' && c.trim() !== '')
+      .map((c: string) => c.trim())
+  )).filter((cuisine: any) => (CUISINES as readonly any[]).includes(cuisine)) as string[];
+
+  return {
+    categories: cleanCategories.length > 0 ? cleanCategories : ['Organizations'],
+    types: cleanTypes,
+    cuisine: cleanCuisine
+  };
+};
 
 interface ListingDetailProps {
   overrideSlug?: string;
@@ -423,9 +459,8 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     );
   };
 
-  const mainCategoryStr = Array.isArray(listing.category) && listing.category.length > 0 
-    ? listing.category[0] 
-    : (typeof listing.category === 'string' ? listing.category : 'listings');
+  const { categories: cleanCats } = getCleanCategoriesAndTags(listing);
+  const mainCategoryStr = cleanCats[0] || 'listings';
     
   return (
     <>
@@ -554,18 +589,19 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2 flex-wrap text-white">
               {(() => {
-                const allCategories = Array.isArray(listing.category) ? listing.category : [listing.category].filter(Boolean);
-                const mainCategory = allCategories[0];
-                const otherCategories = allCategories.slice(1);
+                const { categories, types, cuisine } = getCleanCategoriesAndTags(listing);
+                const mainCategory = categories[0];
+                const otherCategories = categories.slice(1);
                 
                 const subcategories: string[] = [];
-                if (allCategories.includes('Restaurants')) {
-                  if (listing.types) subcategories.push(...listing.types);
-                  if (listing.cuisine) subcategories.push(...listing.cuisine);
+                if (categories.includes('Restaurants')) {
+                  subcategories.push(...types);
+                  subcategories.push(...cuisine);
                 }
                 subcategories.push(...otherCategories);
                 
-                const displaySubcategories = subcategories.slice(0, 2);
+                const uniqueSubcategories = Array.from(new Set(subcategories)).filter(Boolean);
+                const displaySubcategories = uniqueSubcategories.slice(0, 2);
 
                 return (
                   <>
@@ -581,15 +617,21 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                         {mainCategory}
                       </Link>
                     )}
-                    {displaySubcategories.map((sub, index) => (
-                      <Link 
-                        key={`sub-${index}`} 
-                        to={`/${sub.toLowerCase().replace(/\s+/g, '-')}`}
-                        className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase transition-all hover:scale-105 hover:bg-red-100/80 active:scale-95 duration-200"
-                      >
-                        {sub}
-                      </Link>
-                    ))}
+                    {displaySubcategories.map((sub, index) => {
+                      const isRestaurantSubcategory = (CUISINES as readonly any[]).includes(sub) || (LISTING_TYPES as readonly any[]).includes(sub);
+                      const subPath = isRestaurantSubcategory 
+                        ? `/restaurants/${sub.toLowerCase().replace(/\s+/g, '-')}` 
+                        : `/${sub.toLowerCase().replace(/\s+/g, '-')}`;
+                      return (
+                        <Link 
+                          key={`sub-${index}`} 
+                          to={subPath}
+                          className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase transition-all hover:scale-105 hover:bg-red-100/80 active:scale-95 duration-200"
+                        >
+                          {sub}
+                        </Link>
+                      );
+                    })}
                   </>
                 );
               })()}
@@ -1258,7 +1300,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 </p>
                 <div className="mt-auto flex items-center justify-between">
                   <span className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase inline-block">
-                    {Array.isArray(related.category) ? related.category[0] : related.category}
+                    {getCleanCategoriesAndTags(related).categories[0] || 'Listing'}
                   </span>
                 </div>
               </div>

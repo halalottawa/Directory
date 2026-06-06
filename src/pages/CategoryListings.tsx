@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
-import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp, Utensils } from 'lucide-react';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +63,42 @@ const LOCATION_BOUNDARIES: Record<string, {
   }
 };
 
+const getCleanCategoriesAndTags = (listing: any) => {
+  const rawCategories = Array.isArray(listing.category) 
+    ? listing.category 
+    : (listing.category ? [listing.category] : []);
+    
+  const cleanCategories = Array.from(new Set(
+    rawCategories
+      .filter((cat: any) => typeof cat === 'string' && cat.trim() !== '')
+      .map((cat: string) => cat.trim())
+  )).filter((cat: any) => (CATEGORIES as readonly any[]).includes(cat)) as string[];
+  
+  const rawTypes = Array.isArray(listing.types) 
+    ? listing.types 
+    : (listing.types ? [listing.types] : []);
+  const cleanTypes = Array.from(new Set(
+    rawTypes
+      .filter((t: any) => typeof t === 'string' && t.trim() !== '')
+      .map((t: string) => t.trim())
+  )).filter((type: any) => (LISTING_TYPES as readonly any[]).includes(type)) as string[];
+  
+  const rawCuisine = Array.isArray(listing.cuisine) 
+    ? listing.cuisine 
+    : (listing.cuisine ? [listing.cuisine] : []);
+  const cleanCuisine = Array.from(new Set(
+    rawCuisine
+      .filter((c: any) => typeof c === 'string' && c.trim() !== '')
+      .map((c: string) => c.trim())
+  )).filter((cuisine: any) => (CUISINES as readonly any[]).includes(cuisine)) as string[];
+
+  return {
+    categories: cleanCategories.length > 0 ? cleanCategories : ['Organizations'],
+    types: cleanTypes,
+    cuisine: cleanCuisine
+  };
+};
+
 export const CategoryListings: React.FC = () => {
   const { user } = useAuth();
   const { category: paramCategory } = useParams<{ category: string }>();
@@ -88,7 +124,11 @@ export const CategoryListings: React.FC = () => {
   const isLocationCategory = !!matchedLocation;
 
   // Validate if it's a real category, listing type, cuisine, or location
-  const isValidCategory = isMainCategory || !!matchedType || !!matchedCuisine || isLocationCategory;
+  // Subcategories are only valid off /restaurants/ path, not root / path
+  const isUnderRestaurants = pathname.startsWith('/restaurants') || pathname.startsWith('/restaurants/');
+  const isValidCategory = isUnderRestaurants 
+    ? (rawFormattedCategory.toLowerCase() === 'restaurants' || !!matchedType || !!matchedCuisine || isLocationCategory) 
+    : isMainCategory;
 
   const formattedCategory = isMainCategory 
     ? (CATEGORIES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase()) || rawFormattedCategory)
@@ -525,7 +565,7 @@ export const CategoryListings: React.FC = () => {
                   </div>
                 )}
                 <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-1 rounded-md shadow-md backdrop-blur-md bg-opacity-95">
-                  {Array.isArray(listing.category as any) ? (listing.category as any)[0] : listing.category}
+                  {getCleanCategoriesAndTags(listing).categories[0] || 'Listing'}
                 </div>
                 {listing.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
@@ -551,15 +591,15 @@ export const CategoryListings: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(() => {
-                      const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);
-                      let tags = [...allCategories.slice(1)];
+                      const { categories, types, cuisine } = getCleanCategoriesAndTags(listing);
+                      let tags = [...categories.slice(1)];
                       
-                      if (allCategories.includes('Restaurants')) {
-                        if (listing.types?.length) tags = [...tags, ...listing.types];
-                        if (listing.cuisine?.length) tags = [...tags, ...listing.cuisine];
+                      if (categories.includes('Restaurants')) {
+                        tags = [...tags, ...types, ...cuisine];
                       }
+                      const cleanTags = Array.from(new Set(tags)).filter(Boolean);
                       
-                      return tags.slice(0, 2).map((tag: string, idx: number) => (
+                      return cleanTags.slice(0, 2).map((tag: string, idx: number) => (
                         <span key={`tag-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
                           {tag}
                         </span>
@@ -634,7 +674,7 @@ export const CategoryListings: React.FC = () => {
           <section className="space-y-6 pt-8 pb-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Location</h2>
-              <p className="text-gray-500">Find the best halal spots in your neighborhood</p>
+              <p className="text-gray-500">Find the perfect halal spot near you by exploring top-rated restaurants across Ottawa's key neighborhoods and districts.</p>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -651,7 +691,7 @@ export const CategoryListings: React.FC = () => {
                   return matchesLocation && matchesCategory;
                 }).length;
                 
-                const displayCount = count > 0 ? count : Math.floor(Math.random() * 20) + 1;
+                const displayCount = count;
                 
                 return (
                   <Link
@@ -672,16 +712,16 @@ export const CategoryListings: React.FC = () => {
             </div>
           </section>
 
-          {/* Browse by Food Type */}
-          <section className="hidden md:block space-y-6 pt-8 pb-4">
+          {/* Browse by Food */}
+          <section className="space-y-6 pt-8 pb-4">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Food Type</h2>
-              <p className="text-gray-500">Explore businesses by what they offer</p>
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Food</h2>
+              <p className="text-gray-500">Looking for a quick bite, sweet dessert, or specialty dish? Explore local food spots by their specific food offerings and styles.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {LISTING_TYPES.map((item) => {
                 const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.types?.includes(item as any) || l.category?.includes(item as any))).length;
-                const displayCount = count > 0 ? count : Math.floor(Math.random() * 50) + 1; // Fake count for demo if real count is 0
+                const displayCount = count;
                 
                 return (
                   <Link
@@ -703,15 +743,15 @@ export const CategoryListings: React.FC = () => {
           </section>
 
           {/* Browse by Cuisine */}
-          <section className="hidden md:block space-y-6 pt-8 pb-4">
+          <section className="space-y-6 pt-8 pb-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Cuisine</h2>
-              <p className="text-gray-500">Discover flavors from around the world</p>
+              <p className="text-gray-500">Embark on a culinary journey and discover authentic halal restaurants featuring traditional flavors and recipes from around the globe.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {CUISINES.map((item) => {
                 const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.cuisine?.includes(item as any) || l.category?.includes(item as any))).length;
-                const displayCount = count > 0 ? count : Math.floor(Math.random() * 50) + 1; // Fake count for demo if real count is 0
+                const displayCount = count;
                 
                 return (
                   <Link
@@ -720,7 +760,7 @@ export const CategoryListings: React.FC = () => {
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
-                       <Globe className="w-5 h-5" />
+                       <Utensils className="w-5 h-5" />
                     </div>
                     <div className="text-center">
                       <h3 className="font-semibold text-gray-900">{item}</h3>

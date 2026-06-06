@@ -251,9 +251,13 @@ export const Home: React.FC = () => {
           }
         });
 
-        const sortedEvents = Array.from(mergedEventsMap.values())
-          .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime())
-          .slice(0, 8);
+        const allEventsList = Array.from(mergedEventsMap.values());
+        const nowMs = new Date().getTime();
+        const upcomingEvents = allEventsList.filter(e => new Date(e.dateTime).getTime() >= nowMs)
+          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+        const pastEvents = allEventsList.filter(e => new Date(e.dateTime).getTime() < nowMs)
+          .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+        const sortedEvents = [...upcomingEvents, ...pastEvents].slice(0, 8);
         setFeaturedEvents(sortedEvents);
 
         const jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];

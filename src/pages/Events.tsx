@@ -33,23 +33,28 @@ export const Events: React.FC = () => {
           ...doc.data()
         })) as Event[];
 
-      // Sort client-side: Featured first, then by date (reverse chronological)
-      firestoreEvents.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
+      // Merge with demo data, deduplicating by ID or slug
+      const mergedEventsMap = new Map<string, Event>();
+      DEMO_EVENTS.forEach(item => mergedEventsMap.set(item.id, item));
+      firestoreEvents.forEach(item => {
+        mergedEventsMap.set(item.id, item);
+        if (item.slug) {
+          const demoItem = DEMO_EVENTS.find(d => d.slug === item.slug);
+          if (demoItem) mergedEventsMap.delete(demoItem.id);
+        }
       });
-
-      // Merge with demo data
-      const allEvents = [...firestoreEvents, ...DEMO_EVENTS];
+      const allEvents = Array.from(mergedEventsMap.values());
       
-      // Sort allEvents as well
-      allEvents.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
-      });
-      const filtered = allEvents.filter(event => 
+      // Sort: upcoming events nearest to today, then past events
+      const nowMs = new Date().getTime();
+      const upcomingEvents = allEvents.filter(e => new Date(e.dateTime).getTime() >= nowMs)
+        .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
+      const pastEvents = allEvents.filter(e => new Date(e.dateTime).getTime() < nowMs)
+        .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
+      
+      const sortedAllEvents = [...upcomingEvents, ...pastEvents];
+
+      const filtered = sortedAllEvents.filter(event => 
         event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.organizer.toLowerCase().includes(searchQuery.toLowerCase()) ||
         event.location.toLowerCase().includes(searchQuery.toLowerCase())

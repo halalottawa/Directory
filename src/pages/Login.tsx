@@ -226,6 +226,16 @@ export const Login: React.FC = () => {
           {isRegister ? 'Register with Google' : 'Sign in with Google'}
         </button>
 
+        {isApp && (
+          <div className="mt-3 text-xs text-gray-600 bg-amber-50 border border-amber-100 rounded-2xl p-4 flex gap-3 items-start text-left leading-relaxed">
+            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong className="text-amber-800 block mb-1">Mobile App Notice:</strong>
+              Google Sign-In inside mobile webviews requires the native shell app to permit third-party cookies/storage. If you encounter a white screen or a "missing initial state" error, please use <span className="font-semibold text-gray-800">Email & Password</span> instead, or update the webview custom cookie settings in your app package.
+            </div>
+          </div>
+        )}
+
         <div className="relative py-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-200"></div>

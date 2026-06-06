@@ -14,6 +14,42 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
 
+const getCleanCategoriesAndTags = (listing: any) => {
+  const rawCategories = Array.isArray(listing.category) 
+    ? listing.category 
+    : (listing.category ? [listing.category] : []);
+    
+  const cleanCategories = Array.from(new Set(
+    rawCategories
+      .filter((cat: any) => typeof cat === 'string' && cat.trim() !== '')
+      .map((cat: string) => cat.trim())
+  )).filter((cat: any) => (CATEGORIES as readonly any[]).includes(cat)) as string[];
+  
+  const rawTypes = Array.isArray(listing.types) 
+    ? listing.types 
+    : (listing.types ? [listing.types] : []);
+  const cleanTypes = Array.from(new Set(
+    rawTypes
+      .filter((t: any) => typeof t === 'string' && t.trim() !== '')
+      .map((t: string) => t.trim())
+  )).filter((type: any) => (LISTING_TYPES as readonly any[]).includes(type)) as string[];
+  
+  const rawCuisine = Array.isArray(listing.cuisine) 
+    ? listing.cuisine 
+    : (listing.cuisine ? [listing.cuisine] : []);
+  const cleanCuisine = Array.from(new Set(
+    rawCuisine
+      .filter((c: any) => typeof c === 'string' && c.trim() !== '')
+      .map((c: string) => c.trim())
+  )).filter((cuisine: any) => (CUISINES as readonly any[]).includes(cuisine)) as string[];
+
+  return {
+    categories: cleanCategories.length > 0 ? cleanCategories : ['Organizations'],
+    types: cleanTypes,
+    cuisine: cleanCuisine
+  };
+};
+
 export const Listings: React.FC = () => {
   const { user } = useAuth();
 
@@ -332,7 +368,7 @@ export const Listings: React.FC = () => {
                   </div>
                 )}
                 <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-1 rounded-md shadow-md backdrop-blur-md bg-opacity-95">
-                  {Array.isArray(listing.category as any) ? (listing.category as any)[0] : listing.category}
+                  {getCleanCategoriesAndTags(listing).categories[0] || 'Listing'}
                 </div>
                 {listing.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
@@ -358,15 +394,15 @@ export const Listings: React.FC = () => {
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
                     {(() => {
-                      const allCategories = Array.isArray(listing.category as any) ? (listing.category as any) : [listing.category].filter(Boolean);
-                      let tags = [...allCategories.slice(1)];
+                      const { categories, types, cuisine } = getCleanCategoriesAndTags(listing);
+                      let tags = [...categories.slice(1)];
                       
-                      if (allCategories.includes('Restaurants')) {
-                        if (listing.types?.length) tags = [...tags, ...listing.types];
-                        if (listing.cuisine?.length) tags = [...tags, ...listing.cuisine];
+                      if (categories.includes('Restaurants')) {
+                        tags = [...tags, ...types, ...cuisine];
                       }
+                      const cleanTags = Array.from(new Set(tags)).filter(Boolean);
                       
-                      return tags.slice(0, 2).map((tag: string, idx: number) => (
+                      return cleanTags.slice(0, 2).map((tag: string, idx: number) => (
                         <span key={`tag-${idx}`} className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
                           {tag}
                         </span>
