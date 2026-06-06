@@ -30,6 +30,13 @@ export const OpenStreetMap: React.FC<OpenStreetMapProps> = ({ address }) => {
     const geocode = async () => {
       try {
         const response = await fetch(`/api/geocode?q=${encodeURIComponent(address)}`);
+        if (!response.ok) {
+          throw new Error(`Server returned status ${response.status}`);
+        }
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error(`Received non-JSON content-type: ${contentType}`);
+        }
         const data = await response.json();
         if (data && data.length > 0) {
           setPosition([parseFloat(data[0].lat), parseFloat(data[0].lon)]);

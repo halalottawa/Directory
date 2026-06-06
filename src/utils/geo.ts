@@ -19,9 +19,11 @@ export async function getPreciseLocation(): Promise<string> {
         `/api/geocode?reverse=true&lat=${latitude}&lon=${longitude}`
       );
       if (res.ok) {
-        const data = await res.json();
-        if (data && data.address) {
-          const addr = data.address;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          if (data && data.address) {
+            const addr = data.address;
           const city = addr.city || addr.town || addr.village || addr.municipality || addr.city_district || 'Ottawa';
           const stateProv = addr.state || addr.province || 'ON';
           const stateCode = stateProv === 'Ontario' ? 'ON' : stateProv === 'Quebec' ? 'QC' : stateProv;
@@ -66,6 +68,7 @@ export async function getPreciseLocation(): Promise<string> {
           return `${city}, ${stateCode}`;
         }
       }
+    }
     } catch (err) {
       console.warn('Browser Geolocation or reverse geocoding failed, trying IP fallback:', err);
     }
@@ -101,9 +104,11 @@ export async function getSuburbFromAddress(address: string): Promise<string> {
       `/api/geocode?q=${encodeURIComponent(queryStr)}`
     );
     if (res.ok) {
-      const data = await res.json();
-      if (data && data.length > 0) {
-        const item = data[0];
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const item = data[0];
         const addr = item.address;
         if (addr) {
           let suburb = addr.suburb || 
@@ -142,6 +147,7 @@ export async function getSuburbFromAddress(address: string): Promise<string> {
         }
       }
     }
+  }
   } catch (err) {
     console.warn('Geocoding search failed:', err);
   }

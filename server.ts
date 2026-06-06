@@ -77,6 +77,30 @@ function extractImageUrlFromHtml(html: string, baseUrl: string): string | null {
   }
 }
 
+function isQuotaOrRateLimit(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || "").toLowerCase();
+  return err.status === 429 || 
+         msg.includes("429") || 
+         msg.includes("resource_exhausted") || 
+         msg.includes("quota") || 
+         msg.includes("limit") || 
+         msg.includes("billing");
+}
+
+function isGroundingOrPermissionIssue(err: any): boolean {
+  if (!err) return false;
+  const msg = (err.message || "").toLowerCase();
+  return err.status === 403 || 
+         err.status === 400 || 
+         msg.includes("403") || 
+         msg.includes("permission_denied") || 
+         msg.includes("permission") || 
+         msg.includes("caller does not have permission") ||
+         msg.includes("grounding") ||
+         msg.includes("tool");
+}
+
 function fetchImageBuffer(urlStr: string, depth = 0): Promise<Buffer> {
   if (depth > 5) {
     return Promise.reject(new Error("Maximum redirect/scraping depth reached"));
@@ -1007,8 +1031,38 @@ async function startServer() {
     }
   });
 
+  // In-memory geocode cache to minimize OSM Nominatim calls and avoid frequent rate limits
+  const geocodeCache = new Map<string, any>();
+
+  // In-memory circuit breaker for Gemini API quota limits
+  let isGeminiQuotaExhausted = false;
+  let quotaExhaustedTimestamp = 0;
+
+  function checkQuotaStatus() {
+    if (isGeminiQuotaExhausted) {
+      const now = Date.now();
+      // Reset after 10 minutes
+      if (now - quotaExhaustedTimestamp > 10 * 60 * 1000) {
+        isGeminiQuotaExhausted = false;
+      }
+    }
+    return isGeminiQuotaExhausted;
+  }
+
+  function setQuotaExhausted() {
+    isGeminiQuotaExhausted = true;
+    quotaExhaustedTimestamp = Date.now();
+  }
+
   app.get("/api/geocode", async (req, res) => {
     const { q, lat, lon, reverse } = req.query;
+    const cacheKey = reverse === "true" ? `rev_${lat}_${lon}` : `q_${String(q || "").toLowerCase().trim()}`;
+
+    // 1. Check in-memory cache first
+    if (geocodeCache.has(cacheKey)) {
+      return res.json(geocodeCache.get(cacheKey));
+    }
+
     try {
       let url = "";
       if (reverse === "true") {
@@ -1034,11 +1088,83 @@ async function startServer() {
         throw new Error(`Nominatim returned status ${response.status}`);
       }
 
+      // Check if content-type is json
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const bodyText = await response.text();
+        throw new Error(`Expected JSON but Nominatim returned content-type: ${contentType}. Body: ${bodyText.substring(0, 200)}`);
+      }
+
       const data = await response.json();
-      res.json(data);
+      
+      // Store in cache
+      geocodeCache.set(cacheKey, data);
+      
+      return res.json(data);
     } catch (error: any) {
-      console.error("Geocoding proxy error:", error);
-      res.status(500).json({ error: error.message || "Failed to geocode address" });
+      console.warn("Geocoding fetch/parse error, serving fallback coordinates:", error);
+
+      // 2. Failure Fallback System to ensure the map always loads centered on a real neighborhood
+      if (reverse === "true") {
+        const fallbackRev = {
+          lat: String(lat || "45.4215"),
+          lon: String(lon || "-75.6972"),
+          display_name: "Ottawa, ON, Canada",
+          address: {
+            city: "Ottawa",
+            state: "Ontario",
+            country: "Canada",
+            country_code: "ca"
+          }
+        };
+        return res.json(fallbackRev);
+      } else {
+        const queryNorm = String(q || "").toLowerCase();
+        let fallbackLat = "45.4215";
+        let fallbackLon = "-75.6972";
+        let fallbackSuburb = "";
+        let displayName = "Ottawa, ON, Canada";
+
+        if (queryNorm.includes("orleans") || queryNorm.includes("orléans")) {
+          fallbackLat = "45.4748";
+          fallbackLon = "-75.4851";
+          fallbackSuburb = "Orléans";
+          displayName = "Orléans, Ottawa, ON, Canada";
+        } else if (queryNorm.includes("kanata")) {
+          fallbackLat = "45.3088";
+          fallbackLon = "-75.8969";
+          fallbackSuburb = "Kanata";
+          displayName = "Kanata, Ottawa, ON, Canada";
+        } else if (queryNorm.includes("barrhaven")) {
+          fallbackLat = "45.2754";
+          fallbackLon = "-75.7533";
+          fallbackSuburb = "Barrhaven";
+          displayName = "Barrhaven, Ottawa, ON, Canada";
+        } else if (queryNorm.includes("downtown") || queryNorm.includes("centretown") || queryNorm.includes("byward")) {
+          fallbackLat = "45.4116";
+          fallbackLon = "-75.6963";
+          fallbackSuburb = "Downtown";
+          displayName = "Downtown, Ottawa, ON, Canada";
+        }
+
+        const fallbackData = [
+          {
+            place_id: 9999999,
+            licence: "Fallback mock geocode data",
+            lat: fallbackLat,
+            lon: fallbackLon,
+            display_name: displayName,
+            address: {
+              ...(fallbackSuburb ? { suburb: fallbackSuburb } : {}),
+              city: "Ottawa",
+              state: "Ontario",
+              country: "Canada",
+              country_code: "ca"
+            }
+          }
+        ];
+        return res.json(fallbackData);
+      }
     }
   });
 
@@ -1220,29 +1346,11 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
       let usedModel = "gemini-3.5-flash";
       let usedSearch = true;
 
-      const isQuotaOrRateLimit = (err: any) => {
-        const msg = (err?.message || "").toLowerCase();
-        return err?.status === 429 || 
-               msg.includes("429") || 
-               msg.includes("resource_exhausted") || 
-               msg.includes("quota") || 
-               msg.includes("limit") || 
-               msg.includes("billing");
-      };
-
-      const isGroundingOrPermissionIssue = (err: any) => {
-        const msg = (err?.message || "").toLowerCase();
-        return err?.status === 403 || 
-               err?.status === 400 || 
-               msg.includes("403") || 
-               msg.includes("permission_denied") || 
-               msg.includes("permission") || 
-               msg.includes("caller does not have permission") ||
-               msg.includes("grounding") ||
-               msg.includes("tool");
-      };
-
       try {
+        if (checkQuotaStatus()) {
+          console.log("[Gemini API] Bypassing Gemini API calls due to previous Quota/Rate Limit (RESOURCE_EXHAUSTED).");
+          throw new Error("QUOTA_AUTO_BYPASS");
+        }
         console.log("Attempting Stage 1: gemini-3.5-flash with Google Search grounding...");
         response = await executeWithRetry(() => ai.models.generateContent({
           model: "gemini-3.5-flash",
@@ -1264,15 +1372,19 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
           }
         }), 1, 1000); // 1 retry to identify quota/rate-limit issues quickly
       } catch (err1: any) {
+        if (err1?.message === "QUOTA_AUTO_BYPASS") {
+          throw err1;
+        }
         const isQuota = isQuotaOrRateLimit(err1);
         const isGroundingErr = isGroundingOrPermissionIssue(err1);
         
         if (isQuota) {
-          console.warn("[Gemini API] Quota/Rate Limit hit in Stage 1. Skipping Stage 2 (Search Grounding) and directly attempting Stage 3 (Standard Gemini generation without search grounding)...", err1.message || err1);
+          setQuotaExhausted();
+          console.log("[Gemini API] Stage 1 request rate limit or quota reached (Google Search tool is unavailable). Advancing to Stage 3...");
         } else if (isGroundingErr) {
-          console.warn("[Gemini API] Search grounding not permitted/enabled on this API key. Skipping Stage 2 and attempting Stage 3 (Standard Gemini generation)...");
+          console.log("[Gemini API] Search grounding not permitted or enabled on this API key. Skipping Stage 2 and attempting Stage 3...");
         } else {
-          console.warn("Stage 1 failed or exhausted. Attempting Stage 2: gemini-3.1-flash-lite with Google Search grounding...", err1.message || err1);
+          console.log("Stage 1 failed or exhausted. Attempting Stage 2: gemini-3.1-flash-lite with Google Search grounding... " + (err1.message ? err1.message.substring(0, 150) : ""));
         }
 
         let stage2Success = false;
@@ -1300,10 +1412,13 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
             usedModel = "gemini-3.1-flash-lite";
             stage2Success = true;
           } catch (err2: any) {
-            console.warn("Stage 2 failed or exhausted. Attempting Stage 3: gemini-3.5-flash without search grounding...", err2.message || err2);
+            if (isQuotaOrRateLimit(err2)) {
+              setQuotaExhausted();
+            }
+            console.log("Stage 2 failed or exhausted. Attempting Stage 3 (Standard Gemini generation)...");
           }
         }
-
+ 
         if (!stage2Success) {
           try {
             console.log("Attempting Stage 3: gemini-3.5-flash without search grounding...");
@@ -1328,7 +1443,10 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
             usedModel = "gemini-3.5-flash";
             usedSearch = false;
           } catch (err3: any) {
-            console.warn("Stage 3 failed or exhausted. Attempting Stage 4: gemini-3.1-flash-lite without search grounding...", err3.message || err3);
+            if (isQuotaOrRateLimit(err3)) {
+              setQuotaExhausted();
+            }
+            console.log("Stage 3 failed or exhausted. Attempting Stage 4: gemini-3.1-flash-lite without search grounding...");
             response = await executeWithRetry(() => ai.models.generateContent({
               model: "gemini-3.1-flash-lite",
               contents: prompt + "\n\nNote: Estimate or supply search-grounded details (plausible/historical address, phone, hours, email, website) based on your training data.",
@@ -1352,18 +1470,24 @@ CRITICAL: Return only the JSON object representation, with no leading or trailin
           }
         }
       }
-
+ 
       const text = response.text;
       if (!text) {
         return res.status(500).json({ error: "Received empty response from AI model" });
       }
-
+ 
       console.log(`AI listing fetch success using model: ${usedModel}, search: ${usedSearch}. Result:`, text);
       const parsedData = JSON.parse(text);
       return res.json(parsedData);
-
+ 
     } catch (err: any) {
-      console.error("Error in /api/admin/fetch-listing-ai-info, executing local smart fallback:", err);
+      if (err?.message !== "QUOTA_AUTO_BYPASS") {
+        const isQuota = isQuotaOrRateLimit(err);
+        if (isQuota) setQuotaExhausted();
+        console.error("Error in /api/admin/fetch-listing-ai-info, executing local smart fallback:", isQuota ? "Gemini Quota/Rate Limit reached" : (err.message || err));
+      } else {
+        console.log("Serving offline smart fallback for /api/admin/fetch-listing-ai-info due to auto-bypass.");
+      }
       try {
         const cleanName = name.trim();
         const slug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1610,6 +1734,10 @@ Return the result strictly as a valid JSON object matching the schema. Do NOT wr
       let usedSearch = true;
 
       try {
+        if (checkQuotaStatus()) {
+          console.log("[Import API] Bypassing Gemini API calls due to previous Quota/Rate Limit (RESOURCE_EXHAUSTED).");
+          throw new Error("QUOTA_AUTO_BYPASS");
+        }
         console.log(`[Import API] Attempting Stage 1: gemini-3.5-flash with Search Grounding for ${placeName}...`);
         response = await executeWithRetry(() => ai.models.generateContent({
           model: "gemini-3.5-flash",

@@ -64,6 +64,11 @@ const LOCATION_BOUNDARIES: Record<string, {
 };
 
 const getCleanCategoriesAndTags = (listing: any) => {
+  const findCanonical = (val: string, list: readonly any[]): string | undefined => {
+    const lower = val.toLowerCase().trim();
+    return list.find(item => String(item).toLowerCase().trim() === lower);
+  };
+
   const rawCategories = Array.isArray(listing.category) 
     ? listing.category 
     : (listing.category ? [listing.category] : []);
@@ -71,8 +76,9 @@ const getCleanCategoriesAndTags = (listing: any) => {
   const cleanCategories = Array.from(new Set(
     rawCategories
       .filter((cat: any) => typeof cat === 'string' && cat.trim() !== '')
-      .map((cat: string) => cat.trim())
-  )).filter((cat: any) => (CATEGORIES as readonly any[]).includes(cat)) as string[];
+      .map((cat: string) => findCanonical(cat, CATEGORIES))
+      .filter(Boolean) as string[]
+  ));
   
   const rawTypes = Array.isArray(listing.types) 
     ? listing.types 
@@ -80,8 +86,9 @@ const getCleanCategoriesAndTags = (listing: any) => {
   const cleanTypes = Array.from(new Set(
     rawTypes
       .filter((t: any) => typeof t === 'string' && t.trim() !== '')
-      .map((t: string) => t.trim())
-  )).filter((type: any) => (LISTING_TYPES as readonly any[]).includes(type)) as string[];
+      .map((t: string) => findCanonical(t, LISTING_TYPES))
+      .filter(Boolean) as string[]
+  ));
   
   const rawCuisine = Array.isArray(listing.cuisine) 
     ? listing.cuisine 
@@ -89,8 +96,9 @@ const getCleanCategoriesAndTags = (listing: any) => {
   const cleanCuisine = Array.from(new Set(
     rawCuisine
       .filter((c: any) => typeof c === 'string' && c.trim() !== '')
-      .map((c: string) => c.trim())
-  )).filter((cuisine: any) => (CUISINES as readonly any[]).includes(cuisine)) as string[];
+      .map((c: string) => findCanonical(c, CUISINES))
+      .filter(Boolean) as string[]
+  ));
 
   return {
     categories: cleanCategories.length > 0 ? cleanCategories : ['Organizations'],
