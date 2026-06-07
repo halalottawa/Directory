@@ -7,13 +7,15 @@ import {
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
-  deleteUser
+  deleteUser,
+  signInWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db, getMessagingPromise } from '../firebase';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getPreciseLocation } from '../utils/geo';
+import { isAppWrapper } from '../utils/platform';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -210,6 +212,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    // Register global callbacks for native Google Sign-In success
+    (window as any).onNativeGoogleSignIn = async (idToken: string) => {
+      console.log('Strategy B: Received native Google idToken:', idToken);
+      if (!idToken) return;
+      try {
+        setLoading(true);
+        const { signInWithCredential, GoogleAuthProvider } = await import('firebase/auth');
+        const credential = GoogleAuthProvider.credential(idToken);
+        await signInWithCredential(auth, credential);
+        console.log('Successfully authenticated via native Google Sign-In.');
+      } catch (err: any) {
+        console.error('Error authenticating with native Google credential:', err);
+        alert('Google Sign-In failed: ' + (err.message || err));
+      } finally {
+        setLoading(false);
+      }
+    };
+    (window as any).onGoogleSignInSuccess = (window as any).onNativeGoogleSignIn;
+
     // 1. Register global callback for when native container obtains FCM token
     (window as any).onFCMTokenReceived = async (token: string) => {
       console.log('Strategy B: FCM Token received from Native Mobile Wrapper:', token);
@@ -309,10 +330,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
+    const isApp = isAppWrapper();
+
+    if (isApp) {
+      console.log('Detecting Native App environment. Dispatched GOOGLE_SIGN_IN signal to bridges.');
+      const win = window as any;
+      const payloadString = JSON.stringify({ event: 'GOOGLE_SIGN_IN', action: 'signin' });
+
+      // 1. Capacitor Google SDK Plugin
+      if (win.Capacitor?.Plugins?.GoogleAuth) {
+        try {
+          const capResult = await win.Capacitor.Plugins.GoogleAuth.signIn();
+          if (capResult?.idToken) {
+            const credential = GoogleAuthProvider.credential(capResult.idToken);
+            await signInWithCredential(auth, credential);
+            console.log('Successfully completed authentication via native Capacitor GoogleAuth plugin');
+            return;
+          }
+        } catch (capError: any) {
+          console.error('Capacitor native Google sign-in effort returned error:', capError);
+        }
+      }
+
+      // 2. Custom React Native postMessage signal
+      if (win.ReactNativeWebView?.postMessage) {
+        try {
+          win.ReactNativeWebView.postMessage(payloadString);
+        } catch (e) {}
+      }
+
+      // 3. Custom iOS WebKit Handler signal
+      if (win.webkit?.messageHandlers?.googleSignInHandler?.postMessage) {
+        try {
+          win.webkit.messageHandlers.googleSignInHandler.postMessage({ action: 'signin' });
+        } catch (e) {}
+      }
+
+      // 4. Custom Android Bridge Interface trigger
+      if (win.AndroidBridge?.googleSignIn) {
+        try {
+          win.AndroidBridge.googleSignIn();
+        } catch (e) {}
+      }
+
+      console.log('Dispatched GOOGLE_SIGN_IN request to all available native webview channels.');
+      return;
+    }
+
     try {
+      // Always use signInWithPopup to open a popup overlay inside the app Webview / app container itself.
+      // This avoids redirecting the app shell away to an external system browser link.
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      // Fallback to redirect if popup is blocked or in a WebView environment where popups fail
+      // Fallback to redirect only for standard web clients if popup is blocked
       if (error.code === 'auth/popup-blocked' || 
           error.code === 'auth/cancelled-popup-request' || 
           error.code === 'auth/popup-closed-by-user' ||

@@ -541,21 +541,25 @@ export const AddListing: React.FC = () => {
                   value={formData.openingHours}
                 />
               </div>
-              {user?.role === 'admin' && (
-                <button
-                  type="button"
-                  disabled={isFetchingAI || Object.values(isFetchingField).some(Boolean) || !formData.name.trim()}
-                  onClick={() => handleFetchAIInfo('openingHours')}
-                  title="Autofill Hours with AI"
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 shrink-0"
-                >
-                  {isFetchingField.openingHours ? (
-                    <RefreshCw className="w-4 h-4 animate-spin text-gray-500" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData(prev => ({ ...prev, openingHours: '' }));
+                  setHours({
+                    Monday: { open: '', close: '', closed: false },
+                    Tuesday: { open: '', close: '', closed: false },
+                    Wednesday: { open: '', close: '', closed: false },
+                    Thursday: { open: '', close: '', closed: false },
+                    Friday: { open: '', close: '', closed: false },
+                    Saturday: { open: '', close: '', closed: false },
+                    Sunday: { open: '', close: '', closed: false },
+                  });
+                }}
+                title="Reset Hours"
+                className="p-4 text-red-500 hover:text-red-700 hover:bg-red-50 bg-gray-50 rounded-2xl transition-all shrink-0 flex items-center justify-center border-none"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
             </div>
 
             {showHoursModal && (
