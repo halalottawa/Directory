@@ -400,16 +400,21 @@ async function prerender() {
       let html = baseTemplate;
       
       // Inject standard SEO Tags with safe HTML escaping
-      html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtmlText(page.title)}</title>`);
-      html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
+      html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(page.title)}</title>`);
+      html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
       
       let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
+    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + page.urlPath)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${escapeHtmlAttr(page.title)}" />
+    <meta name="twitter:description" content="${escapeHtmlAttr(page.description)}" />
+    <meta name="twitter:image" content="${escapeHtmlAttr(page.ogImage)}" />
+    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + page.urlPath)}" />
       `;
 
       // Dynamic LCP image preloads

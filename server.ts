@@ -226,6 +226,20 @@ async function startServer() {
     }
   }
 
+  // Ensure default-og.jpg exists in public directory for social media link previews
+  const defaultOgPath = path.join(process.cwd(), "public", "default-og.jpg");
+  if (!fs.existsSync(defaultOgPath)) {
+    const sourceOgImg = path.join(process.cwd(), "src", "assets", "images", "default_og_visual_1780866128825.png");
+    if (fs.existsSync(sourceOgImg)) {
+      try {
+        fs.copyFileSync(sourceOgImg, defaultOgPath);
+        console.log("Successfully copied default visual to public/default-og.jpg for Open Graph previews");
+      } catch (err) {
+        console.error("Failed to copy default-og.jpg on startup:", err);
+      }
+    }
+  }
+
   const storage = multer.memoryStorage();
   const upload = multer({ storage: storage });
 
@@ -2451,31 +2465,39 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
     }
 
-    // Simple string replacement for basic SEO tags with safe HTML escaping
-    html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtmlText(title)}</title>`);
-    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
+    // Strip existing OG, Twitter and canonical tags to prevent duplicates and ensure fresh values are injected
+    html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
+    html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
+    html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
+
+    // Robust HTML tag replacements for title and description
+    html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(title)}</title>`);
+    html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
     
-    // Inject OG tags if not present
-    if (!html.includes('property="og:title"')) {
-      let extraTags = `
+    let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
+    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + urlPath)}" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-      `;
+    <meta name="twitter:title" content="${escapeHtmlAttr(title)}" />
+    <meta name="twitter:description" content="${escapeHtmlAttr(description)}" />
+    <meta name="twitter:image" content="${escapeHtmlAttr(ogImage)}" />
+    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + urlPath)}" />
+    `;
 
-      if (pathParts.length === 0) {
-        const websiteSchema = {
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Halal Ottawa",
-          "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
-          "url": "https://www.halalottawa.ca/"
-        };
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
-      }
+    if (pathParts.length === 0) {
+      const websiteSchema = {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Halal Ottawa",
+        "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
+        "url": "https://www.halalottawa.ca/"
+      };
+      extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
+    }
 
       // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
       if (pathParts.length === 2 && initialData) {
@@ -2729,7 +2751,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
 
       html = html.replace('</head>', `${extraTags}\n  </head>`);
-    }
 
     if (isNotFound) {
       if (html.includes('</head>')) {
