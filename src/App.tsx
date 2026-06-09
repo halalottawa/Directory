@@ -76,7 +76,7 @@ const AppContent: React.FC = () => {
   const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
 
   if (isApp && !user && !isAuthPage && !isAllowedPublicPathInApp) {
-    return <Navigate to="/register" replace state={{ from: location, message: 'Welcome to Halal Ottawa! Please create an account or sign in to continue.' }} />;
+    return <Navigate to="/register" replace state={{ from: location }} />;
   }
 
   return (
