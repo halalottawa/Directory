@@ -342,6 +342,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           if (typeof win.Capacitor.Plugins.GoogleAuth.initialize === 'function') {
             await win.Capacitor.Plugins.GoogleAuth.initialize({
+              clientId: '604019460073-nevmio60k9muu0rv6f11d0lb6lo1140c.apps.googleusercontent.com',
               scopes: ['profile', 'email'],
               grantOfflineAccess: false,
             });
