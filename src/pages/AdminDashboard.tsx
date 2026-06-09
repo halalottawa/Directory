@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus, Upload, FileText } from 'lucide-react';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
@@ -1502,6 +1502,34 @@ export const AdminDashboard: React.FC = () => {
         ? selectedFeedbackIds.includes(item.id)
         : false;
 
+    const parentInfo = (() => {
+      if (type === 'reviews') {
+        const listing = [...pendingListings, ...approvedListings].find(l => l.id === item.listingId);
+        return {
+          name: listing ? listing.name : 'Unknown Listing',
+          type: 'Listing',
+          link: listing ? `/listings/${listing.slug || listing.id}` : null
+        };
+      } else if (type === 'comments') {
+        if (item.parentType === 'news') {
+          const article = [...pendingNews, ...approvedNews].find(n => n.id === item.parentId);
+          return {
+            name: article ? article.title : 'Unknown News Article',
+            type: 'News',
+            link: article ? `/news/${article.slug || article.id}` : null
+          };
+        } else if (item.parentType === 'event') {
+          const eventItem = [...pendingEvents, ...approvedEvents].find(e => e.id === item.parentId);
+          return {
+            name: eventItem ? eventItem.title : 'Unknown Event',
+            type: 'Event',
+            link: eventItem ? `/events/${eventItem.slug || eventItem.id}` : null
+          };
+        }
+      }
+      return null;
+    })();
+
     return (
       <div key={item.id || item.uid} className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${!isLast ? 'border-b border-gray-50' : ''} ${isSelected ? 'bg-red-50/30' : ''}`}>
         <div className="flex items-center gap-3 min-w-0">
@@ -1544,6 +1572,25 @@ export const AdminDashboard: React.FC = () => {
               )}
             </div>
             <p className="text-xs text-gray-400 truncate max-w-[200px] sm:max-w-xs">{getSubtitle()}</p>
+            {parentInfo && (
+              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md font-medium shrink-0">
+                  {parentInfo.type}:
+                </span>
+                {parentInfo.link ? (
+                  <Link 
+                    to={parentInfo.link}
+                    className="text-[11px] text-[#e90b35] font-semibold hover:underline truncate max-w-[180px] sm:max-w-xs"
+                  >
+                    {parentInfo.name}
+                  </Link>
+                ) : (
+                  <span className="text-[11px] text-gray-500 font-medium truncate max-w-[180px] sm:max-w-xs">
+                    {parentInfo.name}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 pl-2">
@@ -1651,11 +1698,28 @@ export const AdminDashboard: React.FC = () => {
 
     if (feedbackSearchQuery.trim()) {
       const query = feedbackSearchQuery.toLowerCase();
-      items = items.filter(item => 
-        (item.comment?.toLowerCase().includes(query)) ||
-        (item.content?.toLowerCase().includes(query)) ||
-        (item.userName?.toLowerCase().includes(query))
-      );
+      items = items.filter(item => {
+        let parentName = '';
+        if (activeFeedbackTab === 'reviews') {
+          const listing = [...pendingListings, ...approvedListings].find(l => l.id === item.listingId);
+          parentName = listing ? listing.name : '';
+        } else if (activeFeedbackTab === 'comments') {
+          if (item.parentType === 'news') {
+            const article = [...pendingNews, ...approvedNews].find(n => n.id === item.parentId);
+            parentName = article ? article.title : '';
+          } else if (item.parentType === 'event') {
+            const eventItem = [...pendingEvents, ...approvedEvents].find(e => e.id === item.parentId);
+            parentName = eventItem ? eventItem.title : '';
+          }
+        }
+
+        return (
+          (item.comment?.toLowerCase().includes(query)) ||
+          (item.content?.toLowerCase().includes(query)) ||
+          (item.userName?.toLowerCase().includes(query)) ||
+          (parentName?.toLowerCase().includes(query))
+        );
+      });
     }
     return items;
   })();
@@ -3034,61 +3098,111 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* View Feedback Modal */}
-      {viewFeedbackItem && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-bold capitalize">{viewFeedbackItem.type.slice(0, -1)} Details</h3>
-              <button 
-                onClick={() => setViewFeedbackItem(null)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
-                  {viewFeedbackItem.item.userPhoto ? (
-                    <img src={(viewFeedbackItem.item.userPhoto) || undefined} alt={viewFeedbackItem.item.userName} className="w-full h-full object-cover" />
-                  ) : (
-                    <Users className="w-5 h-5 text-gray-400" />
-                  )}
+      {viewFeedbackItem && (() => {
+        const item = viewFeedbackItem.item;
+        const type = viewFeedbackItem.type;
+        const parentInfo = (() => {
+          if (type === 'reviews') {
+            const listing = [...pendingListings, ...approvedListings].find(l => l.id === item.listingId);
+            return {
+              name: listing ? listing.name : 'Unknown Listing',
+              type: 'Listing',
+              link: listing ? `/listings/${listing.slug || listing.id}` : null
+            };
+          } else if (type === 'comments') {
+            if (item.parentType === 'news') {
+              const article = [...pendingNews, ...approvedNews].find(n => n.id === item.parentId);
+              return {
+                name: article ? article.title : 'Unknown News Article',
+                type: 'News',
+                link: article ? `/news/${article.slug || article.id}` : null
+              };
+            } else if (item.parentType === 'event') {
+              const eventItem = [...pendingEvents, ...approvedEvents].find(e => e.id === item.parentId);
+              return {
+                name: eventItem ? eventItem.title : 'Unknown Event',
+                type: 'Event',
+                link: eventItem ? `/events/${eventItem.slug || eventItem.id}` : null
+              };
+            }
+          }
+          return null;
+        })();
+
+        return (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold capitalize">{type.slice(0, -1)} Details</h3>
+                <button 
+                  onClick={() => setViewFeedbackItem(null)}
+                  className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                    {item.userPhoto ? (
+                      <img src={(item.userPhoto) || undefined} alt={item.userName} className="w-full h-full object-cover" />
+                    ) : (
+                      <Users className="w-5 h-5 text-gray-400" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{item.userName || 'Anonymous User'}</p>
+                    <p className="text-xs text-gray-500">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Recent'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-gray-900">{viewFeedbackItem.item.userName || 'Anonymous User'}</p>
-                  <p className="text-xs text-gray-500">{viewFeedbackItem.item.createdAt ? new Date(viewFeedbackItem.item.createdAt).toLocaleDateString() : 'Recent'}</p>
+
+                {parentInfo && (
+                  <div className="bg-gray-50/70 border border-gray-100 p-3 rounded-2xl flex items-center justify-between text-sm gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{parentInfo.type}</p>
+                      <p className="font-semibold text-gray-800 truncate max-w-[200px] sm:max-w-xs">{parentInfo.name}</p>
+                    </div>
+                    {parentInfo.link && (
+                      <Link 
+                        to={parentInfo.link} 
+                        target="_blank"
+                        className="text-xs bg-[#e90b35] text-white px-3 py-1.5 rounded-xl font-bold hover:bg-[#d00a30] transition-colors shrink-0"
+                      >
+                        Visit Page
+                      </Link>
+                    )}
+                  </div>
+                )}
+
+                {type === 'reviews' && (
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star} 
+                        className={`w-4 h-4 ${star <= item.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} 
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="bg-gray-50 p-4 rounded-2xl text-gray-700 whitespace-pre-wrap text-sm border border-gray-50">
+                  {type === 'reviews' ? item.comment : item.content}
                 </div>
               </div>
 
-              {viewFeedbackItem.type === 'reviews' && (
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star 
-                      key={star} 
-                      className={`w-4 h-4 ${star <= viewFeedbackItem.item.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-200'}`} 
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div className="bg-gray-50 p-4 rounded-2xl text-gray-700 whitespace-pre-wrap text-sm">
-                {viewFeedbackItem.type === 'reviews' ? viewFeedbackItem.item.comment : viewFeedbackItem.item.content}
+              <div className="flex justify-end pt-2">
+                <button 
+                  onClick={() => setViewFeedbackItem(null)}
+                  className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 rounded-xl transition-colors"
+                >
+                  Close
+                </button>
               </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button 
-                onClick={() => setViewFeedbackItem(null)}
-                className="px-6 py-2.5 bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 rounded-xl transition-colors"
-              >
-                Close
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </main>
   );
 };

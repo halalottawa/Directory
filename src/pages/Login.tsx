@@ -216,24 +216,28 @@ export const Login: React.FC = () => {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-95 transition-all shadow-sm disabled:opacity-50"
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-          {isRegister ? 'Register with Google' : 'Sign in with Google'}
-        </button>
+        {!isApp && (
+          <>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-95 transition-all shadow-sm disabled:opacity-50"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              {isRegister ? 'Register with Google' : 'Sign in with Google'}
+            </button>
 
-        <div className="relative py-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-gray-50 text-gray-400 uppercase tracking-[0.2em] text-[11px] font-bold">Or continue with email</span>
-          </div>
-        </div>
+            <div className="relative py-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-gray-50 text-gray-400 uppercase tracking-[0.2em] text-[11px] font-bold">Or continue with email</span>
+              </div>
+            </div>
+          </>
+        )}
 
         {customMessage && !error && !success && (
           <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-600 text-sm animate-in slide-in-from-top-2 duration-300">
