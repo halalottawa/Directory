@@ -21,7 +21,7 @@ export const Layout: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {!hideNavs && <TopNav showBack={showBack} />}
-      <main className={`flex-1 ${!hideNavs ? (inApp ? 'pt-20 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-12' : 'pt-20 pb-12') : ''} ${isAdminPage ? 'pb-0' : ''}`}>
+      <main className={`flex-1 ${!hideNavs ? (inApp ? 'pt-[calc(5rem+env(safe-area-inset-top,24px))] pb-[calc(5rem+env(safe-area-inset-bottom,20px))] md:pb-12' : 'pt-20 pb-12') : ''} ${isAdminPage ? 'pb-0' : ''}`}>
         <Outlet />
       </main>
       {!hideNavs && !isAdminPage && (

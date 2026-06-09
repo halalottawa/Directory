@@ -171,7 +171,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+    <main className={`min-h-screen bg-gray-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative ${isApp ? 'pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,20px)]' : ''}`}>
       <SEO 
         title={isRegister ? 'Register' : 'Login'} 
         description={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} 
