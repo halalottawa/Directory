@@ -235,7 +235,7 @@ export const Login: React.FC = () => {
           </div>
         </div>
 
-        {customMessage && !error && !success && (
+        {customMessage && !isApp && !error && !success && (
           <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-600 text-sm animate-in slide-in-from-top-2 duration-300">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium">{customMessage}</span>
