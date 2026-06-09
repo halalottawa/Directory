@@ -192,7 +192,7 @@ export const Login: React.FC = () => {
             <User className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {isApp ? (isRegister ? 'Welcome to Halal Ottawa' : 'Welcome Back') : (isRegister ? 'Create Account' : 'Welcome Back')}
+            {isApp ? (isRegister ? 'Join Halal Ottawa' : 'Welcome Back') : (isRegister ? 'Create Account' : 'Welcome Back')}
           </h1>
           <p className="text-sm text-gray-500">
             {isApp ? (isRegister ? "Let's get started by creating an account." : 'Sign in to your account to continue.') : (isRegister ? 'Join the Halal Ottawa community today.' : 'Sign in to access community features.')}
@@ -235,12 +235,7 @@ export const Login: React.FC = () => {
           </div>
         </div>
 
-        {customMessage && !isApp && !error && !success && (
-          <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-600 text-sm animate-in slide-in-from-top-2 duration-300">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium">{customMessage}</span>
-          </div>
-        )}
+
 
         {error && (
           <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-600 text-sm">
