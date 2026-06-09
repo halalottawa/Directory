@@ -34,10 +34,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(() => {
+    if (isAppWrapper()) {
+      localStorage.removeItem('isGuest');
+      return false;
+    }
     return localStorage.getItem('isGuest') === 'true';
   });
 
   const setGuest = (val: boolean) => {
+    if (isAppWrapper()) return;
     setIsGuest(val);
     if (val) {
       localStorage.setItem('isGuest', 'true');

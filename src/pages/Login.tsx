@@ -192,10 +192,10 @@ export const Login: React.FC = () => {
             <User className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {isRegister ? 'Create Account' : 'Welcome Back'}
+            {isApp ? (isRegister ? 'Welcome to Halal Ottawa' : 'Welcome Back') : (isRegister ? 'Create Account' : 'Welcome Back')}
           </h1>
           <p className="text-sm text-gray-500">
-            {isRegister ? 'Join the Halal Ottawa community today.' : 'Sign in to access community features.'}
+            {isApp ? (isRegister ? "Let's get started by creating an account." : 'Sign in to your account to continue.') : (isRegister ? 'Join the Halal Ottawa community today.' : 'Sign in to access community features.')}
           </p>
         </div>
 
