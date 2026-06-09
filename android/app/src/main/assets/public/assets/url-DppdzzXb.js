@@ -1,0 +1,1 @@
+const t=t=>{const r=Array.isArray(t.category)&&t.category.length>0?t.category[0]:"string"==typeof t.category?t.category:"listings";return`/${String(r).toLowerCase()}/${t.slug||t.id}`},r=t=>{if(t.startsWith("http"))return t;return`https://www.halalottawa.ca${t.startsWith("/")?"":"/"}${t}`};export{t as a,r as g};
