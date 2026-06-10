@@ -2920,8 +2920,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       try {
         const faviconUrl = await getSettingsFaviconUrl();
         if (faviconUrl) {
-          html = html.replace(/<link[^>]*rel=["']icon["'][^>]*href=["'][^"']*["'][^>]*\/?>/gi, `<link rel="icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
-          html = html.replace(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["'][^"']*["'][^>]*\/?>/gi, `<link rel="apple-touch-icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
+          html = html.replace(/<link\s+[^>]*rel=["'](?:shortcut\s+)?icon["'][^>]*\/?>/gi, `<link rel="icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
+          html = html.replace(/<link\s+[^>]*rel=["']apple-touch-icon["'][^>]*\/?>/gi, `<link rel="apple-touch-icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
         }
       } catch (err) {
         console.error("Error setting custom favicon in HTML template:", err);
