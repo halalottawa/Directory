@@ -308,7 +308,7 @@ async function startServer() {
     const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
     if (fs.existsSync(faviconPath)) {
       res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       return res.sendFile(faviconPath);
     }
     return res.sendStatus(404);
@@ -326,7 +326,7 @@ async function startServer() {
     const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
     if (fs.existsSync(faviconPath)) {
       res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       return res.sendFile(faviconPath);
     }
     return res.sendStatus(404);
