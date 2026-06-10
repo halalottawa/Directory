@@ -18,7 +18,7 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[110] flex md:hidden items-center justify-around px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,20px)+0.75rem)] min-h-[4.5rem]">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[110] flex md:hidden items-center justify-around px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] min-h-[4.5rem]">
       {navItems.map((item) => (
         <NavLink
           key={item.to}

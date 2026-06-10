@@ -34,15 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(() => {
-    if (isAppWrapper()) {
-      localStorage.removeItem('isGuest');
-      return false;
-    }
     return localStorage.getItem('isGuest') === 'true';
   });
 
   const setGuest = (val: boolean) => {
-    if (isAppWrapper()) return;
     setIsGuest(val);
     if (val) {
       localStorage.setItem('isGuest', 'true');
@@ -347,7 +342,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           if (typeof win.Capacitor.Plugins.GoogleAuth.initialize === 'function') {
             await win.Capacitor.Plugins.GoogleAuth.initialize({
-              clientId: '604019460073-nevmio60k9muu0rv6f11d0lb6lo1140c.apps.googleusercontent.com',
               scopes: ['profile', 'email'],
               grantOfflineAccess: false,
             });

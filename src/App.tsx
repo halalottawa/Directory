@@ -76,7 +76,7 @@ const AppContent: React.FC = () => {
   const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
 
   if (isApp && !user && !isAuthPage && !isAllowedPublicPathInApp) {
-    return <Navigate to="/register" replace state={{ from: location }} />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return (

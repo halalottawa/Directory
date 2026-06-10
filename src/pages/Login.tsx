@@ -66,7 +66,12 @@ export const Login: React.FC = () => {
     ? location.state.from 
     : location.state?.from?.pathname || '/';
 
-  const customMessage = location.state?.message;
+  const rawMessage = location.state?.message;
+  const isExcludedMessage = !rawMessage || 
+    rawMessage.includes('Welcome to Halal Ottawa') || 
+    rawMessage.includes('register to continue') ||
+    rawMessage.includes('log in or register');
+  const customMessage = isExcludedMessage ? undefined : rawMessage;
 
   useEffect(() => {
     if (location.pathname === '/register') {
@@ -171,7 +176,7 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <main className={`min-h-screen bg-gray-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative ${isApp ? 'pt-[env(safe-area-inset-top,24px)] pb-[env(safe-area-inset-bottom,20px)]' : ''}`}>
+    <main className="min-h-screen bg-gray-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <SEO 
         title={isRegister ? 'Register' : 'Login'} 
         description={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} 
@@ -192,10 +197,10 @@ export const Login: React.FC = () => {
             <User className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            {isApp ? (isRegister ? 'Join Halal Ottawa' : 'Welcome Back') : (isRegister ? 'Create Account' : 'Welcome Back')}
+            {isRegister ? 'Join Halal Ottawa' : 'Welcome Back'}
           </h1>
           <p className="text-sm text-gray-500">
-            {isApp ? (isRegister ? "Let's get started by creating an account." : 'Sign in to your account to continue.') : (isRegister ? 'Join the Halal Ottawa community today.' : 'Sign in to access community features.')}
+            {isRegister ? 'Join the Halal Ottawa community today.' : 'Sign in to access community features.'}
           </p>
         </div>
 
@@ -235,7 +240,12 @@ export const Login: React.FC = () => {
           </div>
         </div>
 
-
+        {customMessage && !error && !success && (
+          <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-3 text-blue-600 text-sm animate-in slide-in-from-top-2 duration-300">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium">{customMessage}</span>
+          </div>
+        )}
 
         {error && (
           <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-start gap-3 text-red-600 text-sm">
@@ -327,7 +337,7 @@ export const Login: React.FC = () => {
               disabled={loading}
               className="w-full py-3.5 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-200 hover:bg-[#d00a2f] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-sm"
             >
-              {loading ? 'Processing...' : isRegister ? 'Create Account' : 'Sign In'}
+              {loading ? 'Processing...' : isRegister ? 'Join Halal Ottawa' : 'Sign In'}
             </button>
           </form>
 

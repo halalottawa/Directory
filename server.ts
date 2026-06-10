@@ -17,6 +17,93 @@ let cachedFbApp: any = null;
 let cachedDb: any = null;
 let cachedFirestoreUtils: any = null;
 
+async function ensureFirebaseDb() {
+  if (cachedDb && cachedFirestoreUtils) {
+    return { db: cachedDb, utils: cachedFirestoreUtils };
+  }
+
+  const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+  if (!fs.existsSync(configPath)) {
+    return null;
+  }
+
+  if (!cachedFirebaseConfig) {
+    try {
+      cachedFirebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    } catch (err) {
+      console.error("Error parsing firebase config json:", err);
+      return null;
+    }
+  }
+
+  if (cachedFirebaseConfig) {
+    if (!cachedFirestoreUtils) {
+      try {
+        const { initializeApp, getApps } = await import("firebase/app");
+        const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
+        cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy };
+      } catch (err) {
+        console.error("Error lazy-importing firebase web SDK utils in server:", err);
+        return null;
+      }
+    }
+
+    if (cachedFirestoreUtils && !cachedDb) {
+      try {
+        const { initializeApp, getApps, getFirestore } = cachedFirestoreUtils;
+        cachedFbApp = getApps().find((app: any) => app.name === "server-app") || initializeApp(cachedFirebaseConfig, "server-app");
+        cachedDb = getFirestore(cachedFbApp, cachedFirebaseConfig.firestoreDatabaseId);
+      } catch (err) {
+        console.error("Error creating firebase app instance in server:", err);
+        return null;
+      }
+    }
+  }
+
+  if (cachedDb && cachedFirestoreUtils) {
+    return { db: cachedDb, utils: cachedFirestoreUtils };
+  }
+  return null;
+}
+
+async function getSettingsLogoUrl(): Promise<string | null> {
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.logoUrl && data.logoUrl.trim() !== '') {
+          return data.logoUrl.trim();
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error retrieving settings logoUrl:", err);
+  }
+  return null;
+}
+
+async function getSettingsFaviconUrl(): Promise<string | null> {
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.faviconUrl && data.faviconUrl.trim() !== '') {
+          return data.faviconUrl.trim();
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error retrieving settings faviconUrl:", err);
+  }
+  return null;
+}
+
 function isBufferHtml(buf: Buffer): boolean {
   if (!buf || buf.length < 4) return false;
   const str = buf.toString("utf8", 0, Math.min(buf.length, 500)).trim().toLowerCase();
@@ -206,17 +293,45 @@ async function startServer() {
 
   const app = express();
   app.use(compression());
-
-  // Enable CORS for mobile apps with full headers and preflight supports
-  app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
+  
+  // Custom router to handle automatic favicon.ico lookup from search bots and browsers
+  app.get("/favicon.ico", async (req, res) => {
+    try {
+      const faviconUrl = await getSettingsFaviconUrl();
+      if (faviconUrl) {
+        // Redirection with 302 Found has perfect support by Google favicon bot and browsers
+        return res.redirect(302, faviconUrl);
+      }
+    } catch (err) {
+      console.error("Error fetching settings faviconUrl for favicon.ico:", err);
     }
-    next();
+    const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
+    if (fs.existsSync(faviconPath)) {
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.sendFile(faviconPath);
+    }
+    return res.sendStatus(404);
   });
+
+  app.get("/favicon.svg", async (req, res) => {
+    try {
+      const faviconUrl = await getSettingsFaviconUrl();
+      if (faviconUrl) {
+        return res.redirect(302, faviconUrl);
+      }
+    } catch (err) {
+      console.error("Error fetching settings faviconUrl for favicon.svg:", err);
+    }
+    const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
+    if (fs.existsSync(faviconPath)) {
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return res.sendFile(faviconPath);
+    }
+    return res.sendStatus(404);
+  });
+
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
   // Set up upload dir
@@ -2145,6 +2260,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     let title = "Halal Ottawa - Halal Places in Ottawa";
     let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
+    let ogType = "website";
     
     let initialData: any = null;
     let routeType: string = '';
@@ -2190,43 +2306,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       isNotFound = true;
     }
 
-    // Fetch data for dynamic routes if possible using cached Firebase connection to avoid blocking disk I/O and dynamic import latency
-    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-    if (fs.existsSync(configPath)) {
-      if (!cachedFirebaseConfig) {
-        try {
-          cachedFirebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } catch (err) {
-          console.error("Error parsing firebase config json:", err);
-        }
-      }
-
-      if (cachedFirebaseConfig) {
-        if (!cachedFirestoreUtils) {
-          try {
-            const { initializeApp, getApps } = await import("firebase/app");
-            const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } = await import("firebase/firestore");
-            cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy };
-          } catch (err) {
-            console.error("Error lazy-importing firebase web SDK utils in server:", err);
-          }
-        }
-
-        if (cachedFirestoreUtils && !cachedDb) {
-          try {
-            const { initializeApp, getApps, getFirestore } = cachedFirestoreUtils;
-            cachedFbApp = getApps().find((app: any) => app.name === "server-app") || initializeApp(cachedFirebaseConfig, "server-app");
-            cachedDb = getFirestore(cachedFbApp, cachedFirebaseConfig.firestoreDatabaseId);
-          } catch (err) {
-            console.error("Error creating firebase app instance in server:", err);
-          }
-        }
-      }
-    }
-
-    if (cachedDb && cachedFirestoreUtils) {
-      const db = cachedDb;
-      const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = cachedFirestoreUtils;
+    // Use unified ensureFirebaseDb helper to retrieve Firestore connection
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const db = fb.db;
+      const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = fb.utils;
       
       // Home Page Pre-fetch
       if (pathParts.length === 0) {
@@ -2269,6 +2353,29 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
       else if (pathParts.length === 1) {
         const p0 = pathParts[0].toLowerCase();
+        
+        if (p0 === 'news') {
+          title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
+          description = "Keep up to date with the latest local news, announcements, ads, updates and community updates from Ottawa's Muslim community.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'news';
+        } else if (p0 === 'events') {
+          title = "Upcoming Halal Events in Ottawa - Muslim Community Calendar";
+          description = "Discover upcoming halal events, conferences, school programs, community gatherings, and fundraising events in Ottawa.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'events';
+        } else if (p0 === 'jobs') {
+          title = "Halal Job Opportunities in Ottawa - Browse Local Job Openings";
+          description = "Find and apply for halal-friendly jobs and employment opportunities in Ottawa with local businesses and organizations.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'jobs';
+        } else if (p0 === 'listings') {
+          title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
+          description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'listings';
+        }
+
         const knownCategories = new Set([
           'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
         ]);
@@ -2373,15 +2480,33 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           }
         } else if (p0 === 'news') {
           try {
-            const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
-            const snap = await getDocs(q);
-            if (snap.empty) {
+            // Try fetching by Firestore Document ID first
+            const newsDocRef = doc(db, 'news', p1);
+            const newsDocSnap = await getDoc(newsDocRef);
+            let data: any = null;
+            
+            if (newsDocSnap.exists()) {
+              data = { id: newsDocSnap.id, ...newsDocSnap.data() };
+            } else {
+              // Fallback to querying by slug field
+              const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+
+            if (!data) {
               isNotFound = true;
             } else {
-              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} | Halal Ottawa`;
               description = data.content?.substring(0, 160) || description;
-              if (data.coverImage) ogImage = getAbsoluteUrl(data.coverImage);
+              if (data.coverImage && data.coverImage.trim() !== '') {
+                ogImage = getAbsoluteUrl(data.coverImage.trim());
+              } else {
+                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+              }
+              ogType = 'article';
               initialData = data;
               routeType = 'news';
             }
@@ -2390,15 +2515,33 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           }
         } else if (p0 === 'events') {
           try {
-            const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
-            const snap = await getDocs(q);
-            if (snap.empty) {
+            // Try fetching by Firestore Document ID first
+            const eventDocRef = doc(db, 'events', p1);
+            const eventDocSnap = await getDoc(eventDocRef);
+            let data: any = null;
+            
+            if (eventDocSnap.exists()) {
+              data = { id: eventDocSnap.id, ...eventDocSnap.data() };
+            } else {
+              // Fallback to querying by slug field
+              const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+
+            if (!data) {
               isNotFound = true;
             } else {
-              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} | Halal Ottawa Events`;
               description = data.description?.substring(0, 160) || description;
-              if (data.coverImage) ogImage = getAbsoluteUrl(data.coverImage);
+              if (data.coverImage && data.coverImage.trim() !== '') {
+                ogImage = getAbsoluteUrl(data.coverImage.trim());
+              } else {
+                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+              }
+              ogType = 'article';
               initialData = data;
               routeType = 'event';
             }
@@ -2407,12 +2550,25 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           }
         } else if (p0 === 'jobs') {
           try {
-            const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
-            const snap = await getDocs(q);
-            if (snap.empty) {
+            // Try fetching by Firestore Document ID first
+            const jobDocRef = doc(db, 'jobs', p1);
+            const jobDocSnap = await getDoc(jobDocRef);
+            let data: any = null;
+            
+            if (jobDocSnap.exists()) {
+              data = { id: jobDocSnap.id, ...jobDocSnap.data() };
+            } else {
+              // Fallback to querying by slug field
+              const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+            }
+
+            if (!data) {
               isNotFound = true;
             } else {
-              const data = { id: snap.docs[0].id, ...snap.docs[0].data() } as any;
               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
               description = data.description?.substring(0, 160) || description;
               if (data.companyLogo) ogImage = getAbsoluteUrl(data.companyLogo);
@@ -2491,7 +2647,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <meta property="og:description" content="${escapeHtmlAttr(description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
     <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + urlPath)}" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="${escapeHtmlAttr(ogType)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(description)}" />
@@ -2759,6 +2915,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       
       if (initialData) {
         extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
+      }
+
+      try {
+        const faviconUrl = await getSettingsFaviconUrl();
+        if (faviconUrl) {
+          html = html.replace(/<link[^>]*rel=["']icon["'][^>]*href=["'][^"']*["'][^>]*\/?>/gi, `<link rel="icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
+          html = html.replace(/<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["'][^"']*["'][^>]*\/?>/gi, `<link rel="apple-touch-icon" href="${escapeHtmlAttr(faviconUrl)}" />`);
+        }
+      } catch (err) {
+        console.error("Error setting custom favicon in HTML template:", err);
       }
 
       html = html.replace('</head>', `${extraTags}\n  </head>`);

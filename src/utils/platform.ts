@@ -15,50 +15,61 @@ export function isAppWrapper(): boolean {
     searchParams.get('platform') === 'ios';
 
   if (hasAppParam) {
-    localStorage.setItem('openInAppWrapper', 'true');
+    sessionStorage.setItem('openInAppWrapper', 'true');
+    // Ensure we clear old legacy localStorage
+    localStorage.removeItem('openInAppWrapper');
     return true;
   }
 
-  // 2. Check if we previously set a persistent flag in localStorage
-  if (localStorage.getItem('openInAppWrapper') === 'true') {
-    return true;
-  }
-
-  // 3. Check for native global bridge objects commonly injected by frameworks or custom webviews
+  // 2. Check for native global bridge objects commonly injected by frameworks or custom webviews
   const win = window as any;
   const hasNativeBridge = 
     !!win.cordova || 
     !!win.Capacitor || 
     !!win.ReactNativeWebView ||
     !!win.AndroidBridge || 
-    !!(win.webkit && win.webkit.messageHandlers);
+    !!(win.webkit && win.webkit.messageHandlers && (
+      win.webkit.messageHandlers.notificationHandler || 
+      win.webkit.messageHandlers.googleSignInHandler
+    ));
 
   if (hasNativeBridge) {
-    localStorage.setItem('openInAppWrapper', 'true');
+    sessionStorage.setItem('openInAppWrapper', 'true');
+    // Ensure we clear old legacy localStorage
+    localStorage.removeItem('openInAppWrapper');
     return true;
   }
 
-  // 4. Fallback: Parse User Agent for common native WebView patterns
+  // 3. Fallback: Parse User Agent for common native WebView patterns
   const ua = navigator.userAgent || navigator.vendor || win.opera || '';
   
   // Custom brand user agent
   if (/halalottawa/i.test(ua)) {
-    localStorage.setItem('openInAppWrapper', 'true');
+    sessionStorage.setItem('openInAppWrapper', 'true');
+    localStorage.removeItem('openInAppWrapper');
+    return true;
+  }
+
+  // Check if we previously set a flag in sessionStorage, but ONLY if we are actually on a mobile device UA!
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+  if (isMobile && sessionStorage.getItem('openInAppWrapper') === 'true') {
     return true;
   }
 
   // Android WebView typically has "Version/4.0" or "wv"
-  const isAndroid = /Android/i.test(ua);
-  const isAndroidWebView = isAndroid && (/Version\/[0-9.]+/i.test(ua) || /wv/i.test(ua));
+  const isAndroidWebView = isMobile && /Android/i.test(ua) && (/Version\/[0-9.]+/i.test(ua) || /wv/i.test(ua));
 
   // iOS WebView typically contains "iPhone" or "iPad" but lacks "Safari"
-  const isApple = /iPhone|iPad|iPod/i.test(ua);
-  const isAppleWebView = isApple && !/Safari/i.test(ua);
+  const isAppleWebView = isMobile && !/Safari/i.test(ua);
 
   if (isAndroidWebView || isAppleWebView) {
-    localStorage.setItem('openInAppWrapper', 'true');
+    sessionStorage.setItem('openInAppWrapper', 'true');
+    localStorage.removeItem('openInAppWrapper');
     return true;
   }
 
+  // Clear stale flags if not inside app context
+  sessionStorage.removeItem('openInAppWrapper');
+  localStorage.removeItem('openInAppWrapper');
   return false;
 }

@@ -1244,12 +1244,7 @@ export const AdminDashboard: React.FC = () => {
     }
     
     // Normalize custom slug (remove spaces, etc, but preserve case)
-    const normalizedSlug = customSlug
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+    const normalizedSlug = customSlug.replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     
     if (!normalizedSlug) {
       toast.error('Invalid custom slug format.');
