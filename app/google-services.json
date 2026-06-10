@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "604019460073",
+    "project_id": "gen-lang-client-0904645018",
+    "storage_bucket": "gen-lang-client-0904645018.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:604019460073:android:10b5c46a5ef1c18fe5ad78",
+        "android_client_info": {
+          "package_name": "com.app.halaottawaapk"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "604019460073-nevmio60k9muu0rv6f11d0lb6lo1140c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdBFuy0XGpT5dN9beRr7bZLS5bE3Ep48Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "604019460073-69iopfq9vnqgbd7k52nb3opucoaf513n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "604019460073-dvvii3h0esm1iumsuui0u0u69fhlajgk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.halalottawa.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:604019460073:android:daba611934db1121e5ad78",
+        "android_client_info": {
+          "package_name": "com.halalottawa.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "604019460073-nevmio60k9muu0rv6f11d0lb6lo1140c.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdBFuy0XGpT5dN9beRr7bZLS5bE3Ep48Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "604019460073-69iopfq9vnqgbd7k52nb3opucoaf513n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "604019460073-dvvii3h0esm1iumsuui0u0u69fhlajgk.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.halalottawa.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
