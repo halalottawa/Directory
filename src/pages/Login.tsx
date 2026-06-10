@@ -337,7 +337,7 @@ export const Login: React.FC = () => {
               disabled={loading}
               className="w-full py-3.5 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-200 hover:bg-[#d00a2f] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100 text-sm"
             >
-              {loading ? 'Processing...' : isRegister ? 'Join Halal Ottawa' : 'Sign In'}
+              {loading ? 'Processing...' : isRegister ? 'Register' : 'Sign In'}
             </button>
           </form>
 
