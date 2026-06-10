@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   onAuthStateChanged, 
   User as FirebaseUser,
@@ -337,24 +338,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const win = window as any;
       const payloadString = JSON.stringify({ event: 'GOOGLE_SIGN_IN', action: 'signin' });
 
-      // 1. Capacitor Google SDK Plugin
-      if (win.Capacitor?.Plugins?.GoogleAuth) {
+      // 1. Capacitor Firebase Auth Plugin
+      if (win.Capacitor) {
         try {
-          if (typeof win.Capacitor.Plugins.GoogleAuth.initialize === 'function') {
-            await win.Capacitor.Plugins.GoogleAuth.initialize({
-              scopes: ['profile', 'email'],
-              grantOfflineAccess: false,
-            });
-          }
-          const capResult = await win.Capacitor.Plugins.GoogleAuth.signIn();
-          if (capResult?.idToken) {
-            const credential = GoogleAuthProvider.credential(capResult.idToken);
+          const capResult = await FirebaseAuthentication.signInWithGoogle();
+          if (capResult?.credential?.idToken) {
+            const credential = GoogleAuthProvider.credential(capResult.credential.idToken);
             await signInWithCredential(auth, credential);
-            console.log('Successfully completed authentication via native Capacitor GoogleAuth plugin');
+            console.log('Successfully completed authentication via native Capacitor Firebase Auth plugin');
             return;
           }
         } catch (capError: any) {
-          console.error('Capacitor native Google sign-in effort returned error:', capError);
+          console.error('Capacitor native Firebase Google sign-in effort returned error:', capError);
           const errMsg = capError.message || String(capError);
           if (capError.code === '10' || errMsg.includes('10') || errMsg.includes('Developer Error') || capError.statusCode === 10) {
             throw new Error('Google Sign-In Developer Error (Code 10). Make sure the signing certificate SHA-1 fingerprint (of the APK you installed) is added to your Firebase project settings.');
