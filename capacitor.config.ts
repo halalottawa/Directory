@@ -1,5 +1,5 @@
 const config = {
-  appId: 'com.halalottawa.app',
+  appId: 'com.app.halaottawaapk',
   appName: 'Halal Ottawa',
   webDir: 'dist',
   plugins: {
