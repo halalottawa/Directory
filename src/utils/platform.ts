@@ -23,9 +23,15 @@ export function isAppWrapper(): boolean {
 
   // 2. Check for native global bridge objects commonly injected by frameworks or custom webviews
   const win = window as any;
+  const isCapacitorNative = !!(win.Capacitor && (
+    win.Capacitor.isNative === true || 
+    (typeof win.Capacitor.getPlatform === 'function' && win.Capacitor.getPlatform() !== 'web') ||
+    (win.Capacitor.platform && win.Capacitor.platform !== 'web')
+  ));
+
   const hasNativeBridge = 
     !!win.cordova || 
-    !!win.Capacitor || 
+    isCapacitorNative || 
     !!win.ReactNativeWebView ||
     !!win.AndroidBridge || 
     !!(win.webkit && win.webkit.messageHandlers && (
