@@ -94,17 +94,7 @@ async function getSettingsFaviconUrl(): Promise<string | null> {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data && data.faviconUrl && data.faviconUrl.trim() !== '') {
-          const val = data.faviconUrl.trim();
-          if (val.includes('favicon.svg') || val.includes('/favicon.svg')) {
-            try {
-              const { setDoc } = await import("firebase/firestore");
-              await setDoc(utils.doc(db, 'settings', 'general'), { faviconUrl: "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp" }, { merge: true });
-            } catch (dbErr) {
-              console.error("Error auto-purging old favicon from general settings:", dbErr);
-            }
-            return "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
-          }
-          return val;
+          return data.faviconUrl.trim();
         }
       }
     }
@@ -448,7 +438,8 @@ async function startServer() {
 
       // Process image to webp
       let procBuffer = buffer;
-      if (contentType.startsWith("image/")) {
+      const isSvgOrIco = contentType === "image/svg+xml" || contentType === "image/x-icon" || contentType === "image/vnd.microsoft.icon" || finalName.endsWith(".svg") || finalName.endsWith(".ico");
+      if (contentType.startsWith("image/") && !isSvgOrIco) {
         try {
           const { default: sharp } = await import("sharp");
           procBuffer = await sharp(buffer)
@@ -467,7 +458,7 @@ async function startServer() {
         Bucket: bucketName,
         Key: `uploads/${finalName}`,
         Body: procBuffer,
-        ContentType: "image/webp", // Force type to webp as we optimize
+        ContentType: contentType, // Use original or force type
       }));
 
       // 2. Generate Public URL
@@ -497,27 +488,32 @@ async function startServer() {
          return res.status(400).json({ error: "No file content received" });
       }
 
-      const finalName = `${cleanName}.webp`;
+      const isSvg = providedName.endsWith(".svg");
+      const isIco = providedName.endsWith(".ico");
+      const finalName = isSvg ? `${cleanName}.svg` : (isIco ? `${cleanName}.ico` : `${cleanName}.webp`);
+      const uploadContentType = isSvg ? "image/svg+xml" : (isIco ? "image/x-icon" : "image/webp");
 
       // Upload to Cloudflare R2 if configured
-      const r2Url = await uploadToR2(buffer, finalName, "image/webp");
+      const r2Url = await uploadToR2(buffer, finalName, uploadContentType);
       if (r2Url) {
         return res.json({ url: r2Url });
       }
 
       // Fallback: local disk upload
       let procBuffer = buffer;
-      try {
-        const { default: sharp } = await import("sharp");
-        procBuffer = await sharp(buffer)
-          .resize(1200, 900, {
-            fit: 'inside',
-            withoutEnlargement: true
-          })
-          .webp({ quality: 80, effort: 4 })
-          .toBuffer();
-      } catch (e) {
-        console.error("Error converting uploaded image to webp:", e);
+      if (!isSvg && !isIco) {
+        try {
+          const { default: sharp } = await import("sharp");
+          procBuffer = await sharp(buffer)
+            .resize(1200, 900, {
+              fit: 'inside',
+              withoutEnlargement: true
+            })
+            .webp({ quality: 80, effort: 4 })
+            .toBuffer();
+        } catch (e) {
+          console.error("Error converting uploaded image to webp:", e);
+        }
       }
       
       const outputPath = path.join(uploadDir, finalName);

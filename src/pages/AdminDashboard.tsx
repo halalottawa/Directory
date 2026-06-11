@@ -1909,7 +1909,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-1">Site Favicon</h3>
-                <p className="text-xs text-gray-500 mb-4">Upload a favicon (ico/png) to display in the browser tab.</p>
+                <p className="text-xs text-gray-500 mb-4">Upload a favicon (ico/png/svg) to display in the browser tab.</p>
                 <div className="flex items-center gap-4">
                   {faviconUrl ? (
                     <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-center">
@@ -1925,7 +1925,7 @@ export const AdminDashboard: React.FC = () => {
                       {isFaviconUploading ? 'Uploading...' : 'Upload Favicon'}
                       <input 
                         type="file" 
-                        accept="image/*" 
+                        accept=".ico,.png,.svg,image/x-icon,image/png,image/svg+xml" 
                         onChange={handleFaviconUpload} 
                         className="hidden" 
                         disabled={isFaviconUploading} 
