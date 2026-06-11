@@ -93,13 +93,14 @@ export function getApiBaseUrl(): string {
   const hostname = window.location.hostname;
 
   // Static website hosting (e.g., Vercel or main domain) does not run our Node/Express server.
-  // We must route all API calls to the persistent central Cloud Run container.
+  // We route all API calls relatively, allowing Vercel's secure proxy rewrites to handle forwarding to the Cloud Run backend.
+  // This completely eliminates cross-origin browser "NetworkError" or CORS issues.
   if (
     hostname === "www.halalottawa.ca" || 
     hostname === "halalottawa.ca" || 
     hostname.endsWith(".vercel.app")
   ) {
-    return 'https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app';
+    return '';
   }
 
   const isLocalWebview = 
