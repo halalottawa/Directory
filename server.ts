@@ -94,7 +94,17 @@ async function getSettingsFaviconUrl(): Promise<string | null> {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data && data.faviconUrl && data.faviconUrl.trim() !== '') {
-          return data.faviconUrl.trim();
+          const val = data.faviconUrl.trim();
+          if (val.includes('favicon.svg') || val.includes('/favicon.svg')) {
+            try {
+              const { setDoc } = await import("firebase/firestore");
+              await setDoc(utils.doc(db, 'settings', 'general'), { faviconUrl: "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp" }, { merge: true });
+            } catch (dbErr) {
+              console.error("Error auto-purging old favicon from general settings:", dbErr);
+            }
+            return "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
+          }
+          return val;
         }
       }
     }
