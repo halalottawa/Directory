@@ -325,8 +325,8 @@ async function startServer() {
     next();
   });
   
-  // Custom router to handle automatic favicon.ico lookup from search bots and browsers
-  app.get("/favicon.ico", async (req, res) => {
+  // Custom router to handle automatic favicon.ico and favicon.svg lookup from search bots and browsers
+  app.get(["/favicon.ico", "/favicon.svg"], async (req, res) => {
     try {
       const faviconUrl = await getSettingsFaviconUrl();
       if (faviconUrl) {
@@ -334,33 +334,9 @@ async function startServer() {
         return res.redirect(302, faviconUrl);
       }
     } catch (err) {
-      console.error("Error fetching settings faviconUrl for favicon.ico:", err);
+      console.error("Error fetching settings faviconUrl for favicon:", err);
     }
-    const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
-    if (fs.existsSync(faviconPath)) {
-      res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      return res.sendFile(faviconPath);
-    }
-    return res.sendStatus(404);
-  });
-
-  app.get("/favicon.svg", async (req, res) => {
-    try {
-      const faviconUrl = await getSettingsFaviconUrl();
-      if (faviconUrl) {
-        return res.redirect(302, faviconUrl);
-      }
-    } catch (err) {
-      console.error("Error fetching settings faviconUrl for favicon.svg:", err);
-    }
-    const faviconPath = path.join(process.cwd(), "public", "favicon.svg");
-    if (fs.existsSync(faviconPath)) {
-      res.setHeader("Content-Type", "image/svg+xml");
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      return res.sendFile(faviconPath);
-    }
-    return res.sendStatus(404);
+    return res.redirect(302, "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp");
   });
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
