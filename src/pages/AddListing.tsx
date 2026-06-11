@@ -11,6 +11,7 @@ import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
 import { getSuburbFromAddress } from '../utils/geo';
+import { getApiUrl } from '../utils/platform';
 
 export const AddListing: React.FC = () => {
   const navigate = useNavigate();
@@ -105,7 +106,7 @@ export const AddListing: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/admin/fetch-listing-ai-info', {
+      const response = await fetch(getApiUrl('/api/admin/fetch-listing-ai-info'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

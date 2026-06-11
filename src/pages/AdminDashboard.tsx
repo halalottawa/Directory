@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 // All Gemini API calls have been migrated to secure server-side routes to protect API keys and ensure permission consistency.
 import { Pagination } from '../components/Pagination';
 import { uploadFile } from '../utils/storageUtils';
+import { getApiUrl } from '../utils/platform';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -976,7 +977,7 @@ export const AdminDashboard: React.FC = () => {
             }
           }
 
-          const response = await fetch('/api/send-push-notification', {
+          const response = await fetch(getApiUrl('/api/send-push-notification'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1046,7 +1047,7 @@ export const AdminDashboard: React.FC = () => {
         
         try {
           // Call the secure server-side proxy
-          const response = await fetch('/api/admin/import-place-ai-info', {
+          const response = await fetch(getApiUrl('/api/admin/import-place-ai-info'), {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -1309,7 +1310,7 @@ export const AdminDashboard: React.FC = () => {
   const handleRefreshSingleListing = async (listing: any) => {
     const toastId = toast.loading(`Searching internet for ${listing.name} details...`);
     try {
-      const response = await fetch('/api/admin/fetch-listing-ai-info', {
+      const response = await fetch(getApiUrl('/api/admin/fetch-listing-ai-info'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1411,7 +1412,7 @@ export const AdminDashboard: React.FC = () => {
             toast.loading(`Syncing ${i + 1}/${targetListings.length}: ${listing.name}`, { id: toastId });
             
             try {
-              const res = await fetch('/api/admin/fetch-listing-ai-info', {
+              const res = await fetch(getApiUrl('/api/admin/fetch-listing-ai-info'), {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',

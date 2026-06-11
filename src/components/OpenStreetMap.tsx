@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { getApiUrl } from '../utils/platform';
 
 // Fix for default marker icons in react-leaflet
 // @ts-ignore
@@ -29,7 +30,7 @@ export const OpenStreetMap: React.FC<OpenStreetMapProps> = ({ address }) => {
   useEffect(() => {
     const geocode = async () => {
       try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(address)}`);
+        const response = await fetch(getApiUrl(`/api/geocode?q=${encodeURIComponent(address)}`));
         if (!response.ok) {
           throw new Error(`Server returned status ${response.status}`);
         }

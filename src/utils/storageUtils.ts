@@ -1,3 +1,5 @@
+import { getApiUrl } from './platform';
+
 export async function uploadFromUrl(url: string, fileName?: string, throwOnError: boolean = true): Promise<string> {
   // If it's already an absolute URL hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
   if (
@@ -33,7 +35,7 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
   if (!url.startsWith('http')) return url;
 
   try {
-    const response = await fetch("/api/upload-url", {
+    const response = await fetch(getApiUrl("/api/upload-url"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -60,7 +62,7 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
 export async function uploadFile(file: File, path: string, fileName?: string): Promise<string> {
   const safeName = fileName ? fileName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : file.name.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
   
-  const response = await fetch(`/api/upload?filename=${safeName}`, {
+  const response = await fetch(getApiUrl(`/api/upload?filename=${safeName}`), {
     method: "POST",
     body: file,
   });

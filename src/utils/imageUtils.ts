@@ -1,3 +1,5 @@
+import { getApiUrl } from './platform';
+
 export const getOptimizedImageUrl = (url: string | null | undefined, width: number = 800, height?: number, quality: number = 85): string | undefined => {
   if (!url) return undefined;
 
@@ -60,7 +62,7 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
     if (height) params.push(`h=${height}`);
     if (quality) params.push(`q=${quality}`);
     
-    return `/api/optimize-image?url=${encodeURIComponent(url)}&${params.join('&')}`;
+    return getApiUrl(`/api/optimize-image?url=${encodeURIComponent(url)}&${params.join('&')}`);
   } catch (e) {
     console.error('Error optimizing image URL:', e);
   }

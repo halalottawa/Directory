@@ -50,6 +50,20 @@ const AppContent: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      if (
+        origin && 
+        !origin.startsWith('capacitor://') && 
+        origin !== 'http://localhost' && 
+        !origin.includes('localhost:80') && 
+        !origin.includes('localhost:5173') && 
+        !origin.includes('127.0.0.1')
+      ) {
+        localStorage.setItem('api_base_url', origin);
+      }
+    }
+
     getGeneralSettings().then((data) => {
       if (data && data.faviconUrl) {
         let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;

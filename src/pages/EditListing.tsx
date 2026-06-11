@@ -14,6 +14,7 @@ import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
 import { getSuburbFromAddress } from '../utils/geo';
+import { getApiUrl } from '../utils/platform';
 
 export const EditListing: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -111,7 +112,7 @@ export const EditListing: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/admin/fetch-listing-ai-info', {
+      const response = await fetch(getApiUrl('/api/admin/fetch-listing-ai-info'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

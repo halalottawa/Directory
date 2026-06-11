@@ -1,3 +1,5 @@
+import { getApiUrl } from './platform';
+
 /**
  * Utility to fetch precise user location during registration or profile setup.
  * Uses navigator.geolocation if available, falls back to IP geolocation, and finally "Ottawa, ON".
@@ -16,7 +18,7 @@ export async function getPreciseLocation(): Promise<string> {
 
       const { latitude, longitude } = position.coords;
       const res = await fetch(
-        `/api/geocode?reverse=true&lat=${latitude}&lon=${longitude}`
+        getApiUrl(`/api/geocode?reverse=true&lat=${latitude}&lon=${longitude}`)
       );
       if (res.ok) {
         const contentType = res.headers.get("content-type") || "";
@@ -101,7 +103,7 @@ export async function getSuburbFromAddress(address: string): Promise<string> {
   try {
     const queryStr = address.toLowerCase().includes('ottawa') ? address : `${address}, Ottawa, ON`;
     const res = await fetch(
-      `/api/geocode?q=${encodeURIComponent(queryStr)}`
+      getApiUrl(`/api/geocode?q=${encodeURIComponent(queryStr)}`)
     );
     if (res.ok) {
       const contentType = res.headers.get("content-type") || "";

@@ -293,6 +293,37 @@ async function startServer() {
 
   const app = express();
   app.use(compression());
+
+  // Enable dynamic and highly secure CORS for client cross-origin API requests (e.g. from Vercel static frontends, mobile view setups, etc.)
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin) {
+      const allowedOrigins = [
+        "https://www.halalottawa.ca",
+        "https://halalottawa.ca",
+        "capacitor://localhost",
+        "http://localhost",
+        "http://localhost:5173",
+        "http://localhost:3000",
+      ];
+      const isAllowed = allowedOrigins.includes(origin) || 
+                        origin.includes("-118138859761.us-east5.run.app") ||
+                        origin.endsWith("halalottawa.ca");
+      
+      if (isAllowed) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+      }
+    }
+    
+    // Handle OPTIONS preflight requests
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
   
   // Custom router to handle automatic favicon.ico lookup from search bots and browsers
   app.get("/favicon.ico", async (req, res) => {
