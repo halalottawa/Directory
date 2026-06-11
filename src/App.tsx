@@ -45,6 +45,8 @@ import { useAuth } from './context/AuthContext';
 import { HelmetProvider } from 'react-helmet-async';
 import { Toaster } from 'sonner';
 
+import { safeLocalStorage } from './utils/safeStorage';
+
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
   const location = useLocation();
@@ -60,7 +62,7 @@ const AppContent: React.FC = () => {
         !origin.includes('localhost:5173') && 
         !origin.includes('127.0.0.1')
       ) {
-        localStorage.setItem('api_base_url', origin);
+        safeLocalStorage.setItem('api_base_url', origin);
       }
     }
 

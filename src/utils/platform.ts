@@ -1,3 +1,5 @@
+import { safeLocalStorage, safeSessionStorage } from './safeStorage';
+
 /**
  * Utility to detect if the application is running inside a native mobile app wrapper
  * (such as a Capacitor, Cordova, or standard native WebView for Android / iOS).
@@ -15,9 +17,9 @@ export function isAppWrapper(): boolean {
     searchParams.get('platform') === 'ios';
 
   if (hasAppParam) {
-    sessionStorage.setItem('openInAppWrapper', 'true');
+    safeSessionStorage.setItem('openInAppWrapper', 'true');
     // Ensure we clear old legacy localStorage
-    localStorage.removeItem('openInAppWrapper');
+    safeLocalStorage.removeItem('openInAppWrapper');
     return true;
   }
 
@@ -40,9 +42,9 @@ export function isAppWrapper(): boolean {
     ));
 
   if (hasNativeBridge) {
-    sessionStorage.setItem('openInAppWrapper', 'true');
+    safeSessionStorage.setItem('openInAppWrapper', 'true');
     // Ensure we clear old legacy localStorage
-    localStorage.removeItem('openInAppWrapper');
+    safeLocalStorage.removeItem('openInAppWrapper');
     return true;
   }
 
@@ -51,14 +53,14 @@ export function isAppWrapper(): boolean {
   
   // Custom brand user agent
   if (/halalottawa/i.test(ua)) {
-    sessionStorage.setItem('openInAppWrapper', 'true');
-    localStorage.removeItem('openInAppWrapper');
+    safeSessionStorage.setItem('openInAppWrapper', 'true');
+    safeLocalStorage.removeItem('openInAppWrapper');
     return true;
   }
 
   // Check if we previously set a flag in sessionStorage, but ONLY if we are actually on a mobile device UA!
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
-  if (isMobile && sessionStorage.getItem('openInAppWrapper') === 'true') {
+  if (isMobile && safeSessionStorage.getItem('openInAppWrapper') === 'true') {
     return true;
   }
 
@@ -69,14 +71,14 @@ export function isAppWrapper(): boolean {
   const isAppleWebView = isMobile && !/Safari/i.test(ua);
 
   if (isAndroidWebView || isAppleWebView) {
-    sessionStorage.setItem('openInAppWrapper', 'true');
-    localStorage.removeItem('openInAppWrapper');
+    safeSessionStorage.setItem('openInAppWrapper', 'true');
+    safeLocalStorage.removeItem('openInAppWrapper');
     return true;
   }
 
   // Clear stale flags if not inside app context
-  sessionStorage.removeItem('openInAppWrapper');
-  localStorage.removeItem('openInAppWrapper');
+  safeSessionStorage.removeItem('openInAppWrapper');
+  safeLocalStorage.removeItem('openInAppWrapper');
   return false;
 }
 
@@ -113,7 +115,7 @@ export function getApiBaseUrl(): string {
 
   if (isLocalWebview) {
     // Attempt to read the saved last-seen non-local origin first
-    const stored = localStorage.getItem('api_base_url');
+    const stored = safeLocalStorage.getItem('api_base_url');
     if (stored && stored.startsWith('http') && !stored.includes('localhost') && !stored.includes('127.0.0.1')) {
       const storedUrl = stored.replace(/\/$/, "");
       

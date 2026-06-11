@@ -17,6 +17,7 @@ import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -35,15 +36,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(() => {
-    return localStorage.getItem('isGuest') === 'true';
+    return safeLocalStorage.getItem('isGuest') === 'true';
   });
 
   const setGuest = (val: boolean) => {
     setIsGuest(val);
     if (val) {
-      localStorage.setItem('isGuest', 'true');
+      safeLocalStorage.setItem('isGuest', 'true');
     } else {
-      localStorage.removeItem('isGuest');
+      safeLocalStorage.removeItem('isGuest');
     }
   };
 
@@ -120,7 +121,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             // Strategy B Token Sync: Check if there is a pending native token to assign
-            const pendingToken = localStorage.getItem('pendingNativeFcmToken');
+            const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
             if (pendingToken) {
               try {
                 await updateDoc(userDocRef, {
@@ -135,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   lastUpdated: new Date().toISOString(),
                   appVersion: '1.0.0'
                 });
-                localStorage.removeItem('pendingNativeFcmToken');
+                safeLocalStorage.removeItem('pendingNativeFcmToken');
                 console.log('Successfully bounded pending native FCM token to active user account.');
               } catch (err) {
                 console.warn('Error binding pending FCM token:', err);
@@ -151,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             // Strategy B Check: Check if we have a pending native push token
-            const pendingToken = localStorage.getItem('pendingNativeFcmToken');
+            const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
 
             const newProfile: UserProfile & { fcmToken?: string; fcmTokenUpdated?: string } = {
               uid: firebaseUser.uid,
@@ -185,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   lastUpdated: new Date().toISOString(),
                   appVersion: '1.0.0'
                 });
-                localStorage.removeItem('pendingNativeFcmToken');
+                safeLocalStorage.removeItem('pendingNativeFcmToken');
               } catch (deviceWriteErr) {
                 console.warn('Could not write device listing during new profile creation:', deviceWriteErr);
               }
@@ -238,7 +239,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!token) return;
 
       // Save to localStorage as pending/resolved reference
-      localStorage.setItem('nativeFcmToken', token);
+      safeLocalStorage.setItem('nativeFcmToken', token);
 
       if (auth.currentUser) {
         try {
@@ -266,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } else {
         // Not logged in yet: Hold as pending until auth state resolves
-        localStorage.setItem('pendingNativeFcmToken', token);
+        safeLocalStorage.setItem('pendingNativeFcmToken', token);
         console.log('Strategy B: Held native push token as pending guest registration.');
       }
     };

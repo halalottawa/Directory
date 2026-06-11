@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDoc } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { safeLocalStorage } from './utils/safeStorage';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const config = { ...firebaseConfig };
@@ -25,8 +26,8 @@ export async function getGeneralSettings(): Promise<GeneralSettings | null> {
   const now = Date.now();
   
   if (typeof window !== 'undefined') {
-    const cached = localStorage.getItem(CACHE_KEY);
-    const expiry = localStorage.getItem(CACHE_TTL_KEY);
+    const cached = safeLocalStorage.getItem(CACHE_KEY);
+    const expiry = safeLocalStorage.getItem(CACHE_TTL_KEY);
     if (cached && expiry && now < parseInt(expiry, 10)) {
       try {
         return JSON.parse(cached);
@@ -43,8 +44,8 @@ export async function getGeneralSettings(): Promise<GeneralSettings | null> {
         if (docSnap.exists()) {
           const data = docSnap.data() as GeneralSettings;
           if (typeof window !== 'undefined') {
-            localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-            localStorage.setItem(CACHE_TTL_KEY, (now + 3600000).toString()); // 1 hour TTL
+            safeLocalStorage.setItem(CACHE_KEY, JSON.stringify(data));
+            safeLocalStorage.setItem(CACHE_TTL_KEY, (now + 3600000).toString()); // 1 hour TTL
           }
           return data;
         }
