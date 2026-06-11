@@ -298,29 +298,34 @@ async function startServer() {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin) {
-      const allowedOrigins = [
-        "https://www.halalottawa.ca",
-        "https://halalottawa.ca",
-        "capacitor://localhost",
-        "http://localhost",
-        "http://localhost:5173",
-        "http://localhost:3000",
-      ];
-      const isAllowed = allowedOrigins.includes(origin) || 
-                        origin.includes("-118138859761.us-east5.run.app") ||
-                        origin.endsWith("halalottawa.ca");
+      const isAllowed = 
+        origin.includes("halalottawa") || 
+        origin.includes("localhost") || 
+        origin.includes("127.0.0.1") || 
+        origin.includes("vercel.app") || 
+        origin.includes("run.app") || 
+        origin.startsWith("capacitor://") ||
+        origin.startsWith("ionic://");
       
       if (isAllowed) {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        
+        // Dynamic Access-Control-Allow-Headers accepts any custom request headers
+        const reqHeaders = req.headers["access-control-request-headers"];
+        if (reqHeaders) {
+          res.setHeader("Access-Control-Allow-Headers", reqHeaders);
+        } else {
+          res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+        }
+        
         res.setHeader("Access-Control-Allow-Credentials", "true");
       }
     }
     
     // Handle OPTIONS preflight requests
     if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
+      return res.sendStatus(204);
     }
     next();
   });
@@ -469,7 +474,7 @@ async function startServer() {
   }
 
   // File upload endpoint
-  app.post("/api/upload", express.raw({ type: '*/*', limit: '10mb' }), async (req, res) => {
+  app.post("/api/upload", express.raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
     try {
       const filenameStr = typeof req.query.filename === 'string' ? req.query.filename : `upload-${Date.now()}.jpg`;
       const providedName = filenameStr.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
@@ -540,9 +545,11 @@ async function startServer() {
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
-      // Return the relative URL to access the file
-      const url = `/uploads/${finalName}`;
-      res.json({ url });
+      // Return absolute URL pointing to the Cloud Run server for local uploads fallback to work under static hosting
+      const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const host = req.headers.host || "ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app";
+      const fallbackUrl = `${protocol}://${host}/uploads/${finalName}`;
+      res.json({ url: fallbackUrl });
     } catch (error) {
       console.error("Error processing image:", error);
       res.status(500).json({ error: "Failed to process image" });
@@ -646,7 +653,10 @@ async function startServer() {
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
-      res.json({ url: `/uploads/${finalName}` });
+      const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+      const host = req.headers.host || "ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app";
+      const fallbackUrl = `${protocol}://${host}/uploads/${finalName}`;
+      res.json({ url: fallbackUrl });
     } catch (error) {
       console.error("Error processing image from URL:", error);
       res.status(500).json({ error: "Failed to process image from URL" });
