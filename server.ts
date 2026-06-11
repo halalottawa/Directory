@@ -494,39 +494,6 @@ async function startServer() {
         return res.json({ url: r2Url });
       }
 
-      // Upload to Vercel Blob
-      try {
-        const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
-        if (hasVercelToken) {
-          const { put } = await import("@vercel/blob");
-          
-          let procBuffer = buffer;
-          try {
-            const { default: sharp } = await import("sharp");
-            procBuffer = await sharp(buffer)
-              .resize(1200, 900, {
-                fit: 'inside',
-                withoutEnlargement: true
-              })
-              .webp({ quality: 80, effort: 4 })
-              .toBuffer();
-          } catch (e) {
-            console.error("Error converting uploaded image to webp:", e);
-          }
-          
-          const { url } = await put(`uploads/${finalName}`, procBuffer, {
-            access: 'public',
-            contentType: 'image/webp',
-            addRandomSuffix: false,
-            allowOverwrite: true
-          });
-          
-          return res.json({ url });
-        }
-      } catch (blobError) {
-        console.error("Vercel Blob upload error:", blobError);
-      }
-
       // Fallback: local disk upload
       let procBuffer = buffer;
       try {
@@ -568,11 +535,10 @@ async function startServer() {
       
       const finalName = `${cleanName}.webp`;
 
-      // If it is already hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
+      // If it is already hosted on Cloudflare R2, return it as-is without stripping
       if (
         url.includes('.r2.dev') ||
-        url.includes('.r2.cloudflarestorage.com') ||
-        url.includes('.public.blob.vercel-storage.com')
+        url.includes('.r2.cloudflarestorage.com')
       ) {
         return res.json({ url });
       }
@@ -600,39 +566,6 @@ async function startServer() {
       const r2Url = await uploadToR2(buffer, finalName, "image/webp");
       if (r2Url) {
         return res.json({ url: r2Url });
-      }
-
-      // Upload to Vercel Blob
-      try {
-        const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
-        if (hasVercelToken) {
-          const { put } = await import("@vercel/blob");
-          
-          let procBuffer = buffer;
-          try {
-            const { default: sharp } = await import("sharp");
-            procBuffer = await sharp(buffer)
-              .resize(1200, 900, {
-                fit: 'inside',
-                withoutEnlargement: true
-              })
-              .webp({ quality: 80, effort: 4 })
-              .toBuffer();
-          } catch (e) {
-            console.error("Error converting uploaded image to webp:", e);
-          }
-          
-          const { url: vercelUrl } = await put(`uploads/${finalName}`, procBuffer, {
-            access: 'public',
-            contentType: 'image/webp',
-            addRandomSuffix: false,
-            allowOverwrite: true
-          });
-          
-          return res.json({ url: vercelUrl });
-        }
-      } catch (blobError) {
-        console.error("Vercel Blob upload error:", blobError);
       }
 
       // Fallback: local disk upload
@@ -665,21 +598,6 @@ async function startServer() {
 
   app.get(["/uploads/:key", "/api/images/:key", "/api/uploads/:key"], async (req, res, next) => {
     try {
-      const hasVercelToken = !!process.env.BLOB_READ_WRITE_TOKEN;
-      if (hasVercelToken) {
-        // With Vercel Blob, public files are usually served directly from their CDN via absolute URL.
-        // If we are proxying, we can fetch, but we need to know the Blob store base URL, which isn't standard.
-        // It's better if we just redirect to it or fetch if we know the URL. 
-        // Vercel Blob URLs look like: https://[store-id].public.blob.vercel-storage.com/[path]
-        // But the vercel blob list API could find it.
-        const { list } = await import("@vercel/blob");
-        const { blobs } = await list({ prefix: `uploads/${req.params.key}` });
-        const blob = blobs.find(b => b.pathname === `uploads/${req.params.key}`);
-        if (blob) {
-          return res.redirect(blob.url);
-        }
-      }
-      
       // Fallback to local file system serving from public/uploads
       const fs = await import("fs");
       const path = await import("path");

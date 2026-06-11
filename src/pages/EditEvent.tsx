@@ -85,7 +85,6 @@ export const EditEvent: React.FC = () => {
     const isAlreadyProcessed = 
       url.includes('.r2.dev') ||
       url.includes('.r2.cloudflarestorage.com') ||
-      url.includes('.public.blob.vercel-storage.com') ||
       url.includes('/uploads/');
 
     if (isHttp && !isAlreadyProcessed) {

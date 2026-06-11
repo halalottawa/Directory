@@ -1,11 +1,10 @@
 import { getApiUrl } from './platform';
 
 export async function uploadFromUrl(url: string, fileName?: string, throwOnError: boolean = true): Promise<string> {
-  // If it's already an absolute URL hosted on Cloudflare R2 or Vercel Blob, return it as-is without stripping
+  // If it's already an absolute URL hosted on Cloudflare R2, return it as-is without stripping
   if (
     url.includes('.r2.dev') ||
-    url.includes('.r2.cloudflarestorage.com') ||
-    url.includes('.public.blob.vercel-storage.com')
+    url.includes('.r2.cloudflarestorage.com')
   ) {
     return url;
   }
