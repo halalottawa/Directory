@@ -65,15 +65,14 @@ const AppContent: React.FC = () => {
     }
 
     getGeneralSettings().then((data) => {
-      if (data && data.faviconUrl) {
-        let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = 'icon';
-          document.getElementsByTagName('head')[0].appendChild(link);
-        }
-        link.href = data.faviconUrl;
+      const favUrl = (data && data.faviconUrl) || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
       }
+      link.href = favUrl;
     });
   }, []);
 

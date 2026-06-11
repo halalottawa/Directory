@@ -101,7 +101,7 @@ async function getSettingsFaviconUrl(): Promise<string | null> {
   } catch (err) {
     console.error("Error retrieving settings faviconUrl:", err);
   }
-  return null;
+  return "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
 }
 
 function isBufferHtml(buf: Buffer): boolean {
