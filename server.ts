@@ -1146,39 +1146,118 @@ async function startServer() {
     }
 
     try {
-      let url = "";
+      let data: any = null;
+
       if (reverse === "true") {
         if (!lat || !lon) {
           return res.status(400).json({ error: "Latitude and longitude are required for reverse geocoding" });
         }
-        url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
+            'Accept-Language': 'en'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Nominatim reverse returned status ${response.status}`);
+        }
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const bodyText = await response.text();
+          throw new Error(`Expected JSON but Nominatim returned content-type: ${contentType}. Body: ${bodyText.substring(0, 200)}`);
+        }
+
+        data = await response.json();
       } else {
         if (!q) {
           return res.status(400).json({ error: "Query parameter 'q' is required for geocoding" });
         }
-        url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(String(q))}&format=json&addressdetails=1&limit=1`;
-      }
 
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
-          'Accept-Language': 'en'
+        const rawQuery = String(q).trim();
+        const queriesToTry: string[] = [];
+
+        // Try 1: The original query
+        queriesToTry.push(rawQuery);
+
+        // Helper to strip unit, apt, suite numbers and Canadian/US postal codes
+        const cleanAddress = (str: string) => {
+          return str
+            .replace(/(?:Unit|Apt|Suite|#|Room|Office|Floor|Ste)\s*[A-Za-z0-9\-]+/gi, "")
+            .replace(/\b[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d\b/gi, "") // Canadian postal codes
+            .replace(/\b\d{5}(-\d{4})?\b/g, "") // US zip codes
+            .replace(/\b(Canada)\b/gi, "")
+            .replace(/,\s*,/g, ",")
+            .replace(/^,\s*|,\s*$/g, "")
+            .trim();
+        };
+
+        const cleaned = cleanAddress(rawQuery);
+        if (cleaned && cleaned !== rawQuery) {
+          queriesToTry.push(cleaned);
         }
-      });
 
-      if (!response.ok) {
-        throw new Error(`Nominatim returned status ${response.status}`);
+        // Try 3: If business name is prepended, try skipping the business name.
+        // e.g., "Avenue Restaurant, 1250 St Laurent Blvd, Ottawa, ON" -> first part is not a street, second part is "1250 St Laurent Blvd"
+        const parts = cleaned.split(",").map(p => p.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+          if (!/^\d/.test(parts[0]) && /^\d/.test(parts[1])) {
+            const potentialAddress = parts.slice(1).join(", ");
+            queriesToTry.push(cleanAddress(potentialAddress));
+          }
+        }
+
+        // Try 4: Extract street with house number only, and tag on Ottawa, ON
+        for (const part of parts) {
+          if (/^\d+\s+[A-Za-z0-9\s]+/.test(part)) {
+            const streetAndNum = part;
+            if (!streetAndNum.toLowerCase().includes("ottawa")) {
+              queriesToTry.push(`${streetAndNum}, Ottawa, ON`);
+            } else {
+              queriesToTry.push(streetAndNum);
+            }
+          }
+        }
+
+        // Deduplicate
+        const uniqueQueries = Array.from(new Set(queriesToTry)).filter(Boolean);
+
+        // Execute sequential searches until we hit a match!
+        for (const query of uniqueQueries) {
+          try {
+            const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=1`;
+            const response = await fetch(url, {
+              headers: {
+                'User-Agent': 'HalalOttawa/1.0 (contact: fibaliktn@gmail.com)',
+                'Accept-Language': 'en'
+              }
+            });
+
+            if (response.ok) {
+              const contentType = response.headers.get("content-type") || "";
+              if (contentType.includes("application/json")) {
+                const result = await response.json();
+                if (result && Array.isArray(result) && result.length > 0) {
+                  data = result;
+                  console.log(`[Geocoding Success] Match found for progressive query: "${query}" (Original: "${rawQuery}")`);
+                  break; 
+                }
+              }
+            }
+            // Gentle delay to respect API limits
+            await new Promise(resolve => setTimeout(resolve, 150));
+          } catch (err) {
+            console.warn(`Query "${query}" failed geocoding attempt:`, err);
+          }
+        }
       }
 
-      // Check if content-type is json
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        const bodyText = await response.text();
-        throw new Error(`Expected JSON but Nominatim returned content-type: ${contentType}. Body: ${bodyText.substring(0, 200)}`);
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        throw new Error("No geocoding results found from progressive Nominatim attempts");
       }
 
-      const data = await response.json();
-      
       // Store in cache
       geocodeCache.set(cacheKey, data);
       
