@@ -391,6 +391,15 @@ async function startServer() {
   }));
 
   // Upload to Cloudflare R2 if credentials are provided
+  // PRODUCTION NOTE: This function requires the following environment variables
+  // to be set on the Cloud Run service. Without them it falls back to ephemeral
+  // local disk and images are lost on container restart.
+  //
+  // Set them with:
+  //   gcloud run services update SERVICE_NAME --region=REGION \
+  //     --update-env-vars "R2_ACCOUNT_ID=...,R2_ACCESS_KEY_ID=...,R2_SECRET_ACCESS_KEY=...,R2_BUCKET_NAME=...,R2_PUBLIC_URL=..."
+  //
+  // Or via Cloud Console: Cloud Run → service → Edit & Deploy New Revision → Variables & Secrets
   async function uploadToR2(buffer: Buffer, finalName: string, contentType = "image/webp"): Promise<string | null> {
     try {
       const accountId = process.env.R2_ACCOUNT_ID;
