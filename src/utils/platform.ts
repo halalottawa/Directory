@@ -64,18 +64,6 @@ export function isAppWrapper(): boolean {
     return true;
   }
 
-  // Android WebView typically has "Version/4.0" or "wv"
-  const isAndroidWebView = isMobile && /Android/i.test(ua) && (/Version\/[0-9.]+/i.test(ua) || /wv/i.test(ua));
-
-  // iOS WebView typically contains "iPhone" or "iPad" but lacks "Safari"
-  const isAppleWebView = isMobile && !/Safari/i.test(ua);
-
-  if (isAndroidWebView || isAppleWebView) {
-    safeSessionStorage.setItem('openInAppWrapper', 'true');
-    safeLocalStorage.removeItem('openInAppWrapper');
-    return true;
-  }
-
   // Clear stale flags if not inside app context
   safeSessionStorage.removeItem('openInAppWrapper');
   safeLocalStorage.removeItem('openInAppWrapper');
