@@ -60,10 +60,19 @@ export function isAppWrapper(): boolean {
 
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
 
+  // Core exclusion list of popular social media, email, messaging, and search apps that open links in their own custom in-app WebViews.
+  // Standard links clicked inside Facebook, Messenger, Instagram, TikTok, Snapchat, WhatsApp, Gmail, Slack, etc. should show the standard website rather than land on the native app's onboarding wall.
+  const isExcludedInAppBrowser = isMobile && /Instagram|FB_IAB|FBAN|FBAV|Messenger|TikTok|Snapchat|Twitter|XDeviceName|LinkedInApp|Pinterest|Discord|Slack|WhatsApp|GSA|Line|WeChat|Telegram|Threads|Reddit/i.test(ua);
+
+  if (isExcludedInAppBrowser) {
+    safeSessionStorage.removeItem('openInAppWrapper');
+    safeLocalStorage.removeItem('openInAppWrapper');
+  }
+
   // Precise WebView detection for Android and iOS WebViews (the app wrapper):
   // 1) Android WebView: must be a mobile device, has "Android", and contains "wv" or "Version/4.0" (standard Chromium WebView signature).
   //    This ensures we don't match standard mobile Chrome (which has no "wv" and no "Version/4.0").
-  const isAndroidWebView = isMobile && /Android/i.test(ua) && (
+  const isAndroidWebView = !isExcludedInAppBrowser && isMobile && /Android/i.test(ua) && (
     /wv\b|; wv\)/i.test(ua) || 
     /Version\/4\.0/i.test(ua)
   );
@@ -71,7 +80,7 @@ export function isAppWrapper(): boolean {
   // 2) iOS WebView: must be an Apple mobile device, contains "iPhone" or "iPad", and does NOT contain "Safari" 
   //    (standard iOS UIWebView / WKWebView signature where "Safari" is omitted).
   //    Matches our iOS app wrapper perfectly while ignoring standard mobile Safari/Chrome (which always contain "Safari").
-  const isAppleWebView = isMobile && /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
+  const isAppleWebView = !isExcludedInAppBrowser && isMobile && /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
 
   if (isAndroidWebView || isAppleWebView) {
     safeSessionStorage.setItem('openInAppWrapper', 'true');
@@ -80,7 +89,7 @@ export function isAppWrapper(): boolean {
   }
 
   // Check if we previously set a flag in sessionStorage, but ONLY if we are actually on a mobile device UA!
-  if (isMobile && safeSessionStorage.getItem('openInAppWrapper') === 'true') {
+  if (isMobile && !isExcludedInAppBrowser && safeSessionStorage.getItem('openInAppWrapper') === 'true') {
     return true;
   }
 
