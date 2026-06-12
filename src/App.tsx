@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
@@ -50,6 +50,24 @@ import { safeLocalStorage } from './utils/safeStorage';
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
   const location = useLocation();
+  const [isApp, setIsApp] = useState(() => isAppWrapper());
+
+  useEffect(() => {
+    // Check if the app wrapper status gets detected slightly late due to async bridge injection
+    if (!isApp) {
+      let attempts = 0;
+      const interval = setInterval(() => {
+        attempts++;
+        if (isAppWrapper()) {
+          setIsApp(true);
+          clearInterval(interval);
+        } else if (attempts >= 10) {
+          clearInterval(interval);
+        }
+      }, 150);
+      return () => clearInterval(interval);
+    }
+  }, [isApp]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -86,7 +104,6 @@ const AppContent: React.FC = () => {
     );
   }
 
-  const isApp = isAppWrapper();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
 

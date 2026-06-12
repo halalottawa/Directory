@@ -58,8 +58,28 @@ export function isAppWrapper(): boolean {
     return true;
   }
 
-  // Check if we previously set a flag in sessionStorage, but ONLY if we are actually on a mobile device UA!
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+  // Precise WebView detection for Android and iOS WebViews (the app wrapper):
+  // 1) Android WebView: must be a mobile device, has "Android", and contains "wv" or "Version/4.0" (standard Chromium WebView signature).
+  //    This ensures we don't match standard mobile Chrome (which has no "wv" and no "Version/4.0").
+  const isAndroidWebView = isMobile && /Android/i.test(ua) && (
+    /wv\b|; wv\)/i.test(ua) || 
+    /Version\/4\.0/i.test(ua)
+  );
+
+  // 2) iOS WebView: must be an Apple mobile device, contains "iPhone" or "iPad", and does NOT contain "Safari" 
+  //    (standard iOS UIWebView / WKWebView signature where "Safari" is omitted).
+  //    Matches our iOS app wrapper perfectly while ignoring standard mobile Safari/Chrome (which always contain "Safari").
+  const isAppleWebView = isMobile && /iPhone|iPad|iPod/i.test(ua) && !/Safari/i.test(ua);
+
+  if (isAndroidWebView || isAppleWebView) {
+    safeSessionStorage.setItem('openInAppWrapper', 'true');
+    safeLocalStorage.removeItem('openInAppWrapper');
+    return true;
+  }
+
+  // Check if we previously set a flag in sessionStorage, but ONLY if we are actually on a mobile device UA!
   if (isMobile && safeSessionStorage.getItem('openInAppWrapper') === 'true') {
     return true;
   }
