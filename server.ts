@@ -2260,7 +2260,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   function getAbsoluteUrl(urlStr: string): string {
     if (!urlStr) return "https://www.halalottawa.ca/default-og.jpg";
     if (urlStr.startsWith("http://") || urlStr.startsWith("https://") || urlStr.startsWith("data:")) {
-      return urlStr;
+      let url = urlStr;
+      if (url.includes('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
+        url = url.replace('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
+      } else if (url.includes('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
+        url = url.replace('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
+      } else if (url.includes('.run.app')) {
+        url = url.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/g, 'www.halalottawa.ca');
+      }
+      return url;
     }
     return `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;
   }
