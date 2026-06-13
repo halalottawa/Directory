@@ -1,6 +1,8 @@
 export const generateSlug = (text: string) => {
   const slug = text
     .toString()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')        // Replace spaces with -

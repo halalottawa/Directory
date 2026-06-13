@@ -821,6 +821,9 @@ async function startServer() {
       function generateSlug(text: string): string {
         if (!text) return "";
         return text
+          .toString()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .trim()
           .replace(/[^\w\s-]/g, "")
