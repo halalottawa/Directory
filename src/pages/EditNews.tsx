@@ -199,7 +199,7 @@ export const EditNews: React.FC = () => {
                     if (!file) return;
                     const toastId = toast.loading('Uploading photo...');
                     try {
-                      const url = await uploadFile(file, 'news');
+                      const url = await uploadFile(file, 'news', formData.title || 'news-cover');
                       setFormData(prev => ({ ...prev, coverImage: url }));
                       toast.success('Photo uploaded successfully', { id: toastId });
                     } catch (error: any) {

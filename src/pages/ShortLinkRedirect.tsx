@@ -27,7 +27,20 @@ export const ShortLinkRedirect: React.FC = () => {
           }
           
           let targetUrl = data.originalUrl;
-          if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+          if (targetUrl) {
+            // Replace any sandbox or staging Cloud Run / AI Studio domains with public canonical production domain
+            if (targetUrl.includes('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
+              targetUrl = targetUrl.replace('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
+            } else if (targetUrl.includes('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
+              targetUrl = targetUrl.replace('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
+            } else if (targetUrl.includes('.run.app')) {
+              targetUrl = targetUrl.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/g, 'www.halalottawa.ca');
+            }
+          }
+
+          if (targetUrl.startsWith('/')) {
+            targetUrl = 'https://www.halalottawa.ca' + targetUrl;
+          } else if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
             targetUrl = 'https://' + targetUrl;
           }
           

@@ -329,11 +329,11 @@ export const Home: React.FC = () => {
           <img 
             src={getOptimizedImageUrl(heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp", 1920, 1080)} 
             alt="Ottawa Sunset" 
-            className="w-full h-full object-cover brightness-[0.6] saturate-[1.2]"
+            className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
           />
           {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
-          <div className="absolute inset-0 bg-black/45" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent" />
+          <div className="absolute inset-0 bg-black/55" />
         </div>
 
         <div className="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">

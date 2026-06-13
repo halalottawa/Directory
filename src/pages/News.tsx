@@ -20,7 +20,7 @@ export const News: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(8);
 
   useEffect(() => {
     const q = user?.role === 'admin' 
@@ -70,7 +70,16 @@ export const News: React.FC = () => {
 
   useEffect(() => {
     setIsApp(isAppWrapper());
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => {
+      if (typeof window === 'undefined') return;
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 1024) {
+        setItemsPerPage(9);
+      } else {
+        setItemsPerPage(8);
+      }
+    };
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
