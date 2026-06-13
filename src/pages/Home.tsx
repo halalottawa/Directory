@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Newspaper, Calendar, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, getGeneralSettings } from '../firebase';
 import { Listing, NewsArticle, Event, Job } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { AdDisplay } from '../components/AdDisplay';
@@ -77,6 +77,7 @@ export const Home: React.FC = () => {
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
   const [featuredEvents, setFeaturedEvents] = useState<Event[]>(initData?.events || []);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>(initData?.jobs || []);
+  const [heroImageUrl, setHeroImageUrl] = useState<string>('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +86,14 @@ export const Home: React.FC = () => {
         if (!initData) {
           setLoading(true);
         }
+        
+        try {
+          const settings = await getGeneralSettings(true);
+          setHeroImageUrl(settings?.heroImageUrl || '');
+        } catch (settingsErr) {
+          console.warn("Failed to load general settings:", settingsErr);
+        }
+
         const isAdmin = user?.role === 'admin';
 
         let listingsPromise;
@@ -294,7 +303,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 md:space-y-12 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
+    <div className="animate-in fade-in duration-500 w-full">
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities."
@@ -314,25 +323,46 @@ export const Home: React.FC = () => {
         }}
       />
 
-      <AdDisplay />
-
-      <h1 className="sr-only">Halal Ottawa - Local Listings, News, Events, and Jobs</h1>
-
-      {/* Hero & Search */}
-      <section className="space-y-4">
-        <form onSubmit={handleSearch} className="relative w-full mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
-            className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-[#e90b35] focus:border-transparent transition-all outline-none"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+      {/* Full-width Hero Section with Ottawa Sunset Background */}
+      <section className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={getOptimizedImageUrl(heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp", 1920, 1080)} 
+            alt="Ottawa Sunset" 
+            className="w-full h-full object-cover brightness-[0.6] saturate-[1.2]"
           />
-        </form>
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+          <div className="absolute inset-0 bg-black/45" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-lg leading-tight">
+            Halal Places in Ottawa
+          </h1>
+          <p className="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md">
+            Discover verified halal restaurants, cafes, mosques, local events, news, and job opportunities
+          </p>
+          <div className="w-full max-w-2xl mx-auto">
+            <form onSubmit={handleSearch} className="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
+                className="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </form>
+          </div>
+        </div>
       </section>
 
-      {/* Categories - Mobile Grid */}
+      {/* Main Content Container with standard padding and maximum width */}
+      <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
+        <AdDisplay />
+
+        {/* Categories - Mobile Grid */}
       <section className="grid grid-cols-3 gap-3 md:hidden">
         {CATEGORIES.slice(0, 6).map((cat) => (
           <Link
@@ -696,6 +726,7 @@ export const Home: React.FC = () => {
           ))}
         </div>
       </section>
+      </div>
     </div>
   );
 };

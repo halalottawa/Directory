@@ -16,16 +16,25 @@ export interface GeneralSettings {
   logoUrl?: string;
   faviconUrl?: string;
   coverImageUrl?: string;
+  heroImageUrl?: string;
 }
 
 let cachedSettingsPromise: Promise<GeneralSettings | null> | null = null;
 
-export async function getGeneralSettings(): Promise<GeneralSettings | null> {
+export function clearGeneralSettingsCache() {
+  if (typeof window !== 'undefined') {
+    safeLocalStorage.removeItem('halal_ottawa_general_settings');
+    safeLocalStorage.removeItem('halal_ottawa_general_settings_expiry');
+  }
+  cachedSettingsPromise = null;
+}
+
+export async function getGeneralSettings(forceFresh = false): Promise<GeneralSettings | null> {
   const CACHE_KEY = 'halal_ottawa_general_settings';
   const CACHE_TTL_KEY = 'halal_ottawa_general_settings_expiry';
   const now = Date.now();
   
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !forceFresh) {
     const cached = safeLocalStorage.getItem(CACHE_KEY);
     const expiry = safeLocalStorage.getItem(CACHE_TTL_KEY);
     if (cached && expiry && now < parseInt(expiry, 10)) {
@@ -37,7 +46,7 @@ export async function getGeneralSettings(): Promise<GeneralSettings | null> {
     }
   }
 
-  if (!cachedSettingsPromise) {
+  if (!cachedSettingsPromise || forceFresh) {
     cachedSettingsPromise = (async () => {
       try {
         const docSnap = await getDoc(doc(db, 'settings', 'general'));

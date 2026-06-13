@@ -732,7 +732,7 @@ async function startServer() {
     } catch (err) {
       console.error("Error in /api/optimize-image:", err);
       const fallbackUrl = req.query.url as string;
-      if (fallbackUrl && fallbackUrl.startsWith("http")) {
+      if (fallbackUrl) {
         return res.redirect(fallbackUrl);
       }
       return res.status(500).send("Error optimizing image");

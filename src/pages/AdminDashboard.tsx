@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus, Upload, FileText } from 'lucide-react';
 import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, clearGeneralSettingsCache } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { SEO } from '../components/SEO';
@@ -78,6 +78,8 @@ export const AdminDashboard: React.FC = () => {
   const [isFaviconUploading, setIsFaviconUploading] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState('');
   const [isCoverUploading, setIsCoverUploading] = useState(false);
+  const [heroImageUrlState, setHeroImageUrlState] = useState('');
+  const [isHeroUploading, setIsHeroUploading] = useState(false);
   const [isPushImageUploading, setIsPushImageUploading] = useState(false);
 
   // Link Shortener states
@@ -169,6 +171,7 @@ export const AdminDashboard: React.FC = () => {
         if (settingsData.logoUrl) setSiteLogoUrl(settingsData.logoUrl);
         if (settingsData.coverImageUrl) setCoverImageUrl(settingsData.coverImageUrl);
         if (settingsData.faviconUrl) setFaviconUrl(settingsData.faviconUrl);
+        if (settingsData.heroImageUrl) setHeroImageUrlState(settingsData.heroImageUrl);
       }
 
       setPendingListings(listings.filter(i => !i.isApproved));
@@ -225,8 +228,9 @@ export const AdminDashboard: React.FC = () => {
     const file = e.target.files[0];
     setIsLogoUploading(true);
     try {
-      const url = await uploadFile(file, 'settings', 'halal-ottawa-logo');
+      const url = await uploadFile(file, 'settings', `halal-ottawa-logo-${Date.now()}`);
       await setDoc(doc(db, 'settings', 'general'), { logoUrl: url }, { merge: true });
+      clearGeneralSettingsCache();
       setSiteLogoUrl(url);
       toast.success('Site logo updated successfully.');
     } catch (error: any) {
@@ -242,8 +246,9 @@ export const AdminDashboard: React.FC = () => {
     const file = e.target.files[0];
     setIsCoverUploading(true);
     try {
-      const url = await uploadFile(file, 'settings', 'global-listings-cover');
+      const url = await uploadFile(file, 'settings', `global-listings-cover-${Date.now()}`);
       await setDoc(doc(db, 'settings', 'general'), { coverImageUrl: url }, { merge: true });
+      clearGeneralSettingsCache();
       setCoverImageUrl(url);
       toast.success('Global listings cover image updated successfully.');
     } catch (error: any) {
@@ -254,13 +259,32 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    setIsHeroUploading(true);
+    try {
+      const url = await uploadFile(file, 'settings', `global-hero-${Date.now()}`);
+      await setDoc(doc(db, 'settings', 'general'), { heroImageUrl: url }, { merge: true });
+      clearGeneralSettingsCache();
+      setHeroImageUrlState(url);
+      toast.success('Home hero background image updated successfully.');
+    } catch (error: any) {
+      toast.error('Error: ' + (error?.message || String(error)));
+      console.error(error);
+    } finally {
+      setIsHeroUploading(false);
+    }
+  };
+
   const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return;
     const file = e.target.files[0];
     setIsFaviconUploading(true);
     try {
-      const url = await uploadFile(file, 'settings', 'favicon');
+      const url = await uploadFile(file, 'settings', `favicon-${Date.now()}`);
       await setDoc(doc(db, 'settings', 'general'), { faviconUrl: url }, { merge: true });
+      clearGeneralSettingsCache();
       setFaviconUrl(url);
       toast.success('Site favicon updated successfully.');
     } catch (error: any) {
@@ -1878,7 +1902,7 @@ export const AdminDashboard: React.FC = () => {
             Site Settings
           </h2>
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <h3 className="text-sm font-bold text-gray-900 mb-1">Site Logo</h3>
                 <p className="text-xs text-gray-500 mb-4">Upload a logo to display in the header and footer.</p>
@@ -1931,6 +1955,66 @@ export const AdminDashboard: React.FC = () => {
                         disabled={isFaviconUploading} 
                       />
                     </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t md:border-t-0 md:border-l border-gray-100 pt-6 md:pt-0 md:pl-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Home Hero Image</h3>
+                <p className="text-xs text-gray-500 mb-4">Upload or set the background image of the main home hero section.</p>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    {heroImageUrlState ? (
+                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
+                        <img src={heroImageUrlState} alt="Home Hero" className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-300 relative overflow-hidden">
+                        <img src="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp" alt="Default Hero" className="w-full h-full object-cover brightness-50" />
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white bg-black/40">Default</span>
+                      </div>
+                    )}
+                    <div>
+                      <label className="relative cursor-pointer bg-gray-900 text-white hover:bg-gray-800 transition-colors px-4 py-2 rounded-xl text-sm font-bold inline-block">
+                        {isHeroUploading ? 'Uploading...' : 'Upload Image'}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleHeroUpload} 
+                          className="hidden" 
+                          disabled={isHeroUploading} 
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Paste image URL here..."
+                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-gray-200 text-xs"
+                      value={heroImageUrlState}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setHeroImageUrlState(val);
+                        await setDoc(doc(db, 'settings', 'general'), { heroImageUrl: val }, { merge: true });
+                        clearGeneralSettingsCache();
+                      }}
+                    />
+                    {heroImageUrlState && (
+                      <button
+                        onClick={async () => {
+                          setHeroImageUrlState('');
+                          await setDoc(doc(db, 'settings', 'general'), { heroImageUrl: '' }, { merge: true });
+                          clearGeneralSettingsCache();
+                          toast.success('Hero image reset to default.');
+                        }}
+                        className="p-2 border border-gray-100 bg-gray-50 hover:bg-gray-100 rounded-xl text-gray-500"
+                        title="Reset to default"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

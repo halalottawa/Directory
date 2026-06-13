@@ -188,6 +188,17 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "listingId", "plan", "requestType", "status", "createdAt"]
+    },
+    "GeneralSettings": {
+      "title": "General Settings",
+      "description": "General application-wide settings and images",
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string" },
+        "faviconUrl": { "type": "string" },
+        "coverImageUrl": { "type": "string" },
+        "heroImageUrl": { "type": "string" }
+      }
     }
   },
   "firestore": {
@@ -230,6 +241,10 @@
     "/plan_requests/{planRequestId}": {
       "schema": "PlanRequest",
       "description": "User requests for listing plans"
+    },
+    "/settings/{settingsId}": {
+      "schema": "GeneralSettings",
+      "description": "General settings of the application"
     }
   }
 }
