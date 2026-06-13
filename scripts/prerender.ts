@@ -453,9 +453,28 @@ async function prerender() {
           "@type": "WebSite",
           "name": "Halal Ottawa",
           "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
-          "url": "https://www.halalottawa.ca/"
+          "url": "https://www.halalottawa.ca/",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.halalottawa.ca/listings?search={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
         };
         extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
+        const organizationSchema = {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "Halal Ottawa",
+          "url": "https://www.halalottawa.ca",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.halalottawa.ca/favicon.png"
+          },
+          "sameAs": [
+            "https://www.instagram.com/halalottawa"
+          ]
+        };
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(organizationSchema)}</script>`;
       }
 
       // Inject JSON-LD Schema standard Markup structures
@@ -542,7 +561,7 @@ async function prerender() {
               "name": "Halal Ottawa",
               "logo": {
                 "@type": "ImageObject",
-                "url": "https://www.halalottawa.ca/favicon.ico"
+                "url": "https://www.halalottawa.ca/favicon.png"
               }
             },
             "description": page.description
