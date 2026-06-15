@@ -28,3 +28,25 @@ export const getAbsoluteUrl = (path: string): string => {
   const baseUrl = 'https://www.halalottawa.ca';
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };
+
+export const formatAddressWithoutProvinceAndPostalCode = (address: string): string => {
+  if (!address) return '';
+  let cleaned = address;
+  
+  // Replace postal code (e.g., K1P 1A4 or K1P1A4)
+  cleaned = cleaned.replace(/\b[A-Za-z]\d[A-Za-z]\s*\d[A-Za-z]\d\b/g, '');
+  
+  // Remove ON, Ontario, QC, Quebec, Canada, etc. (case-insensitive)
+  cleaned = cleaned.replace(/\b(ON|Ontario|QC|Quebec|Canada)\b/gi, '');
+  
+  // Clean up any double commas, trailing commas, spaces, etc.
+  cleaned = cleaned
+    .replace(/,\s*,/g, ',') // replace double commas
+    .replace(/\s+/g, ' ')   // normalize whitespace
+    .trim()
+    .replace(/,\s*$/, '')   // remove trailing comma
+    .replace(/^,\s*/, '')   // remove leading comma
+    .trim();
+    
+  return cleaned;
+};

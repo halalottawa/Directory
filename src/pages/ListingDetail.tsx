@@ -9,7 +9,7 @@ import { DEMO_LISTINGS, CATEGORIES, LISTING_TYPES, CUISINES } from '../constants
 import L from 'leaflet';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl, getAbsoluteUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
@@ -671,7 +671,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           <button 
             onClick={() => handleInfoClick(
               'Address', 
-              listing.address, 
+              formatAddressWithoutProvinceAndPostalCode(listing.address), 
               <MapPin className="w-6 h-6" />,
               'Open in Google Maps',
               openInMaps
@@ -1128,7 +1128,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 </div>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
-                  <span>{listing.address}</span>
+                  <span>{formatAddressWithoutProvinceAndPostalCode(listing.address)}</span>
                 </div>
                 <button 
                   onClick={openInMaps}
@@ -1306,7 +1306,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 </div>
                 <p className="text-gray-500 text-sm flex items-center gap-2 mb-3">
                   <MapPin className="w-4 h-4 text-[#e90b35]" />
-                  <span className="line-clamp-1">{related.address}</span>
+                  <span className="line-clamp-1">{formatAddressWithoutProvinceAndPostalCode(related.address)}</span>
                 </p>
                 <div className="mt-auto flex items-center justify-between">
                   <span className="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase inline-block">

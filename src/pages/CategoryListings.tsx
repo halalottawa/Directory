@@ -8,7 +8,7 @@ import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl, getAbsoluteUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
@@ -226,39 +226,8 @@ export const CategoryListings: React.FC = () => {
 
     const fetchListings = async () => {
       try {
-        let snapshot;
-        try {
-          // Attempt optimal target queries with isApproved filter first (requires composite indexes)
-          let q;
-          if (isMainCategory) {
-            q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
-          } else if (matchedType) {
-            q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
-          } else if (matchedCuisine) {
-            q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory), where('isApproved', '==', true), limit(100));
-          } else if (isLocationCategory) {
-            q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'), where('isApproved', '==', true), limit(100));
-          } else {
-            q = query(collection(db, 'listings'), where('isApproved', '==', true), limit(100));
-          }
-          snapshot = await getDocs(q);
-        } catch (idxError) {
-          console.warn("Index not found or failed query with isApproved filter. Falling back to non-indexed query.", idxError);
-          // Fallback to query without isApproved filter, which uses standard index & gets filtered client-side anyway
-          let q;
-          if (isMainCategory) {
-            q = query(collection(db, 'listings'), where('category', 'array-contains', formattedCategory), limit(100));
-          } else if (matchedType) {
-            q = query(collection(db, 'listings'), where('types', 'array-contains', formattedCategory), limit(100));
-          } else if (matchedCuisine) {
-            q = query(collection(db, 'listings'), where('cuisine', 'array-contains', formattedCategory), limit(100));
-          } else if (isLocationCategory) {
-            q = query(collection(db, 'listings'), where('category', 'array-contains', 'Restaurants'), limit(100));
-          } else {
-            q = query(collection(db, 'listings'), limit(100));
-          }
-          snapshot = await getDocs(q);
-        }
+        const q = query(collection(db, 'listings'));
+        const snapshot = await getDocs(q);
 
         if (!isMounted) return;
 
@@ -293,11 +262,11 @@ export const CategoryListings: React.FC = () => {
           return l.isApproved || (user && l.submittedBy === user.uid);
         });
 
-        // Sort: Featured first, then by date
+        // Sort: Recent added ones first
         filtered.sort((a, b) => {
-          if (a.isFeatured && !b.isFeatured) return -1;
-          if (!a.isFeatured && b.isFeatured) return 1;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
         });
         
         setRawListings(filtered);
@@ -334,11 +303,11 @@ export const CategoryListings: React.FC = () => {
                cuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
     })];
     
-    // Sort allListings: Featured first, then by date
+    // Sort allListings: Recent added ones first
     allListings.sort((a, b) => {
-      if (a.isFeatured && !b.isFeatured) return -1;
-      if (!a.isFeatured && b.isFeatured) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
     });
     
     let filtered = allListings;
@@ -594,7 +563,7 @@ export const CategoryListings: React.FC = () => {
                   <div className="text-gray-500 text-sm mt-1 flex items-center justify-between flex-wrap gap-2">
                     <span className="flex items-center gap-3">
                       <MapPin className="w-4 h-4 text-[#e90b35]" />
-                      {listing.address}
+                      {formatAddressWithoutProvinceAndPostalCode(listing.address)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">

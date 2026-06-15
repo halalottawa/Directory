@@ -9,7 +9,7 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl, getAbsoluteUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
@@ -397,7 +397,7 @@ export const Listings: React.FC = () => {
                   <div className="text-gray-500 text-sm mt-1 flex items-center justify-between flex-wrap gap-2">
                     <span className="flex items-center gap-3">
                       <MapPin className="w-4 h-4 text-[#e90b35]" />
-                      {listing.address}
+                      {formatAddressWithoutProvinceAndPostalCode(listing.address)}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-3">
