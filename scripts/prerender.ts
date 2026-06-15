@@ -50,15 +50,16 @@ function escapeHtmlAttr(str: string): string {
 
 function getAbsoluteUrl(urlStr: string): string {
   if (!urlStr) return "https://www.halalottawa.ca/default-og.jpg";
-  if (urlStr.startsWith("http://") || urlStr.startsWith("https://") || urlStr.startsWith("data:")) {
-    let url = urlStr;
-    if (url.includes('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-      url = url.replace('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-    } else if (url.includes('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-      url = url.replace('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-    } else if (url.includes('.run.app')) {
-      url = url.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/g, 'www.halalottawa.ca');
-    }
+  let url = urlStr;
+  
+  if (url.includes('.run.app') && !url.startsWith('http')) {
+    url = 'https://' + url;
+  }
+
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    url = url.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
+    url = url.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
+    url = url.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
     return url;
   }
   return `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;

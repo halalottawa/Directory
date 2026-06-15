@@ -32,15 +32,9 @@ export const SEO: React.FC<SEOProps> = ({
   let resolvedCanonical = canonicalUrl || `https://www.halalottawa.ca${currentPath}`;
 
   if (resolvedCanonical) {
-    if (resolvedCanonical.includes('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-      resolvedCanonical = resolvedCanonical.replace('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-    }
-    if (resolvedCanonical.includes('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-      resolvedCanonical = resolvedCanonical.replace('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-    }
-    if (resolvedCanonical.includes('.run.app')) {
-      resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/g, 'www.halalottawa.ca');
-    }
+    resolvedCanonical = resolvedCanonical.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
+    resolvedCanonical = resolvedCanonical.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
+    resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
     // Clean up any potential double slashes in paths like https://www.halalottawa.ca//news
     resolvedCanonical = resolvedCanonical.replace(/https:\/\/www\.halalottawa\.ca\/\/+/g, 'https://www.halalottawa.ca/');
   }
