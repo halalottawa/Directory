@@ -61,6 +61,50 @@ export const EditNews: React.FC = () => {
   }, [id, user, navigate]);
 
   const processingUrls = useRef<string[]>([]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertMarkdown = (syntax: string, placeholder = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = formData.content;
+    const selectedText = text.substring(start, end);
+    
+    let replacement = '';
+    
+    if (syntax === 'h2') {
+      replacement = `\n## ${selectedText || placeholder || 'Heading 2'}\n`;
+    } else if (syntax === 'h3') {
+      replacement = `\n### ${selectedText || placeholder || 'Heading 3'}\n`;
+    } else if (syntax === 'h4') {
+      replacement = `\n#### ${selectedText || placeholder || 'Heading 4'}\n`;
+    } else if (syntax === 'bold') {
+      replacement = `**${selectedText || placeholder || 'bold text'}**`;
+    } else if (syntax === 'italic') {
+      replacement = `*${selectedText || placeholder || 'italic text'}*`;
+    } else if (syntax === 'list-ul') {
+      replacement = `\n- ${selectedText || placeholder || 'list item'}\n`;
+    } else if (syntax === 'list-ol') {
+      replacement = `\n1. ${selectedText || placeholder || 'list item'}\n`;
+    } else if (syntax === 'quote') {
+      replacement = `\n> ${selectedText || placeholder || 'quote'}\n`;
+    } else if (syntax === 'link') {
+      replacement = `[${selectedText || placeholder || 'link text'}](https://example.com)`;
+    }
+
+    const newContent = text.substring(0, start) + replacement + text.substring(end);
+    setFormData(prev => ({ ...prev, content: newContent }));
+
+    // Re-focus and set selection
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + replacement.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
   const handleCoverImageUrlChange = async (url: string) => {
     setFormData(prev => ({ ...prev, coverImage: url }));
     if (!url) return;
@@ -221,13 +265,98 @@ export const EditNews: React.FC = () => {
               />
             </div>
 
-            <textarea
-              placeholder="Article Content"
-              required
-              className="w-full p-4 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-[#e90b35] h-48 resize-none md:col-span-2"
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-            />
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
+                Article Content (Supports Markdown)
+              </label>
+              <div className="border border-gray-100 bg-gray-50 rounded-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
+                {/* Visual formatting toolbar */}
+                <div className="flex flex-wrap items-center gap-1.5 p-2 bg-white border-b border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('h2', 'Heading 2')}
+                    className="px-2.5 py-1 text-xs font-bold bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Heading 2 (##)"
+                  >
+                    H2
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('h3', 'Heading 3')}
+                    className="px-2.5 py-1 text-xs font-bold bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Heading 3 (###)"
+                  >
+                    H3
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('h4', 'Heading 4')}
+                    className="px-2.5 py-1 text-xs font-bold bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Heading 4 (####)"
+                  >
+                    H4
+                  </button>
+                  <div className="h-4 w-[1px] bg-gray-200 mx-1"></div>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('bold', 'bold text')}
+                    className="p-1 px-2.5 text-xs font-bold bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Bold (**text**)"
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('italic', 'italic text')}
+                    className="p-1 px-2.5 text-xs italic font-semibold bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Italic (*text*)"
+                  >
+                    I
+                  </button>
+                  <div className="h-4 w-[1px] bg-gray-200 mx-1"></div>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('list-ul', 'list item')}
+                    className="px-2.5 py-1 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Bullet List (-)"
+                  >
+                    • List
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('list-ol', 'list item')}
+                    className="px-2.5 py-1 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 cursor-pointer"
+                    title="Numbered List (1.)"
+                  >
+                    1. List
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('quote', 'quote text')}
+                    className="px-2.5 py-1 text-xs bg-gray-50 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors border border-gray-100 font-serif font-bold cursor-pointer"
+                    title="Blockquote (>)"
+                  >
+                    " Quote
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertMarkdown('link', 'link text')}
+                    className="px-2.5 py-1 text-xs bg-gray-50 text-[#e90b35] hover:bg-red-50 rounded-lg transition-colors border border-red-50 cursor-pointer"
+                    title="Insert Link ([text](url))"
+                  >
+                    Link
+                  </button>
+                </div>
+                <textarea
+                  ref={textareaRef}
+                  placeholder="Type your article text here. Use the buttons above to quickly add H2, H3, H4 headings, bullet lists, bold styles, etc."
+                  required
+                  className="w-full p-4 bg-transparent border-none outline-none h-64 resize-y text-gray-800 leading-relaxed font-sans placeholder-gray-400"
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                />
+              </div>
+            </div>
 
             {user?.role === 'admin' && (
               <div className="relative md:col-span-2">
