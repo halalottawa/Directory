@@ -71,6 +71,24 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      let isIframe = false;
+      try {
+        isIframe = window.self !== window.top;
+      } catch (err) {
+        isIframe = true;
+      }
+      
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+      
+      if (hostname.endsWith('.run.app') && !isIframe && !isLocal) {
+        window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${window.location.search}${window.location.hash}`);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       const origin = window.location.origin;
       if (
         origin && 
