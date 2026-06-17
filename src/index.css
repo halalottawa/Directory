@@ -111,16 +111,4 @@
   scrollbar-width: none;
 }
 
-/* Hide Buy Me a Coffee widget on non-desktop views */
-@media (max-width: 1023px) {
-  #bmc-wbtn,
-  .bmc-wbtn,
-  [id^="bmc-"],
-  [class^="bmc-"],
-  iframe[src*="buymeacoffee.com"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-  }
-}
+
