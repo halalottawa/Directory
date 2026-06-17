@@ -3002,8 +3002,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
         
         // Execute server-side meta injection (SSI)
-        const { html, isNotFound } = await getInjectedHTML(template, req.path);
-        res.status(isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(html);
+        const { html } = await getInjectedHTML(template, req.path);
+        res.status(200).set({ "Content-Type": "text/html" }).end(html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
         next(e);
@@ -3030,8 +3030,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       try {
         const indexPath = path.join(distPath, "index.html");
         const template = fs.readFileSync(indexPath, "utf-8");
-        const { html, isNotFound } = await getInjectedHTML(template, req.path);
-        res.status(isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(html);
+        const { html } = await getInjectedHTML(template, req.path);
+        res.status(200).set({ "Content-Type": "text/html" }).send(html);
       } catch (err) {
         console.error("Error serving index.html:", err);
         res.sendFile(path.join(distPath, "index.html"));
