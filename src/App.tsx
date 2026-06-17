@@ -39,6 +39,7 @@ const NotFound = React.lazy(() => import('./pages/NotFound').then(module => ({ d
 const ShortLinkRedirect = React.lazy(() => import('./pages/ShortLinkRedirect').then(module => ({ default: module.ShortLinkRedirect })));
 
 import ErrorBoundary from './components/ErrorBoundary';
+import { BuyMeACoffee } from './components/BuyMeACoffee';
 
 import { useAuth } from './context/AuthContext';
 
@@ -183,6 +184,7 @@ const AppContent: React.FC = () => {
         <Route path="/register" element={<Login />} />
         <Route path="/go/:slug" element={<ShortLinkRedirect />} />
       </Routes>
+      <BuyMeACoffee />
       </Suspense>
     </ErrorBoundary>
   );
