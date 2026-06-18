@@ -16,8 +16,8 @@
     display: block !important;
   }
   h2 {
-    font-size: 1.50rem !important; /* text-2xl */
-    font-weight: 750 !important;
+    font-size: 1.25rem !important; /* text-xl */
+    font-weight: 700 !important; /* font-bold */
     color: #111827 !important; /* gray-900 */
     margin-top: 1.5rem !important;
     margin-bottom: 0.75rem !important;
