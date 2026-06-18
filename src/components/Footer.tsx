@@ -94,6 +94,16 @@ export const Footer: React.FC = () => {
           <div className="space-y-6">
             <h3 className="text-white font-bold text-lg tracking-tight">Support</h3>
             <ul className="space-y-4">
+              <li>
+                <a
+                  href="https://buymeacoffee.com/halalottawa.ca"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline"
+                >
+                  Donation
+                </a>
+              </li>
               <li><Link to="/faq" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">FAQ</Link></li>
               <li><Link to="/tools/qibla" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Qibla Direction</Link></li>
               <li><Link to="/terms" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Terms of Service</Link></li>
