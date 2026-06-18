@@ -215,7 +215,15 @@ export const NewsDetail: React.FC = () => {
 
       <div className="p-6 space-y-8">
         <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
-          <ReactMarkdown>{article.content}</ReactMarkdown>
+          <ReactMarkdown
+            components={{
+              h2: ({ node, ...props }) => (
+                <h2 className="text-xl font-bold text-gray-950 mt-6 mb-4" {...props} />
+              )
+            }}
+          >
+            {article.content}
+          </ReactMarkdown>
         </article>
 
           {article.sourceLink && (
