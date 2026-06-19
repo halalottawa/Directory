@@ -504,7 +504,7 @@ export const Home: React.FC = () => {
           {loading ? (
             Array.from({ length: 3 }).map((_, idx) => (
               <div key={idx} className="bg-white border border-gray-100 flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm">
-                <div className="animate-pulse bg-gray-200 w-24 h-24 md:w-full aspect-square md:aspect-[2/1] shrink-0 rounded-xl md:rounded-none" />
+                <div className="animate-pulse bg-gray-200 w-24 h-24 md:w-full md:h-48 aspect-square md:aspect-none shrink-0 rounded-xl md:rounded-none" />
                 <div className="flex-1 space-y-3 py-1 md:p-5 flex flex-col justify-between">
                   <div>
                     <div className="animate-pulse bg-gray-200 h-4 w-5/6 rounded-md" />
@@ -521,15 +521,15 @@ export const Home: React.FC = () => {
                 to={`/news/${news.slug || news.id}`}
                 className={`bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35] ${index >= 3 ? 'hidden md:flex' : ''}`}
               >
-                <div className="relative w-24 h-24 md:w-full md:h-auto aspect-square md:aspect-[2/1] shrink-0 bg-gray-100">
+                <div className="relative w-24 h-24 md:w-full md:h-48 aspect-square md:aspect-none shrink-0 bg-gray-100">
                   {news.coverImage && news.coverImage.trim() !== '' ? (
                     <img 
-                      src={getOptimizedImageUrl(news.coverImage, 400, 200)} 
+                      src={getOptimizedImageUrl(news.coverImage, 400, 192)} 
                       alt={news.title} 
                       className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                       loading="lazy"
                       width="400"
-                      height="200"
+                      height="192"
                       decoding="async"
                     />
                   ) : (
