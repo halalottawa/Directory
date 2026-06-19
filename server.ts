@@ -2338,6 +2338,17 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       return knownCategories.has(s) || knownTypes.has(s) || knownCuisines.has(s);
     };
 
+    const isRestaurantSubcategory = (segment: string): boolean => {
+      const s = segment.toLowerCase().replace(/-/g, ' ');
+      const knownTypes = new Set([
+        'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
+      ]);
+      const knownCuisines = new Set([
+        'turkish', 'middle-eastern', 'middle eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
+      ]);
+      return knownTypes.has(s) || knownTypes.has(segment.toLowerCase()) || knownCuisines.has(s) || knownCuisines.has(segment.toLowerCase());
+    };
+
     const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
       const p1 = part1.toLowerCase();
       const p2 = part2.toLowerCase();
@@ -2347,7 +2358,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       if (p1 === "jobs" && p2 === "add") return true;
       if (p1 === "news" && p2 === "add") return true;
       if (p1 === "tools" && p2 === "qibla") return true;
-      if (p1 === "restaurants" && ["orleans", "kanata", "barrhaven", "downtown"].includes(p2)) return true;
+      if (p1 === "restaurants" && (["orleans", "kanata", "barrhaven", "downtown"].includes(p2) || isRestaurantSubcategory(p2))) return true;
       return false;
     };
 
@@ -2508,13 +2519,21 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         
         if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
           isNotFound = false;
-          if (p0 === 'restaurants' && ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase())) {
-            const locName = p1.charAt(0).toUpperCase() + p1.slice(1).toLowerCase();
+          if (p0 === 'restaurants') {
             const currentMonth = new Date().toLocaleString('default', { month: 'long' });
             const currentYear = new Date().getFullYear();
-            title = `Halal Restaurants in ${locName}, Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
-            description = `Find the best verified halal restaurants and food spots in ${locName}, Ottawa. Search by cuisine or food type, read verified reviews, and get directions.`;
-            routeType = 'location';
+            const locName = p1.toLowerCase().replace(/-/g, ' ');
+            const formattedSub = locName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+            
+            if (['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase())) {
+              title = `Halal Restaurants in ${formattedSub}, Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
+              description = `Find the best verified halal restaurants and food spots in ${formattedSub}, Ottawa. Search by cuisine or food type, read verified reviews, and get directions.`;
+              routeType = 'location';
+            } else {
+              title = `Halal ${formattedSub} Restaurants in Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
+              description = `Discover the best verified halal ${formattedSub} restaurants and food spots in Ottawa for ${currentMonth} ${currentYear}. Search by cuisine, read reviews, and get directions.`;
+              routeType = 'category';
+            }
           }
         } else if (p0 === 'go') {
           try {
