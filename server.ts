@@ -2395,38 +2395,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
       else if (pathParts.length === 1) {
         const p0 = pathParts[0].toLowerCase();
-        
-        if (p0 === 'news') {
-          title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
-          description = "Keep up to date with the latest local news, announcements, ads, updates and community updates from Ottawa's Muslim community.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
-          routeType = 'news';
-        } else if (p0 === 'events') {
-          title = "Upcoming Halal Events in Ottawa - Muslim Community Calendar";
-          description = "Discover upcoming halal events, conferences, school programs, community gatherings, and fundraising events in Ottawa.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
-          routeType = 'events';
-        } else if (p0 === 'jobs') {
-          title = "Halal Job Opportunities in Ottawa - Browse Local Job Openings";
-          description = "Find and apply for halal-friendly jobs and employment opportunities in Ottawa with local businesses and organizations.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
-          routeType = 'jobs';
-        } else if (p0 === 'listings') {
-          title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
-          description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
-          routeType = 'listings';
-        }
-
-        const knownCategories = new Set([
-          'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
-        ]);
-        const knownTypes = new Set([
-          'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
-        ]);
-        const knownCuisines = new Set([
-          'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
-        ]);
 
         const categoryMap: Record<string, string> = {
           'restaurants': 'Restaurants',
@@ -2474,25 +2442,54 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           'buffet': 'Buffet',
           'tacos': 'Tacos'
         };
+        
+        if (p0 === 'news') {
+          title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
+          description = "Keep up to date with the latest local news, announcements, ads, updates and community updates from Ottawa's Muslim community.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'news';
+        } else if (p0 === 'events') {
+          title = "Upcoming Halal Events in Ottawa - Muslim Community Calendar";
+          description = "Discover upcoming halal events, conferences, school programs, community gatherings, and fundraising events in Ottawa.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'events';
+        } else if (p0 === 'jobs') {
+          title = "Halal Job Opportunities in Ottawa - Browse Local Job Openings";
+          description = "Find and apply for halal-friendly jobs and employment opportunities in Ottawa with local businesses and organizations.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'jobs';
+        } else if (categoryMap[p0]) {
+          routeType = 'category';
+          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+          const currentYear = new Date().getFullYear();
 
-        try {
-          let q;
-          if (categoryMap[p0]) {
-            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', categoryMap[p0]), limit(1));
-          } else if (cuisineMap[p0]) {
-            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', cuisineMap[p0]), limit(1));
-          } else if (typeMap[p0]) {
-            q = query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', typeMap[p0]), limit(1));
+          if (p0 === 'restaurants') {
+            title = `Halal Restaurants in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Discover the best verified halal restaurants and food spots in Ottawa for ${currentMonth} ${currentYear}. Search by cuisine, read reviews, and get directions.`;
+          } else if (p0 === 'mosques') {
+            title = `Mosques in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${currentMonth} ${currentYear}.`;
+          } else if (p0 === 'grocery') {
+            title = `Halal Grocery Stores in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Find halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products for ${currentMonth} ${currentYear}.`;
+          } else if (p0 === 'organizations') {
+            title = `Muslim Organizations in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${currentMonth} ${currentYear}.`;
+          } else if (p0 === 'schools') {
+            title = `Islamic Schools in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Browse Islamic schools, preschools, daycares, and weekend Quran programs in Ottawa for ${currentMonth} ${currentYear}.`;
+          } else if (p0 === 'butchers') {
+            title = `Halal Butchers in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Find certified halal butcher shops and fresh meat markets in Ottawa providing hand-slaughtered zabihah meat for ${currentMonth} ${currentYear}.`;
+          } else if (p0 === 'clothing') {
+            title = `Islamic Clothing Stores in Ottawa - ${currentMonth} ${currentYear}`;
+            description = `Explore Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${currentMonth} ${currentYear}.`;
           }
-
-          if (q) {
-            const snap = await getDocs(q);
-            if (snap.empty) {
-              isNotFound = true;
-            }
-          }
-        } catch (err) {
-          console.error("Error checking empty category listing on server rendering:", err);
+        } else if (p0 === 'listings') {
+          title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
+          description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
+          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          routeType = 'listings';
         }
       }
       // Dynamic Route Data Pre-fetch and 404 enforcement
