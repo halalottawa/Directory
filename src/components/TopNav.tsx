@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle, Compass } from 'lucide-react';
+import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle, Compass, Coffee } from 'lucide-react';
 import { getGeneralSettings } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -423,6 +423,18 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                 <>
                   <nav>
                     <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Tools</p>
+                    <a 
+                      href="https://buymeacoffee.com/halalottawa.ca" 
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 py-2 px-3 rounded-2xl transition-all active:scale-95 group hover:bg-gray-50 text-gray-700"
+                    >
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors bg-gray-50 text-gray-400 group-hover:text-[#e90b35] group-hover:bg-red-50">
+                        <Coffee className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold">Donation</span>
+                    </a>
                     <Link 
                       to="/tools/qibla" 
                       onClick={() => setIsMenuOpen(false)}

@@ -37,6 +37,11 @@ export const SEO: React.FC<SEOProps> = ({
     resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
     // Clean up any potential double slashes in paths like https://www.halalottawa.ca//news
     resolvedCanonical = resolvedCanonical.replace(/https:\/\/www\.halalottawa\.ca\/\/+/g, 'https://www.halalottawa.ca/');
+    
+    // Trim trailing slashes from the canonical URL so both '/path/' and '/path' resolve to '/path'
+    if (resolvedCanonical.endsWith('/') && resolvedCanonical !== 'https://www.halalottawa.ca/') {
+      resolvedCanonical = resolvedCanonical.slice(0, -1);
+    }
   }
 
   return (

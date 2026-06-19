@@ -10,6 +10,7 @@ import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_EVENTS, DEMO_JOBS } from '..
 import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { useAuth } from '../context/AuthContext';
+import { isAppWrapper } from '../utils/platform';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
@@ -67,6 +68,7 @@ export const Home: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const { user } = useAuth();
+  const [isApp, setIsApp] = useState(false);
 
   const initData = typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home' 
     ? (window as any).__INITIAL_DATA__ 
@@ -81,6 +83,7 @@ export const Home: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    setIsApp(isAppWrapper());
     const fetchHomeData = async () => {
       try {
         if (!initData) {
@@ -323,40 +326,54 @@ export const Home: React.FC = () => {
         }}
       />
 
-      {/* Full-width Hero Section with Ottawa Sunset Background */}
-      <section className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={getOptimizedImageUrl(heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp", 1920, 1080)} 
-            alt="Ottawa Sunset" 
-            className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
-          />
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent" />
-          <div className="absolute inset-0 bg-black/55" />
+      {isApp ? (
+        <div className="w-full max-w-2xl mx-auto px-4 pt-4 pb-2">
+          <form onSubmit={handleSearch} className="relative w-full bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
+              className="w-full pl-12 pr-4 py-4 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </form>
         </div>
-
-        <div className="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-lg leading-tight">
-            Halal Places in Ottawa
-          </h1>
-          <p className="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md">
-            Discover verified halal restaurants, cafes, mosques, local events, news, and job opportunities
-          </p>
-          <div className="w-full max-w-2xl mx-auto">
-            <form onSubmit={handleSearch} className="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
-                className="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </form>
+      ) : (
+        <section className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={getOptimizedImageUrl(heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp", 1920, 1080)} 
+              alt="Ottawa Sunset" 
+              className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
+            />
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent" />
+            <div className="absolute inset-0 bg-black/55" />
           </div>
-        </div>
-      </section>
+
+          <div className="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-lg leading-tight">
+              Halal Places in Ottawa
+            </h1>
+            <p className="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md">
+              Discover verified halal restaurants, cafes, mosques, local events, news, and job opportunities
+            </p>
+            <div className="w-full max-w-2xl mx-auto">
+              <form onSubmit={handleSearch} className="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
+                  className="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </form>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Main Content Container with standard padding and maximum width */}
       <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">

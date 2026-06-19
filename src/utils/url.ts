@@ -22,11 +22,21 @@ export const getAbsoluteUrl = (path: string): string => {
     url = url.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
     url = url.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
     url = url.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
+    
+    // Trim trailing slash for non-root paths
+    if (url.endsWith('/') && url !== 'https://www.halalottawa.ca/') {
+      url = url.slice(0, -1);
+    }
+    
     return url;
   }
   
   const baseUrl = 'https://www.halalottawa.ca';
-  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  let resolved = `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  if (resolved.endsWith('/') && resolved !== 'https://www.halalottawa.ca/') {
+    resolved = resolved.slice(0, -1);
+  }
+  return resolved;
 };
 
 export const formatAddressWithoutProvinceAndPostalCode = (address: string): string => {

@@ -1358,7 +1358,7 @@ async function startServer() {
         db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
       }
 
-      const BASE_URL = 'https://halalottawa.ca';
+      const BASE_URL = 'https://www.halalottawa.ca';
       const staticUrls = [
         "/", "/news", "/events", "/jobs", "/restaurants", "/mosques", 
         "/organizations", "/grocery", "/clothing", "/schools", "/butchers",
@@ -2269,9 +2269,18 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       url = url.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
       url = url.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
       url = url.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
+      
+      if (url.endsWith('/') && url !== 'https://www.halalottawa.ca/') {
+        url = url.slice(0, -1);
+      }
       return url;
     }
-    return `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;
+    
+    let resolved = `https://www.halalottawa.ca${urlStr.startsWith("/") ? "" : "/"}${urlStr}`;
+    if (resolved.endsWith('/') && resolved !== 'https://www.halalottawa.ca/') {
+      resolved = resolved.slice(0, -1);
+    }
+    return resolved;
   }
 
   function cleanPriceStr(priceVal: any): string {
@@ -2680,18 +2689,24 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(title)}</title>`);
     html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
     
+    // Normalize urlPath to strip trailing slash for canonical matching (e.g. /grocery/marche-ali/ -> /grocery/marche-ali)
+    let canonicalPath = urlPath;
+    if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
+      canonicalPath = canonicalPath.slice(0, -1);
+    }
+
     let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
-    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + urlPath)}" />
+    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
     <meta property="og:type" content="${escapeHtmlAttr(ogType)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(description)}" />
     <meta name="twitter:image" content="${escapeHtmlAttr(ogImage)}" />
-    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + urlPath)}" />
+    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
     `;
 
     if (pathParts.length === 0) {
@@ -2713,10 +2728,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           "name": title,
           "description": description,
           "image": ogImage,
-          "url": `https://www.halalottawa.ca${urlPath}`
+          "url": `https://www.halalottawa.ca${canonicalPath}`
         };
 
-        const fullUrl = `https://www.halalottawa.ca${urlPath}`;
+        const fullUrl = `https://www.halalottawa.ca${canonicalPath}`;
 
         if (routeType === 'listing') {
           // Decide specific type if restaurant, mosque, grocery, etc.
