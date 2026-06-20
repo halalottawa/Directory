@@ -13,8 +13,14 @@ export const ShortLinkRedirect: React.FC = () => {
     const fetchLink = async () => {
       if (!slug) return;
       try {
-        const linkRef = doc(db, 'short_links', slug);
-        const linkSnap = await getDoc(linkRef);
+        let linkRef = doc(db, 'short_links', slug);
+        let linkSnap = await getDoc(linkRef);
+        
+        // Fallback to lowercase if not found
+        if (!linkSnap.exists() && slug !== slug.toLowerCase()) {
+          linkRef = doc(db, 'short_links', slug.toLowerCase());
+          linkSnap = await getDoc(linkRef);
+        }
         
         if (linkSnap.exists()) {
           const data = linkSnap.data();

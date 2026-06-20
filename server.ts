@@ -2285,6 +2285,67 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
+  app.get("/go/:slug", async (req, res, next) => {
+    try {
+      const { slug } = req.params;
+      if (!slug) {
+        return next();
+      }
+      
+      const fs = await import('fs');
+      const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
+      if (!fs.existsSync(configPath)) {
+        return next();
+      }
+      
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { getFirestore, doc, getDoc, updateDoc, increment } = await import('firebase/firestore');
+      
+      const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
+      const db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+
+      let linkRef = doc(db, 'short_links', slug);
+      let linkSnap = await getDoc(linkRef);
+      
+      // Fallback to lowercase if not found
+      if (!linkSnap.exists() && slug !== slug.toLowerCase()) {
+        linkRef = doc(db, 'short_links', slug.toLowerCase());
+        linkSnap = await getDoc(linkRef);
+      }
+      
+      if (!linkSnap.exists()) {
+        return next();
+      }
+      
+      const data = linkSnap.data();
+      
+      // Increment visits async
+      updateDoc(linkRef, { visits: increment(1) }).catch(e => {
+        console.error('Failed to update visits on server', e);
+      });
+      
+      let targetUrl = data.originalUrl;
+      if (targetUrl) {
+        // Resolve sandbox or staging domains to public canonical production domain
+        if (targetUrl.includes('.run.app')) {
+          targetUrl = targetUrl.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
+        }
+      }
+      
+      if (targetUrl.startsWith('/')) {
+        targetUrl = 'https://www.halalottawa.ca' + targetUrl;
+      } else if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+        targetUrl = 'https://' + targetUrl;
+      }
+      
+      return res.redirect(302, targetUrl);
+    } catch (error) {
+      console.error("Error in server short link redirection", error);
+      return next();
+    }
+  });
+
   // Helper functions for secure character escaping and robust schema URLs in server
   function escapeHtmlText(str: string): string {
     if (!str) return '';
