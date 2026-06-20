@@ -94,6 +94,23 @@ interface ListingDetailProps {
 }
 
 export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) => {
+  const DAY_ORDER = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const dayMap: Record<string, string> = {
+    Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday',
+    Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday'
+  };
+  const expandDays = (dayStr: string): string[] => {
+    if (dayStr.includes('-')) {
+      const [start, end] = dayStr.split('-');
+      const startIdx = DAY_ORDER.indexOf(start.trim());
+      const endIdx = DAY_ORDER.indexOf(end.trim());
+      if (startIdx === -1 || endIdx === -1) return [];
+      return DAY_ORDER.slice(startIdx, endIdx + 1)
+        .map(d => `https://schema.org/${dayMap[d]}`);
+    }
+    return dayStr.split(',').map(d => `https://schema.org/${dayMap[d.trim()] || d.trim()}`);
+  };
+
   const { slug: urlSlug } = useParams<{ slug: string }>();
   const slug = overrideSlug || urlSlug;
   const navigate = useNavigate();
@@ -516,16 +533,9 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               ? (typeof listing.openingHours === 'string' ? listing.openingHours.split(',').map(s => s.trim()) : (listing.openingHours as any)).map((entry: string) => {
                   const match = entry.match(/^([A-Za-z]{2}(?:[,\-][A-Za-z]{2})*)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
                   if (!match) return null;
-                  const dayMap: Record<string, string> = {
-                    Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday',
-                    Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday'
-                  };
-                  const days = match[1].includes('-')
-                    ? [match[1].split('-').map(d => `https://schema.org/${dayMap[d] || d}`)]
-                    : match[1].split(',').map(d => `https://schema.org/${dayMap[d.trim()] || d.trim()}`);
                   return {
                     "@type": "OpeningHoursSpecification",
-                    "dayOfWeek": days.flat(),
+                    "dayOfWeek": expandDays(match[1]),
                     "opens": match[2],
                     "closes": match[3]
                   };

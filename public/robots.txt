@@ -31,6 +31,8 @@ Allow: /mosques
 Allow: /organizations
 Allow: /grocery
 Allow: /clothing
+Allow: /schools
+Allow: /butchers
 Allow: /llms.txt
 Allow: /llm.txt
 

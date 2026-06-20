@@ -1291,12 +1291,8 @@ export const AdminDashboard: React.FC = () => {
 
       // Normalize internal/staging domains to canonical production domain
       let finalOriginalUrl = originalUrl.trim();
-      if (finalOriginalUrl.includes('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-        finalOriginalUrl = finalOriginalUrl.replace('ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-      } else if (finalOriginalUrl.includes('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app')) {
-        finalOriginalUrl = finalOriginalUrl.replace('ais-dev-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app', 'www.halalottawa.ca');
-      } else if (finalOriginalUrl.includes('.run.app')) {
-        finalOriginalUrl = finalOriginalUrl.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/g, 'www.halalottawa.ca');
+      if (finalOriginalUrl.includes('.run.app')) {
+        finalOriginalUrl = finalOriginalUrl.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
       }
       
       await setDoc(linkRef, {
