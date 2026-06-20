@@ -1,6 +1,8 @@
 import { getApiUrl } from './platform';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 
-export async function uploadFromUrl(url: string, fileName?: string, throwOnError: boolean = true): Promise<string> {
+export async function uploadFromUrl(url: string, fileName?: string, throwOnError: boolean = false): Promise<string> {
   // If it's already an absolute URL hosted on Cloudflare R2, return it as-is without stripping
   if (
     url.includes('.r2.dev') ||
@@ -33,6 +35,13 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
   }
   if (!url.startsWith('http')) return url;
 
+  // If we are on production canonical domain, bypass backend proxy and return url as-is to avoid cookie-check firewall
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isProd = hostname === 'www.halalottawa.ca' || hostname === 'halalottawa.ca';
+  if (isProd) {
+    return url;
+  }
+
   try {
     const response = await fetch(getApiUrl("/api/upload-url"), {
       method: "POST",
@@ -42,6 +51,11 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
       body: JSON.stringify({ url, name: fileName }),
     });
 
+    if (response.redirected || response.url.includes('__cookie_check') || response.url.includes('cookie_check')) {
+      console.warn("AI Studio cookie check redirect intercepted upload-url request, using original URL");
+      return url;
+    }
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || "Failed to upload file from URL");
@@ -50,27 +64,56 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
     const data = await response.json();
     return data.url;
   } catch (error) {
-    console.warn("Failed to upload via proxy", error);
-    if (throwOnError) {
-      throw error;
-    }
-    return url;
+    console.warn("Failed to upload via proxy, using original url:", error);
+    return url; 
   }
 }
 
 export async function uploadFile(file: File, path: string, fileName?: string): Promise<string> {
   const safeName = fileName ? fileName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : file.name.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
   
-  const response = await fetch(getApiUrl(`/api/upload?filename=${safeName}`), {
-    method: "POST",
-    body: file,
-  });
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+  const isProd = hostname === 'www.halalottawa.ca' || hostname === 'halalottawa.ca';
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Failed to upload file");
+  // On production, upload directly client-side to Firebase Storage to bypass Cloud Run container entirely
+  if (isProd) {
+    try {
+      const storageRef = ref(storage, `${path}/${Date.now()}-${safeName}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    } catch (err) {
+      console.error("Direct Firebase Storage upload from prod failed, falling back:", err);
+    }
   }
 
-  const data = await response.json();
-  return data.url;
+  // Fallback / standard development route
+  try {
+    const response = await fetch(getApiUrl(`/api/upload?filename=${safeName}`), {
+      method: "POST",
+      body: file,
+    });
+
+    if (response.redirected || response.url.includes('__cookie_check') || response.url.includes('cookie_check')) {
+      throw new Error("AI Studio cookie check intercepted file upload query");
+    }
+
+    if (!response.ok) {
+      throw new Error("Backend responds with failure state");
+    }
+
+    const data = await response.json();
+    return data.url;
+  } catch (backendErr) {
+    console.warn("Backend file upload failed, fallback direct to Firebase Storage", backendErr);
+    try {
+      const storageRef = ref(storage, `${path}/${Date.now()}-${safeName}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      return downloadUrl;
+    } catch (fbErr) {
+      console.error("Firebase Storage upload also failed:", fbErr);
+      throw new Error("Failed to upload image. Please try again.");
+    }
+  }
 }
