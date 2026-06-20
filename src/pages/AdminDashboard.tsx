@@ -87,6 +87,10 @@ export const AdminDashboard: React.FC = () => {
   const [customSlug, setCustomSlug] = useState('');
   const [isCreatingShortLink, setIsCreatingShortLink] = useState(false);
   const [shortLinks, setShortLinks] = useState<any[]>([]);
+  const [editingShortLink, setEditingShortLink] = useState<any | null>(null);
+  const [editOriginalUrl, setEditOriginalUrl] = useState('');
+  const [editCustomSlug, setEditCustomSlug] = useState('');
+  const [isSavingShortLink, setIsSavingShortLink] = useState(false);
 
   const [viewFeedbackItem, setViewFeedbackItem] = useState<{ type: 'reviews' | 'comments', item: any } | null>(null);
 
@@ -1337,6 +1341,70 @@ export const AdminDashboard: React.FC = () => {
     });
   };
 
+  const handleSaveShortLink = async () => {
+    if (!editingShortLink) return;
+    if (!editOriginalUrl || !editCustomSlug) {
+      toast.error('Please provide both original URL and custom slug.');
+      return;
+    }
+
+    const normalizedSlug = editCustomSlug.trim().replace(/[^a-zA-Z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    if (!normalizedSlug) {
+      toast.error('Invalid custom slug format.');
+      return;
+    }
+
+    setIsSavingShortLink(true);
+    try {
+      const { setDoc, doc, getDoc, deleteDoc } = await import('firebase/firestore');
+      
+      let finalOriginalUrl = editOriginalUrl.trim();
+      if (finalOriginalUrl.includes('.run.app')) {
+        finalOriginalUrl = finalOriginalUrl.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
+      }
+
+      const oldSlug = editingShortLink.slug;
+      
+      if (normalizedSlug !== oldSlug) {
+        const newRef = doc(db, 'short_links', normalizedSlug);
+        const checkSnap = await getDoc(newRef);
+        if (checkSnap.exists()) {
+          toast.error('This custom slug is already in use by another short link.');
+          setIsSavingShortLink(false);
+          return;
+        }
+
+        const oldRef = doc(db, 'short_links', oldSlug);
+        const oldSnap = await getDoc(oldRef);
+        const oldData = oldSnap.exists() ? oldSnap.data() : {};
+        
+        await setDoc(newRef, {
+          ...oldData,
+          originalUrl: finalOriginalUrl,
+          slug: normalizedSlug,
+          updatedAt: new Date()
+        });
+        
+        await deleteDoc(oldRef);
+      } else {
+        const linkRef = doc(db, 'short_links', oldSlug);
+        await setDoc(linkRef, {
+          originalUrl: finalOriginalUrl,
+          updatedAt: new Date()
+        }, { merge: true });
+      }
+
+      toast.success('Short link updated successfully!');
+      setEditingShortLink(null);
+      fetchData();
+    } catch (err: any) {
+      console.error('Failed to save short link:', err);
+      toast.error(err.message || 'Failed to save short link');
+    } finally {
+      setIsSavingShortLink(false);
+    }
+  };
+
   const handleRefreshSingleListing = async (listing: any) => {
     const toastId = toast.loading(`Searching internet for ${listing.name} details...`);
     try {
@@ -1855,6 +1923,69 @@ export const AdminDashboard: React.FC = () => {
                   }`}
                 >
                   {confirmModal.confirmText || 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Short Link Modal */}
+        {editingShortLink && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-6 shadow-xl border border-gray-100">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <h3 className="text-xl font-bold text-gray-900">Edit Short Link</h3>
+                <button 
+                  onClick={() => setEditingShortLink(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Original URL</label>
+                  <input 
+                    type="url" 
+                    value={editOriginalUrl}
+                    onChange={(e) => setEditOriginalUrl(e.target.value)}
+                    placeholder="https://example.com/very/long/url" 
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Custom Slug</label>
+                  <div className="flex rounded-2xl overflow-hidden border border-gray-100 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500/50 transition-all bg-gray-50">
+                    <span className="flex items-center px-4 text-gray-400 font-medium text-sm bg-gray-100/50 border-r border-gray-200">
+                      /go/
+                    </span>
+                    <input 
+                      type="text" 
+                      value={editCustomSlug}
+                      onChange={(e) => setEditCustomSlug(e.target.value)}
+                      placeholder="my-custom-link" 
+                      className="flex-1 px-3 py-3 bg-transparent text-sm focus:outline-none text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setEditingShortLink(null)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleSaveShortLink}
+                  disabled={isSavingShortLink || !editOriginalUrl || !editCustomSlug}
+                  className="flex-1 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center"
+                >
+                  {isSavingShortLink ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -3168,13 +3299,26 @@ export const AdminDashboard: React.FC = () => {
                             {link.visits || 0}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => handleDeleteShortLink(link.slug)}
-                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                              title="Delete short link"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  setEditingShortLink(link);
+                                  setEditOriginalUrl(link.originalUrl || '');
+                                  setEditCustomSlug(link.slug || '');
+                                }}
+                                className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors"
+                                title="Edit short link"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteShortLink(link.slug)}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                                title="Delete short link"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

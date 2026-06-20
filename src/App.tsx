@@ -80,8 +80,9 @@ const AppContent: React.FC = () => {
       }
       
       const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+      const isStagingSandbox = hostname.includes('ais-dev-') || hostname.includes('ais-pre-') || hostname.includes('google-');
       
-      if (hostname.endsWith('.run.app') && !isIframe && !isLocal) {
+      if (hostname.endsWith('.run.app') && !isIframe && !isLocal && !isStagingSandbox) {
         window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${window.location.search}${window.location.hash}`);
       }
     }

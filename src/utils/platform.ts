@@ -114,12 +114,18 @@ export function getApiBaseUrl(): string {
   // Static website hosting (e.g., Vercel or main domain) does not run our Node/Express server.
   // We point directly to our Cloud Run backend to avoid Host Header routing and redirection issues,
   // while utilizing our server's dynamic CORS policy for secure requests.
+  // If we are on our production domain, use relative paths to route to the Node custom server directly
   if (
     hostname === "www.halalottawa.ca" || 
-    hostname === "halalottawa.ca" || 
-    hostname.endsWith(".vercel.app")
+    hostname === "halalottawa.ca"
   ) {
-    return 'https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app';
+    return '';
+  }
+
+  // Static website hosting (Vercel) does not run our Node/Express server.
+  // We point directly to our custom production domain backend for API queries.
+  if (hostname.endsWith(".vercel.app")) {
+    return 'https://www.halalottawa.ca';
   }
 
   const isLocalWebview = 
@@ -136,9 +142,9 @@ export function getApiBaseUrl(): string {
     if (stored && stored.startsWith('http') && !stored.includes('localhost') && !stored.includes('127.0.0.1')) {
       const storedUrl = stored.replace(/\/$/, "");
       
-      // If the saved origin points to our static frontend (Vercel), use the Cloud Run container instead.
+      // If the saved origin points to our static frontend (Vercel) or production domain, use custom production domain
       if (storedUrl.includes("halalottawa.ca") || storedUrl.includes(".vercel.app")) {
-        return 'https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app';
+        return 'https://www.halalottawa.ca';
       }
       return storedUrl;
     }

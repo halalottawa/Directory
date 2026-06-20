@@ -8,6 +8,7 @@ import multer from "multer";
 import fs from "fs";
 import compression from "compression";
 import admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import http from "http";
 import https from "https";
 
@@ -271,9 +272,32 @@ function getContentTypeFromKey(key: string): string {
   }
 }
 
+function getAdminDb() {
+  let databaseId: string | undefined = undefined;
+  try {
+    const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      if (config.firestoreDatabaseId) {
+        databaseId = config.firestoreDatabaseId;
+      }
+    }
+  } catch (err) {
+    console.error("Error reading databaseId for admin firestore:", err);
+  }
+  
+  const appInstance = admin.apps[0] || admin.app();
+  if (databaseId) {
+    return getFirestore(appInstance, databaseId);
+  }
+  return getFirestore(appInstance);
+}
+
 async function startServer() {
   // Initialize firebase-admin
   const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
+  let adminInitialized = false;
+
   if (fs.existsSync(serviceAccountPath)) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
     try {
@@ -282,13 +306,32 @@ async function startServer() {
           credential: admin.credential.cert(serviceAccount),
           databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
         });
-        console.log("Firebase Admin SDK initialized successfully");
+        console.log("Firebase Admin SDK initialized successfully via service account");
+        adminInitialized = true;
       }
     } catch (error) {
-      console.error("Error initializing Firebase Admin SDK:", error);
+      console.error("Error initializing Firebase Admin SDK with service account:", error);
     }
-  } else {
-    console.warn("No firebase-service-account.json found. Backend admin functions will be disabled.");
+  }
+
+  // Fallback to Application Default Credentials if not already initialized
+  if (!adminInitialized && admin.apps.length === 0) {
+    try {
+      let config: any = {};
+      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      if (fs.existsSync(configPath)) {
+        config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      }
+
+      admin.initializeApp({
+        projectId: config.projectId || process.env.GOOGLE_CLOUD_PROJECT,
+        databaseURL: config.projectId ? `https://${config.projectId}.firebaseio.com` : undefined
+      });
+      console.log("Firebase Admin SDK initialized via Application Default Credentials / default profile");
+      adminInitialized = true;
+    } catch (error) {
+      console.error("Failed to initialize Firebase Admin SDK using default credentials:", error);
+    }
   }
 
   const app = express();
@@ -1022,7 +1065,7 @@ async function startServer() {
       const uid = decodedToken.uid;
 
       // Verify if is Admin by reading the user profile
-      const userDoc = await admin.firestore().collection('users').doc(uid).get();
+      const userDoc = await getAdminDb().collection('users').doc(uid).get();
       const userData = userDoc.data();
 
       // Check for admin role
@@ -1034,7 +1077,7 @@ async function startServer() {
       }
 
       // Also write global notification log in Firestore as in-app notification archive
-      await admin.firestore().collection('global_notifications').add({
+      await getAdminDb().collection('global_notifications').add({
         title,
         message,
         url: url || "",
@@ -1047,7 +1090,7 @@ async function startServer() {
       const tokensSet = new Set<string>();
 
       // 1. Fetch from main user profiles
-      const usersSnap = await admin.firestore().collection('users').where('fcmToken', '!=', '').get();
+      const usersSnap = await getAdminDb().collection('users').where('fcmToken', '!=', '').get();
       usersSnap.forEach(docDoc => {
         const data = docDoc.data();
         if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
@@ -1057,7 +1100,7 @@ async function startServer() {
 
       // 2. Fetch from collection group 'devices'
       try {
-        const devicesSnap = await admin.firestore().collectionGroup('devices').get();
+        const devicesSnap = await getAdminDb().collectionGroup('devices').get();
         devicesSnap.forEach(docDoc => {
           const data = docDoc.data();
           if (data && typeof data.token === 'string' && data.token.trim()) {

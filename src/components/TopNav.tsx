@@ -244,9 +244,9 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                         <Link 
                           to="/admin" 
                           onClick={() => setIsProfileDropdownOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 text-[#e90b35] font-bold text-sm transition-all group"
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 text-gray-700 hover:text-[#e90b35] font-bold text-sm transition-all group"
                         >
-                          <Shield className="w-4 h-4 text-[#e90b35]" />
+                          <Shield className="w-4 h-4 text-gray-400 group-hover:text-[#e90b35]" />
                           <span>Admin Dashboard</span>
                         </Link>
                       )}
