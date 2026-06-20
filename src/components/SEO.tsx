@@ -50,9 +50,7 @@ export const SEO: React.FC<SEOProps> = ({
   let resolvedCanonical = canonicalUrl || `https://www.halalottawa.ca${currentPath}`;
 
   if (resolvedCanonical) {
-    resolvedCanonical = resolvedCanonical.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
-    resolvedCanonical = resolvedCanonical.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
-    resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
+    resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
     
     // Clean up direct occurrences of cookie check path if any remain
     if (resolvedCanonical.includes('__cookie_check.html')) {
@@ -77,14 +75,14 @@ export const SEO: React.FC<SEOProps> = ({
       ) : (
         <meta name="description" content={description} />
       )}
-      {resolvedCanonical && !noindex && <link rel="canonical" href={resolvedCanonical} />}
+      {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={siteTitle} />
       {!noindex && <meta property="og:description" content={description} />}
       {ogImage && !noindex && <meta property="og:image" content={ogImage} />}
-      {resolvedCanonical && !noindex && <meta property="og:url" content={resolvedCanonical} />}
+      {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
 
       {/* Twitter */}
       <meta name="twitter:card" content={twitterCard} />
