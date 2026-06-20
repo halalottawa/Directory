@@ -21,7 +21,6 @@ Disallow: /jobs/edit/*
 Disallow: /profile/edit
 Disallow: /listings
 Allow: /listings/
-Allow: /listings$
 
 # Ensure public listings and content are explicitly allowed
 Allow: /jobs

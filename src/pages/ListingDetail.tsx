@@ -512,6 +512,25 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
             },
             "description": listing.description,
             "openingHours": listing.openingHours ? listing.openingHours : undefined,
+            "openingHoursSpecification": listing.openingHours && listing.openingHours.length > 0
+              ? (typeof listing.openingHours === 'string' ? listing.openingHours.split(',').map(s => s.trim()) : (listing.openingHours as any)).map((entry: string) => {
+                  const match = entry.match(/^([A-Za-z]{2}(?:[,\-][A-Za-z]{2})*)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+                  if (!match) return null;
+                  const dayMap: Record<string, string> = {
+                    Mo: 'Monday', Tu: 'Tuesday', We: 'Wednesday', Th: 'Thursday',
+                    Fr: 'Friday', Sa: 'Saturday', Su: 'Sunday'
+                  };
+                  const days = match[1].includes('-')
+                    ? [match[1].split('-').map(d => `https://schema.org/${dayMap[d] || d}`)]
+                    : match[1].split(',').map(d => `https://schema.org/${dayMap[d.trim()] || d.trim()}`);
+                  return {
+                    "@type": "OpeningHoursSpecification",
+                    "dayOfWeek": days.flat(),
+                    "opens": match[2],
+                    "closes": match[3]
+                  };
+                }).filter(Boolean)
+              : undefined,
             ...(listing.cuisine && listing.cuisine.length > 0 && Array.isArray(listing.category) && listing.category.includes('Restaurants') ? { "servesCuisine": listing.cuisine.join(", ") } : {}),
             ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": getAbsoluteUrl(listing.menuUrl || listing.menuPdfUrl!) } : {}),
             "aggregateRating": listing.reviewCount && listing.reviewCount > 0 ? {

@@ -294,6 +294,18 @@ async function startServer() {
   const app = express();
   app.use(compression());
 
+  // Global 301 Redirect for canonical hostname: redirect direct .run.app traffic to www.halalottawa.ca
+  // unless Vercel or similar is proxying it (detected via x-forwarded-host header)
+  app.use((req, res, next) => {
+    const host = String(req.headers.host || "").toLowerCase();
+    const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
+    
+    if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa')) {
+      return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
+    }
+    next();
+  });
+
   // Enable dynamic and highly secure CORS for client cross-origin API requests (e.g. from Vercel static frontends, mobile view setups, etc.)
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -530,7 +542,10 @@ async function startServer() {
 
       // Return absolute URL pointing to the Cloud Run server for local uploads fallback to work under static hosting
       const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-      const host = req.headers.host || "ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app";
+      const forwardedHost = (req.headers['x-forwarded-host'] as string) || '';
+      const host = forwardedHost.includes('halalottawa') 
+        ? 'www.halalottawa.ca' 
+        : (req.headers.host || 'www.halalottawa.ca');
       const fallbackUrl = `${protocol}://${host}/uploads/${finalName}`;
       res.json({ url: fallbackUrl });
     } catch (error) {
@@ -603,7 +618,10 @@ async function startServer() {
       fs.writeFileSync(outputPath, procBuffer);
 
       const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
-      const host = req.headers.host || "ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app";
+      const forwardedHost = (req.headers['x-forwarded-host'] as string) || '';
+      const host = forwardedHost.includes('halalottawa') 
+        ? 'www.halalottawa.ca' 
+        : (req.headers.host || 'www.halalottawa.ca');
       const fallbackUrl = `${protocol}://${host}/uploads/${finalName}`;
       res.json({ url: fallbackUrl });
     } catch (error) {
@@ -1362,23 +1380,40 @@ async function startServer() {
       const staticUrls = [
         "/", "/news", "/events", "/jobs", "/restaurants", "/mosques", 
         "/organizations", "/grocery", "/clothing", "/schools", "/butchers",
-        "/faq", "/terms", "/privacy-policy", "/login", "/register", "/tools/qibla"
+        "/faq", "/terms", "/privacy-policy", "/tools/qibla"
       ];
       
-      const urls: { loc: string; changefreq: string; priority: string }[] = [];
+      const escapeXml = (str: string): string => {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      };
+
+      const urls: { loc: string; lastmod: string; changefreq: string; priority: string; imageUrl?: string | null; name?: string | null }[] = [];
+      const today = new Date().toISOString().split('T')[0];
 
       for (const url of staticUrls) {
         let priority = "0.8";
         if (url === "/") priority = "1.0";
         else if (["/news", "/events", "/jobs"].includes(url)) priority = "0.9";
-        else if (["/faq", "/terms", "/privacy-policy", "/login", "/register"].includes(url)) priority = "0.3";
+        else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
 
         urls.push({
           loc: `${BASE_URL}${url}`,
+          lastmod: today,
           changefreq: priority === "0.3" ? "monthly" : "daily",
           priority: priority,
         });
       }
+
+      const getDocLastmod = (data: any): string => {
+        const rawDate = data.updatedAt || data.createdAt;
+        if (!rawDate) return today;
+        if (typeof rawDate.toDate === 'function') {
+          return rawDate.toDate().toISOString().split('T')[0];
+        }
+        const d = new Date(rawDate);
+        return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
+      };
 
       if (db) {
         const { collection, getDocs, query, where } = await import("firebase/firestore");
@@ -1405,10 +1440,14 @@ async function startServer() {
                 }
               }
 
+              const imageUrl = data.photos?.[0] || data.coverImage || null;
               urls.push({
                 loc: `${BASE_URL}/${locPrefix}/${idPath}`,
+                lastmod: getDocLastmod(data),
                 changefreq: "weekly",
                 priority: "0.7",
+                imageUrl,
+                name: data.name || data.title || null
               });
             });
           } catch (e) {
@@ -1425,13 +1464,21 @@ async function startServer() {
       }
 
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+      xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
       
       for (const url of urls) {
         xml += `  <url>\n`;
         xml += `    <loc>${url.loc}</loc>\n`;
+        xml += `    <lastmod>${url.lastmod}</lastmod>\n`;
         xml += `    <changefreq>${url.changefreq}</changefreq>\n`;
         xml += `    <priority>${url.priority}</priority>\n`;
+        if (url.imageUrl) {
+          xml += `    <image:image>\n`;
+          xml += `      <image:loc>${escapeXml(url.imageUrl)}</image:loc>\n`;
+          xml += `      <image:title>${escapeXml(url.name || '')}</image:title>\n`;
+          xml += `    </image:image>\n`;
+        }
         xml += `  </url>\n`;
       }
       
@@ -2727,6 +2774,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <meta name="twitter:image" content="${escapeHtmlAttr(ogImage)}" />
     <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
     `;
+
+    if (pathParts.length === 2 && ogImage && !ogImage.includes('default-og')) {
+      extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(ogImage)}" />`;
+    }
 
     if (pathParts.length === 0) {
       const websiteSchema = {

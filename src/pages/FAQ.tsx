@@ -31,6 +31,7 @@ const FAQ_ITEMS = [
 
 export const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = React.useState<number | null>(null);
+  const faqs = FAQ_ITEMS;
 
   return (
     <div className="animate-in fade-in duration-500 bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
@@ -38,24 +39,38 @@ export const FAQ: React.FC = () => {
         title="FAQ" 
         description="Frequently Asked Questions (FAQ) about Halal Ottawa. Learn how we verify halal statuses, submit new listings, post events or jobs, and support the Ottawa Muslim community." 
         canonicalUrl="https://www.halalottawa.ca/faq"
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "FAQ",
-              "item": "https://www.halalottawa.ca/faq"
-            }
-          ]
-        }}
+        structuredData={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.halalottawa.ca"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "FAQ",
+                "item": "https://www.halalottawa.ca/faq"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": faqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.question,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+              }
+            }))
+          }
+        ]}
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">

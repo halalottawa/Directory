@@ -5,6 +5,11 @@ import { getFirestore, collection, getDocs, query, where } from 'firebase/firest
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
+const escapeXml = (str: string): string => {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+};
+
 const staticUrls = [
   "/",
   "/news",
@@ -20,8 +25,6 @@ const staticUrls = [
   "/faq",
   "/terms",
   "/privacy-policy",
-  "/login",
-  "/register",
   "/tools/qibla"
 ];
 
@@ -39,21 +42,33 @@ async function generateSitemap() {
     console.warn("firebase-applet-config.json not found. Generating sitemap with static URLs only.");
   }
 
-  const urls: { loc: string; changefreq: string; priority: string }[] = [];
+  const urls: { loc: string; lastmod: string; changefreq: string; priority: string; imageUrl?: string | null; name?: string | null }[] = [];
+  const today = new Date().toISOString().split('T')[0];
 
   // Add static URLs
   for (const url of staticUrls) {
     let priority = "0.8";
     if (url === "/") priority = "1.0";
     else if (["/news", "/events", "/jobs"].includes(url)) priority = "0.9";
-    else if (["/faq", "/terms", "/privacy-policy", "/login", "/register"].includes(url)) priority = "0.3";
+    else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
 
     urls.push({
       loc: `${BASE_URL}${url}`,
+      lastmod: today,
       changefreq: priority === "0.3" ? "monthly" : "daily",
       priority: priority,
     });
   }
+
+  const getDocLastmod = (data: any): string => {
+    const rawDate = data.updatedAt || data.createdAt;
+    if (!rawDate) return today;
+    if (typeof rawDate.toDate === 'function') {
+      return rawDate.toDate().toISOString().split('T')[0];
+    }
+    const d = new Date(rawDate);
+    return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
+  };
 
   // Fetch dynamic content if DB is available
   if (db) {
@@ -72,10 +87,14 @@ async function generateSitemap() {
           categoryPath = encodeURIComponent(data.category.toLowerCase());
         }
 
+        const imageUrl = data.photos?.[0] || data.coverImage || null;
         urls.push({
           loc: `${BASE_URL}/${categoryPath}/${idPath}`,
+          lastmod: getDocLastmod(data),
           changefreq: "weekly",
           priority: "0.7",
+          imageUrl,
+          name: data.name || data.title || null
         });
       });
 
@@ -85,10 +104,14 @@ async function generateSitemap() {
       newsSnap.forEach((doc) => {
         const data = doc.data();
         const idPath = data.slug || doc.id;
+        const imageUrl = data.photos?.[0] || data.coverImage || null;
         urls.push({
           loc: `${BASE_URL}/news/${idPath}`,
+          lastmod: getDocLastmod(data),
           changefreq: "weekly",
           priority: "0.7",
+          imageUrl,
+          name: data.name || data.title || null
         });
       });
 
@@ -98,11 +121,15 @@ async function generateSitemap() {
       eventsSnap.forEach((doc) => {
         const data = doc.data();
         const idPath = data.slug || doc.id;
+        const imageUrl = data.photos?.[0] || data.coverImage || null;
         urls.push({
           loc: `${BASE_URL}/events/${idPath}`,
+          lastmod: getDocLastmod(data),
           changefreq: "weekly",
           priority: "0.7",
-        });
+          imageUrl,
+          name: data.name || data.title || null
+         });
       });
 
       // 4. Jobs
@@ -111,10 +138,14 @@ async function generateSitemap() {
       jobsSnap.forEach((doc) => {
         const data = doc.data();
         const idPath = data.slug || doc.id;
+        const imageUrl = data.photos?.[0] || data.coverImage || null;
         urls.push({
           loc: `${BASE_URL}/jobs/${idPath}`,
+          lastmod: getDocLastmod(data),
           changefreq: "weekly",
           priority: "0.7",
+          imageUrl,
+          name: data.name || data.title || null
         });
       });
       console.log(`Added dynamic URLs from Firestore. Total URLs: ${urls.length}`);
@@ -125,13 +156,21 @@ async function generateSitemap() {
 
   // Generate XML
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+  xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
   
   for (const url of urls) {
     xml += `  <url>\n`;
     xml += `    <loc>${url.loc}</loc>\n`;
+    xml += `    <lastmod>${url.lastmod}</lastmod>\n`;
     xml += `    <changefreq>${url.changefreq}</changefreq>\n`;
     xml += `    <priority>${url.priority}</priority>\n`;
+    if (url.imageUrl) {
+      xml += `    <image:image>\n`;
+      xml += `      <image:loc>${escapeXml(url.imageUrl)}</image:loc>\n`;
+      xml += `      <image:title>${escapeXml(url.name || '')}</image:title>\n`;
+      xml += `    </image:image>\n`;
+    }
     xml += `  </url>\n`;
   }
   

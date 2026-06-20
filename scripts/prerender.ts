@@ -24,8 +24,6 @@ const staticUrls = [
   "/faq",
   "/terms",
   "/privacy-policy",
-  "/login",
-  "/register",
   "/tools/qibla"
 ];
 
@@ -46,6 +44,13 @@ function escapeHtmlAttr(str: string): string {
     .replace(/'/g, '&#39;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+function truncateDescription(text: string, maxLength = 155): string {
+  if (!text || text.length <= maxLength) return text;
+  const truncated = text.substring(0, maxLength);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return (lastSpace > 100 ? truncated.substring(0, lastSpace) : truncated) + '…';
 }
 
 function getAbsoluteUrl(urlStr: string): string {
@@ -305,7 +310,7 @@ async function prerender() {
 
         const url = `/${categoryPath}/${idPath}`;
         const title = `${data.name} | Halal Ottawa`;
-        const description = data.description?.substring(0, 160) || "Discover verified halal details, reviews, and address info.";
+        const description = data.description ? truncateDescription(data.description) : "Discover verified halal details, reviews, and address info.";
         const ogImage = getAbsoluteUrl((data.photos && data.photos.length > 0) ? data.photos[0] : "");
 
         pagesToPrerender.push({
@@ -338,7 +343,7 @@ async function prerender() {
         const idPath = data.slug || doc.id;
         const url = `/news/${idPath}`;
         const title = `${data.title} | Halal Ottawa`;
-        const description = data.content?.substring(0, 160) || "Read latest updates and news regarding the Ottawa halal and Muslim community.";
+        const description = data.content ? truncateDescription(data.content) : "Read latest updates and news regarding the Ottawa halal and Muslim community.";
         const ogImage = getAbsoluteUrl(data.coverImage || "");
 
         pagesToPrerender.push({
@@ -360,7 +365,7 @@ async function prerender() {
         const idPath = data.slug || doc.id;
         const url = `/events/${idPath}`;
         const title = `${data.title} | Halal Ottawa Events`;
-        const description = data.description?.substring(0, 160) || "Join community events, classes, and lectures happening across Ottawa.";
+        const description = data.description ? truncateDescription(data.description) : "Join community events, classes, and lectures happening across Ottawa.";
         const ogImage = getAbsoluteUrl(data.coverImage || "");
 
         pagesToPrerender.push({
@@ -382,7 +387,7 @@ async function prerender() {
         const idPath = data.slug || doc.id;
         const url = `/jobs/${idPath}`;
         const title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
-        const description = data.description?.substring(0, 160) || "Hiring now: verify salary packages, full-time/part-time perks, and location details.";
+        const description = data.description ? truncateDescription(data.description) : "Hiring now: verify salary packages, full-time/part-time perks, and location details.";
         const ogImage = getAbsoluteUrl(data.companyLogo || "");
 
         pagesToPrerender.push({
