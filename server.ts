@@ -2818,6 +2818,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     // Normalize urlPath to strip trailing slash for canonical matching (e.g. /grocery/marche-ali/ -> /grocery/marche-ali)
     let canonicalPath = urlPath;
+    if (canonicalPath.includes('__cookie_check.html')) {
+      canonicalPath = canonicalPath.split('__cookie_check.html')[0];
+    }
     if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
       canonicalPath = canonicalPath.slice(0, -1);
     }

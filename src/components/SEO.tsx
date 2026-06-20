@@ -28,13 +28,37 @@ export const SEO: React.FC<SEOProps> = ({
     ? title 
     : `${title} | Halal Ottawa`;
 
-  const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+  let currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+
+  if (typeof window !== 'undefined' && (currentPath.includes('__cookie_check') || window.location.search.includes('return_url'))) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const returnUrl = params.get('return_url');
+      if (returnUrl) {
+        let path = returnUrl;
+        if (returnUrl.startsWith('http://') || returnUrl.startsWith('https://')) {
+          const parsedUrl = new URL(returnUrl);
+          path = parsedUrl.pathname;
+        }
+        currentPath = path;
+      }
+    } catch (e) {
+      console.error("Error parsing return_url for SEO canonical path", e);
+    }
+  }
+
   let resolvedCanonical = canonicalUrl || `https://www.halalottawa.ca${currentPath}`;
 
   if (resolvedCanonical) {
     resolvedCanonical = resolvedCanonical.replace(/ais-pre-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
     resolvedCanonical = resolvedCanonical.replace(/ais-dev-o3grau7ukgun6nvnjrynhh-118138859761\.us-east5\.run\.app/gi, 'www.halalottawa.ca');
     resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-]+\.[a-zA-Z0-9-]+\.run\.app/gi, 'www.halalottawa.ca');
+    
+    // Clean up direct occurrences of cookie check path if any remain
+    if (resolvedCanonical.includes('__cookie_check.html')) {
+      resolvedCanonical = resolvedCanonical.split('__cookie_check.html')[0];
+    }
+    
     // Clean up any potential double slashes in paths like https://www.halalottawa.ca//news
     resolvedCanonical = resolvedCanonical.replace(/https:\/\/www\.halalottawa\.ca\/\/+/g, 'https://www.halalottawa.ca/');
     

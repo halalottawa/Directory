@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, ChevronLeft, Send, Upload } from 'lucide-react';
+import { Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, ChevronLeft, Send, Upload, Image as ImageIcon, Move } from 'lucide-react';
 import { collection, setDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,110 @@ export const AddNews: React.FC = () => {
 
   const processingUrls = useRef<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inlineImageInputRef = useRef<HTMLInputElement>(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+
+  const dragContainerRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState({ x: 50, y: 50 });
+  const isDragging = useRef(false);
+  const startDragPos = useRef({ x: 0, y: 0 });
+  const startOffset = useRef({ x: 50, y: 50 });
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    isDragging.current = true;
+    startDragPos.current = { x: e.clientX, y: e.clientY };
+    startOffset.current = { ...offset };
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    isDragging.current = true;
+    startDragPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    startOffset.current = { ...offset };
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
+  };
+
+  const handleDragMove = (e: MouseEvent) => {
+    if (!isDragging.current || !dragContainerRef.current) return;
+    const rect = dragContainerRef.current.getBoundingClientRect();
+    const deltaX = ((e.clientX - startDragPos.current.x) / rect.width) * 100;
+    const deltaY = ((e.clientY - startDragPos.current.y) / rect.height) * 100;
+    setOffset({
+      x: Math.max(0, Math.min(100, startOffset.current.x - deltaX)),
+      y: Math.max(0, Math.min(100, startOffset.current.y - deltaY))
+    });
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging.current || !dragContainerRef.current || e.touches.length !== 1) return;
+    e.preventDefault();
+    const rect = dragContainerRef.current.getBoundingClientRect();
+    const deltaX = ((e.touches[0].clientX - startDragPos.current.x) / rect.width) * 100;
+    const deltaY = ((e.touches[0].clientY - startDragPos.current.y) / rect.height) * 100;
+    setOffset({
+      x: Math.max(0, Math.min(100, startOffset.current.x - deltaX)),
+      y: Math.max(0, Math.min(100, startOffset.current.y - deltaY))
+    });
+  };
+
+  const handleDragEnd = () => {
+    isDragging.current = false;
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    document.removeEventListener('touchmove', handleTouchMove);
+    document.removeEventListener('touchend', handleTouchEnd);
+  };
+
+  const handleInlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const toastId = toast.loading('Uploading inline photo...');
+    try {
+      const url = await uploadFile(file, 'news', `${formData.title || 'news'}-inline-${Date.now()}`);
+      toast.success('Successfully uploaded photo!', { id: toastId });
+      setPendingImageUrl(url);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload inline photo', { id: toastId });
+    } finally {
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleInsertWithAlignment = (align: 'left' | 'center' | 'right') => {
+    if (!pendingImageUrl) return;
+    
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = formData.content;
+      const xPercent = Math.round(offset.x);
+      const yPercent = Math.round(offset.y);
+      const suffix = `#${align}-${xPercent}-${yPercent}`;
+      const alignmentLabel = align === 'center' ? 'Center' : align === 'left' ? 'Left' : 'Right';
+      const replacement = `\n![Uploaded Image - ${alignmentLabel}](${pendingImageUrl}${suffix})\n`;
+      const newContent = text.substring(0, start) + replacement + text.substring(end);
+      setFormData(prev => ({ ...prev, content: newContent }));
+      
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = start + replacement.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+    setPendingImageUrl(null);
+    setOffset({ x: 50, y: 50 });
+  };
 
   const insertMarkdown = (syntax: string, placeholder = '') => {
     const textarea = textareaRef.current;
@@ -298,6 +402,21 @@ export const AddNews: React.FC = () => {
                   >
                     Link
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => inlineImageInputRef.current?.click()}
+                    className="px-2.5 py-1 text-xs bg-gray-50 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-emerald-50 flex items-center gap-1 cursor-pointer"
+                    title="Upload & Insert Photo"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" /> Photo
+                  </button>
+                  <input
+                    type="file"
+                    ref={inlineImageInputRef}
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleInlineImageUpload}
+                  />
                 </div>
                 <textarea
                   ref={textareaRef}
@@ -335,6 +454,61 @@ export const AddNews: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {pendingImageUrl && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 duration-200 shadow-xl border border-gray-100">
+            <h3 className="text-lg font-bold text-gray-900 text-center">Position Inline Photo</h3>
+            
+            {/* Draggable Preview Section */}
+            <div className="space-y-1">
+              <div 
+                ref={dragContainerRef}
+                className="w-full h-48 bg-gray-100 rounded-2xl overflow-hidden relative cursor-move select-none border border-gray-200 touch-none"
+                onMouseDown={handleDragStart}
+                onTouchStart={handleTouchStart}
+              >
+                <img 
+                  src={pendingImageUrl} 
+                  alt="Position Preview" 
+                  className="w-full h-full object-cover pointer-events-none"
+                  style={{ objectPosition: `${offset.x}% ${offset.y}%` }}
+                />
+                <div className="absolute inset-0 bg-black/10 pointer-events-none flex items-center justify-center">
+                  <div className="bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 backdrop-blur-sm shadow-sm animate-pulse">
+                    <Move className="w-3.5 h-3.5" /> Drag image to adjust position
+                  </div>
+                </div>
+                {/* Coordinates tooltip */}
+                <div className="absolute right-3 bottom-3 bg-black/75 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
+                  X:{Math.round(offset.x)}% Y:{Math.round(offset.y)}%
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleInsertWithAlignment('center')}
+                className="w-full py-3.5 bg-[#e90b35] hover:bg-[#c8082b] text-white font-bold rounded-2xl transition-all shadow-lg shadow-red-100 flex items-center justify-center gap-2 text-sm"
+              >
+                Insert Photo
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingImageUrl(null);
+                  setOffset({ x: 50, y: 50 });
+                }}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 };

@@ -214,8 +214,38 @@ export const NewsDetail: React.FC = () => {
       </div>
 
       <div className="p-6 space-y-8">
-        <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
-          <ReactMarkdown>{article.content}</ReactMarkdown>
+        <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
+          <ReactMarkdown
+            components={{
+              img: ({ src, alt }) => {
+                const [cleanSrc, hash] = (src || '').split('#');
+                const hashParts = (hash || '').split('-');
+                const alignment = hashParts[0] || 'center';
+                const posX = hashParts[1] !== undefined ? `${hashParts[1]}%` : '50%';
+                const posY = hashParts[2] !== undefined ? `${hashParts[2]}%` : '50%';
+
+                let imgClass = "rounded-2xl my-6 mx-auto shadow-md border border-gray-100 max-h-[480px] object-cover w-full md:max-w-[100%] block clear-both";
+                
+                if (alignment === 'left') {
+                  imgClass = "rounded-2xl my-3 mr-6 md:float-left shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
+                } else if (alignment === 'right') {
+                  imgClass = "rounded-2xl my-3 ml-6 md:float-right shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
+                }
+                
+                return (
+                  <img 
+                    src={cleanSrc} 
+                    alt={alt || "Article Photo"} 
+                    className={imgClass}
+                    style={{ objectPosition: `${posX} ${posY}` }}
+                    referrerPolicy="no-referrer"
+                  />
+                );
+              }
+            }}
+          >
+            {article.content}
+          </ReactMarkdown>
         </article>
 
           {article.sourceLink && (
