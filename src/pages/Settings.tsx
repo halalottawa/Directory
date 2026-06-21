@@ -123,7 +123,7 @@ export const Settings: React.FC = () => {
         },
         { 
           icon: Bell, 
-          label: 'Push Notifications', 
+          label: isAppWrapper() ? 'Push Notifications' : 'Browser Notifications', 
           value: user?.pushNotifications ? getFrequencyLabel(user.pushFrequency, 'daily') : 'Never',
           onClick: () => setEditingType('push'),
           active: true
@@ -266,7 +266,7 @@ export const Settings: React.FC = () => {
             <div className="p-6 space-y-6">
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900">
-                  {editingType === 'email' ? 'Email Notifications' : 'Push Notifications'}
+                  {editingType === 'email' ? 'Email Notifications' : (isAppWrapper() ? 'Push Notifications' : 'Browser Notifications')}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">Choose your preferred frequency</p>
               </div>

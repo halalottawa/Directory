@@ -65,8 +65,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               vapidKey: 'X3tvdqEcdb4vTJ0EI8GFcopHAciDu-g-SqstyZyFAfg'
             });
             if (currentToken) {
-              await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-                fcmToken: currentToken
+              const uid = auth.currentUser.uid;
+              // Save web token — do NOT overwrite fcmToken if a native mobile token exists
+              const userSnap = await getDoc(doc(db, 'users', uid));
+              const existingNativeToken = safeLocalStorage.getItem('nativeFcmToken');
+              
+              const updates: Record<string, any> = {
+                webFcmToken: currentToken,
+                pushNotifications: true,
+              };
+              // Only set fcmToken if there's no native mobile token registered
+              if (!existingNativeToken) {
+                updates.fcmToken = currentToken;
+              }
+              await updateDoc(doc(db, 'users', uid), updates);
+              
+              // Also register in the devices subcollection for multi-device delivery
+              await setDoc(doc(db, 'users', uid, 'devices', currentToken), {
+                token: currentToken,
+                platform: 'web',
+                lastUpdated: new Date().toISOString(),
+                appVersion: '1.0.0-web'
               });
             }
           } catch (tokenError) {
@@ -420,6 +439,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   };
+
+  // Handle foreground push notifications (when browser tab is open)
+  useEffect(() => {
+    let unsubscribeMessage: (() => void) | null = null;
+
+    const setupForegroundMessaging = async () => {
+      if (isAppWrapper()) return; // Mobile handles its own foreground notifications
+      const messaging = await getMessagingPromise();
+      if (!messaging) return;
+      
+      try {
+        const { onMessage } = await import('firebase/messaging');
+        unsubscribeMessage = onMessage(messaging, (payload) => {
+          const title = payload.notification?.title || payload.data?.title || 'Halal Ottawa';
+          const body = payload.notification?.body || payload.data?.message || '';
+          const url = payload.data?.url || '/';
+          
+          // Show as in-app toast (since we already have sonner)
+          import('sonner').then(({ toast }) => {
+            toast(title, {
+              description: body,
+              duration: 6000,
+              action: url !== '/'
+                ? { label: 'View', onClick: () => window.location.href = url }
+                : undefined,
+            });
+          });
+
+          // Also try to show a system notification if SW is available
+          if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then((registration) => {
+              registration.showNotification(title, {
+                body,
+                icon: '/favicon.png',
+                badge: '/favicon.png',
+                data: { url },
+              });
+            });
+          }
+        });
+      } catch (err) {
+        console.warn('Failed to set up foreground messaging:', err);
+      }
+    };
+
+    setupForegroundMessaging();
+    return () => { if (unsubscribeMessage) unsubscribeMessage(); };
+  }, []); // Run once on mount
 
   return (
     <AuthContext.Provider value={{ user, loading, isGuest, setGuest, loginWithGoogle, logout, deleteAccount, requestNotificationPermission }}>

@@ -1253,6 +1253,9 @@ async function startServer() {
             if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
               tokensSet.add(data.fcmToken.trim());
             }
+            if (data && typeof data.webFcmToken === 'string' && data.webFcmToken.trim()) {
+              tokensSet.add(data.webFcmToken.trim());
+            }
           });
         } catch (err: any) {
           console.warn("Users FCM token query via Admin SDK failed, attempting runQuery REST API fallback:", err.message);
@@ -1291,6 +1294,10 @@ async function startServer() {
                         const tokenVal = item.document.fields.fcmToken;
                         if (tokenVal && tokenVal.stringValue && tokenVal.stringValue.trim()) {
                           tokensSet.add(tokenVal.stringValue.trim());
+                        }
+                        const webTokenVal = item.document.fields.webFcmToken;
+                        if (webTokenVal && webTokenVal.stringValue && webTokenVal.stringValue.trim()) {
+                          tokensSet.add(webTokenVal.stringValue.trim());
                         }
                       }
                     });
@@ -1404,7 +1411,19 @@ async function startServer() {
                 category: "NEWS_CATEGORY"
               }
             }
-          }
+          },
+          webpush: {
+            notification: {
+              title: title,
+              body: message,
+              icon: 'https://www.halalottawa.ca/favicon.png',
+              badge: 'https://www.halalottawa.ca/favicon.png',
+              ...(image ? { image } : {}),
+            },
+            fcmOptions: {
+              link: url || 'https://www.halalottawa.ca',
+            },
+          },
         };
 
         if (image) {

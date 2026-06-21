@@ -11,17 +11,31 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  const notificationTitle = payload.notification.title;
+  const notificationTitle = payload.notification?.title || payload.data?.title || 'Halal Ottawa';
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: '/vite.svg'
+    body: payload.notification?.body || payload.data?.message || '',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
+    data: { url: payload.data?.url || '/' },
   };
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
 
-  self.registration.showNotification(notificationTitle,
-    notificationOptions);
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
 });
