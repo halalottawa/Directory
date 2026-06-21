@@ -194,6 +194,40 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           }
         }
         
+        if (!listingData) {
+          const redirectSnap = await getDoc(doc(db, 'slug_redirects', `listings_${slug}`));
+          if (redirectSnap.exists()) {
+            const rData = redirectSnap.data();
+            if (rData && rData.newSlug) {
+              let destination = `/listings/${rData.newSlug}`;
+              try {
+                const newDocRef = doc(db, 'listings', rData.newSlug);
+                const newDocSnap = await getDoc(newDocRef);
+                let newListing: any = null;
+                if (newDocSnap.exists()) {
+                  newListing = { id: newDocSnap.id, ...newDocSnap.data() };
+                } else {
+                  const q = query(collection(db, 'listings'), where('slug', '==', rData.newSlug), limit(1));
+                  const snap = await getDocs(q);
+                  if (!snap.empty) {
+                    newListing = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                  }
+                }
+                if (newListing) {
+                  const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
+                  if (cat) {
+                    destination = `/${cat.toLowerCase()}/${rData.newSlug}`;
+                  }
+                }
+              } catch (e) {
+                console.error("Error determining navigation category", e);
+              }
+              navigate(destination, { replace: true });
+              return;
+            }
+          }
+        }
+
         if (listingData) {
           setListing(listingData);
           

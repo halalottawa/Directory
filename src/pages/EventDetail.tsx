@@ -104,6 +104,17 @@ export const EventDetail: React.FC = () => {
               }
             }
             
+            if (!eventData) {
+              const redirectSnap = await getDoc(doc(db, 'slug_redirects', `events_${slug}`));
+              if (redirectSnap.exists()) {
+                const rData = redirectSnap.data();
+                if (rData && rData.newSlug) {
+                  navigate(`/events/${rData.newSlug}`, { replace: true });
+                  return;
+                }
+              }
+            }
+
             if (eventData) {
               fetchedEvent = eventData;
               setEvent(eventData);

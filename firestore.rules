@@ -40,7 +40,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        ((('email' in request.auth.token && (request.auth.token.email.lower() == "fibaliktn@gmail.com" || request.auth.token.email.lower() == "fibalik.tn@gmail.com" || request.auth.token.email.lower() == "abesabil00@gmail.com" || request.auth.token.email.lower() == "abersabil00@gmail.com"))) ||
+        ((('email' in request.auth.token && (request.auth.token.email == "fibaliktn@gmail.com" || request.auth.token.email == "FibalikTN@gmail.com" || request.auth.token.email == "fibalik.tn@gmail.com" || request.auth.token.email == "abesabil00@gmail.com" || request.auth.token.email == "abesabil00@gmail.com" || request.auth.token.email == "abersabil00@gmail.com"))) ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
@@ -230,6 +230,19 @@ function isValidPlanRequest(data) {
 
     match /test/{docId} {
       allow read: if true;
+    }
+
+    match /global_notifications/{notificationId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /users/{userId}/devices/{deviceId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    match /{path=**}/devices/{deviceId} {
+      allow read, write: if isAdmin();
     }
   }
 }

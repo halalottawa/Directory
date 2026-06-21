@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Shield, Eye, MapPin, Calendar, Briefcase, Newspaper, MessageSquare, Star, Users, Check, Trash2, Bell, Mail, Search, Pencil, RefreshCw, X, Link as LinkIcon, UserX, UserMinus, UserCheck, Download, Copy, Plus, Upload, FileText } from 'lucide-react';
-import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, getDocs, doc, updateDoc, deleteDoc, where, getDoc, setDoc, collectionGroup, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, clearGeneralSettingsCache } from '../firebase';
 import { Listing, Event, Job, NewsArticle, Review, Comment, UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -1005,6 +1005,54 @@ export const AdminDashboard: React.FC = () => {
             }
           }
 
+          // Gather FCM tokens and log notifications directly on the client to avoid backend service account restriction errors on Firestore
+          const tokensSet = new Set<string>();
+
+          // 1. Fetch from user profiles
+          try {
+            const usersQuery = query(collection(db, 'users'), where('fcmToken', '!=', ''));
+            const usersSnap = await getDocs(usersQuery);
+            usersSnap.forEach(docSnap => {
+              const data = docSnap.data();
+              if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
+                tokensSet.add(data.fcmToken.trim());
+              }
+            });
+          } catch (usersErr) {
+            console.error('Error fetching users FCM tokens on client:', usersErr);
+          }
+
+          // 2. Fetch from collection group 'devices'
+          try {
+            const devicesQuery = collectionGroup(db, 'devices');
+            const devicesSnap = await getDocs(devicesQuery);
+            devicesSnap.forEach(docSnap => {
+              const data = docSnap.data();
+              if (data && typeof data.token === 'string' && data.token.trim()) {
+                tokensSet.add(data.token.trim());
+              }
+            });
+          } catch (grpErr) {
+            console.warn("Collection group 'devices' query on client failed:", grpErr);
+          }
+
+          const gatheredTokens = Array.from(tokensSet);
+
+          // 3. Write global notification log directly from Client SDK
+          try {
+            await addDoc(collection(db, 'global_notifications'), {
+              title: pushTitle,
+              message: pushMessage,
+              url: targetUrl || "",
+              image: pushImage || "",
+              createdAt: serverTimestamp(),
+              type: 'push_alert'
+            });
+            console.log('Successfully written notification log directly from client-side Firestore');
+          } catch (writeErr) {
+            console.error('Error writing notification log from client-side:', writeErr);
+          }
+
           const response = await fetch(getApiUrl('/api/send-push-notification'), {
             method: 'POST',
             headers: {
@@ -1015,13 +1063,17 @@ export const AdminDashboard: React.FC = () => {
               title: pushTitle,
               message: pushMessage,
               url: targetUrl,
-              image: pushImage
+              image: pushImage,
+              tokens: gatheredTokens
             })
           });
 
           if (!response.ok) {
             const errData = await response.json();
-            throw new Error(errData.error || 'Failed to dispatch push notifications');
+            const errMsg = errData.instruction 
+              ? `${errData.error} Action Required: ${errData.instruction}` 
+              : (errData.error || 'Failed to dispatch push notifications');
+            throw new Error(errMsg);
           }
 
           const result = await response.json();

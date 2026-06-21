@@ -272,6 +272,8 @@ function getContentTypeFromKey(key: string): string {
   }
 }
 
+let hasServiceAccount = false;
+
 function getAdminDb() {
   let databaseId: string | undefined = undefined;
   try {
@@ -297,9 +299,24 @@ async function startServer() {
   // Initialize firebase-admin
   const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
   let adminInitialized = false;
+  let serviceAccount: any = null;
 
   if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    try {
+      serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+    } catch (err) {
+      console.error("Error reading firebase-service-account.json:", err);
+    }
+  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      console.log("Found and parsing FIREBASE_SERVICE_ACCOUNT_JSON environment variable");
+    } catch (err) {
+      console.error("Error parsing FIREBASE_SERVICE_ACCOUNT_JSON:", err);
+    }
+  }
+
+  if (serviceAccount) {
     try {
       if (admin.apps.length === 0) {
         admin.initializeApp({
@@ -308,6 +325,7 @@ async function startServer() {
         });
         console.log("Firebase Admin SDK initialized successfully via service account");
         adminInitialized = true;
+        hasServiceAccount = true;
       }
     } catch (error) {
       console.error("Error initializing Firebase Admin SDK with service account:", error);
@@ -1047,7 +1065,7 @@ async function startServer() {
   });
 
   app.post("/api/send-push-notification", express.json(), async (req, res) => {
-    const { title, message, url, image } = req.body;
+    const { title, message, url, image, tokens: clientTokens } = req.body;
     const authHeader = req.headers.authorization;
 
     if (!title || !message) {
@@ -1060,58 +1078,293 @@ async function startServer() {
 
     try {
       const idToken = authHeader.split('Bearer ')[1];
-      // Verify ID token
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      let decodedToken: { uid: string; email?: string } | null = null;
+
+      // 1. Verify ID token via Admin SDK with direct HTTP REST fallback
+      let verifyViaRest = !hasServiceAccount;
+      if (hasServiceAccount) {
+        try {
+          const decoded = await admin.auth().verifyIdToken(idToken);
+          decodedToken = { uid: decoded.uid, email: decoded.email };
+        } catch (err: any) {
+          console.log("verifyIdToken via admin SDK failed, using REST fallback:", err.message);
+          verifyViaRest = true;
+        }
+      }
+
+      if (verifyViaRest) {
+        const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+          if (config.apiKey) {
+            try {
+              const lookupRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${config.apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken })
+              });
+              if (lookupRes.ok) {
+                const lookupData: any = await lookupRes.json();
+                if (lookupData.users && lookupData.users[0]) {
+                  const user = lookupData.users[0];
+                  decodedToken = { uid: user.localId, email: user.email };
+                  console.log("Successfully verified ID token via REST fallback API for UID:", decodedToken.uid);
+                }
+              } else {
+                const lookupErr = await lookupRes.text();
+                console.error("Identity Toolkit REST fallback failed:", lookupErr);
+              }
+            } catch (fallbackErr) {
+              console.error("Error calling Identity Toolkit REST fallback:", fallbackErr);
+            }
+          }
+        }
+      }
+
+      if (!decodedToken) {
+        return res.status(401).json({ error: "Invalid or unauthorized user token. Could not verify identity." });
+      }
+
       const uid = decodedToken.uid;
+      let userData: any = null;
 
-      // Verify if is Admin by reading the user profile
-      const userDoc = await getAdminDb().collection('users').doc(uid).get();
-      const userData = userDoc.data();
+      // 2. Fetch User Profile from Firestore with secure REST fallback (passing User's auth ID token)
+      let fetchViaRest = !hasServiceAccount;
+      if (hasServiceAccount) {
+        try {
+          const userDoc = await getAdminDb().collection('users').doc(uid).get();
+          userData = userDoc.data();
+        } catch (err: any) {
+          console.log("Firestore user profile fetch via admin SDK failed, using REST fallback:", err.message);
+          fetchViaRest = true;
+        }
+      }
 
-      // Check for admin role
+      if (fetchViaRest) {
+        const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+          if (config.projectId) {
+            const dbId = config.firestoreDatabaseId || "(default)";
+            const urlDoc = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${dbId}/documents/users/${uid}`;
+            try {
+              const restRes = await fetch(urlDoc, {
+                headers: { 'Authorization': `Bearer ${idToken}` }
+              });
+              if (restRes.ok) {
+                const docData: any = await restRes.json();
+                if (docData.fields) {
+                  userData = {};
+                  for (const key of Object.keys(docData.fields)) {
+                    const valObj = docData.fields[key];
+                    const typeKey = Object.keys(valObj)[0];
+                    userData[key] = valObj[typeKey];
+                  }
+                  console.log("Successfully retrieved user profile via Firestore REST API fallback");
+                }
+              } else {
+                const restErr = await restRes.text();
+                console.error("Firestore REST API user fetch failed:", restErr);
+              }
+            } catch (fetchErr) {
+              console.error("Error requesting Firestore REST API user:", fetchErr);
+            }
+          }
+        }
+      }
+
+      // Check for hardcoded or verified admin role
       const isAdminEmail = decodedToken.email?.toLowerCase() === 'abesabil00@gmail.com' || 
                            decodedToken.email?.toLowerCase() === 'fibaliktn@gmail.com';
 
-      if (!userData || (userData.role !== 'admin' && !isAdminEmail)) {
+      const userRole = userData?.role;
+      const isAdmin = userRole === 'admin' || isAdminEmail;
+
+      if (!isAdmin) {
         return res.status(403).json({ error: "Access denied. Admin role required." });
       }
 
-      // Also write global notification log in Firestore as in-app notification archive
-      await getAdminDb().collection('global_notifications').add({
-        title,
-        message,
-        url: url || "",
-        image: image || "",
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        type: 'push_alert'
-      });
-
       // Gather FCM tokens across all registered devices
-      const tokensSet = new Set<string>();
+      let tokens: string[] = [];
 
-      // 1. Fetch from main user profiles
-      const usersSnap = await getAdminDb().collection('users').where('fcmToken', '!=', '').get();
-      usersSnap.forEach(docDoc => {
-        const data = docDoc.data();
-        if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
-          tokensSet.add(data.fcmToken.trim());
-        }
-      });
+      if (Array.isArray(clientTokens)) {
+        console.log(`Using client-provided tokens directly. Total: ${clientTokens.length}`);
+        tokens = clientTokens;
+      } else {
+        // Fallback to server-side Firestore write & queries if NO client-provided tokens are supplied
 
-      // 2. Fetch from collection group 'devices'
-      try {
-        const devicesSnap = await getAdminDb().collectionGroup('devices').get();
-        devicesSnap.forEach(docDoc => {
-          const data = docDoc.data();
-          if (data && typeof data.token === 'string' && data.token.trim()) {
-            tokensSet.add(data.token.trim());
+        // 3. Write global notification log with Firestore REST API fallback
+        try {
+          await getAdminDb().collection('global_notifications').add({
+            title,
+            message,
+            url: url || "",
+            image: image || "",
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            type: 'push_alert'
+          });
+        } catch (err: any) {
+          console.warn("Firestore notification log via Admin SDK failed, attempting Firestore REST API fallback:", err.message);
+          const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+          if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            if (config.projectId) {
+              const dbId = config.firestoreDatabaseId || "(default)";
+              const urlDoc = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${dbId}/documents/global_notifications`;
+              try {
+                const payload = {
+                  fields: {
+                    title: { stringValue: title },
+                    message: { stringValue: message },
+                    url: { stringValue: url || "" },
+                    image: { stringValue: image || "" },
+                    createdAt: { timestampValue: new Date().toISOString() },
+                    type: { stringValue: 'push_alert' }
+                  }
+                };
+                const restRes = await fetch(urlDoc, {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}` 
+                  },
+                  body: JSON.stringify(payload)
+                });
+                if (restRes.ok) {
+                  console.log("Successfully wrote global notification via Firestore REST API fallback");
+                } else {
+                  const restErr = await restRes.text();
+                  console.error("Firestore REST API write failed:", restErr);
+                }
+              } catch (fetchErr) {
+                console.error("Error writing to Firestore REST API:", fetchErr);
+              }
+            }
           }
-        });
-      } catch (grpErr) {
-        console.warn("Collection group 'devices' query failed or index not ready:", grpErr);
+        }
+
+        const tokensSet = new Set<string>();
+
+        // 4a. Fetch from main user profiles with runQuery REST API fallback
+        try {
+          const usersSnap = await getAdminDb().collection('users').where('fcmToken', '!=', '').get();
+          usersSnap.forEach(docDoc => {
+            const data = docDoc.data();
+            if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
+              tokensSet.add(data.fcmToken.trim());
+            }
+          });
+        } catch (err: any) {
+          console.warn("Users FCM token query via Admin SDK failed, attempting runQuery REST API fallback:", err.message);
+          const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+          if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            if (config.projectId) {
+              const dbId = config.firestoreDatabaseId || "(default)";
+              const urlQuery = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${dbId}/documents:runQuery`;
+              try {
+                const queryPayload = {
+                  structuredQuery: {
+                    from: [{ collectionId: "users" }],
+                    where: {
+                      fieldFilter: {
+                        field: { fieldPath: "fcmToken" },
+                        op: "NOT_EQUAL",
+                        value: { stringValue: "" }
+                      }
+                    }
+                  }
+                };
+                const restRes = await fetch(urlQuery, {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}` 
+                  },
+                  body: JSON.stringify(queryPayload)
+                });
+                if (restRes.ok) {
+                  const results: any = await restRes.json();
+                  if (Array.isArray(results)) {
+                    results.forEach((item: any) => {
+                      if (item && item.document && item.document.fields) {
+                        const tokenVal = item.document.fields.fcmToken;
+                        if (tokenVal && tokenVal.stringValue && tokenVal.stringValue.trim()) {
+                          tokensSet.add(tokenVal.stringValue.trim());
+                        }
+                      }
+                    });
+                    console.log(`Successfully query-fetched users via Firestore REST API, total tokens now: ${tokensSet.size}`);
+                  }
+                } else {
+                  const restErr = await restRes.text();
+                  console.error("runQuery users REST API fallback failed:", restErr);
+                }
+              } catch (queryErr) {
+                console.error("Error making runQuery REST API call for users:", queryErr);
+              }
+            }
+          }
+        }
+
+        // 4b. Fetch from collection group 'devices' with runQuery REST API fallback
+        try {
+          const devicesSnap = await getAdminDb().collectionGroup('devices').get();
+          devicesSnap.forEach(docDoc => {
+            const data = docDoc.data();
+            if (data && typeof data.token === 'string' && data.token.trim()) {
+              tokensSet.add(data.token.trim());
+            }
+          });
+        } catch (grpErr: any) {
+          console.warn("Collection group 'devices' query via Admin SDK failed, attempting runQuery REST API fallback:", grpErr.message);
+          const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+          if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            if (config.projectId) {
+              const dbId = config.firestoreDatabaseId || "(default)";
+              const urlQuery = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${dbId}/documents:runQuery`;
+              try {
+                const queryPayload = {
+                  structuredQuery: {
+                    from: [{ collectionId: "devices", allDescendants: true }]
+                  }
+                };
+                const restRes = await fetch(urlQuery, {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}` 
+                  },
+                  body: JSON.stringify(queryPayload)
+                });
+                if (restRes.ok) {
+                  const results: any = await restRes.json();
+                  if (Array.isArray(results)) {
+                    results.forEach((item: any) => {
+                      if (item && item.document && item.document.fields) {
+                        const tokenVal = item.document.fields.token;
+                        if (tokenVal && tokenVal.stringValue && tokenVal.stringValue.trim()) {
+                          tokensSet.add(tokenVal.stringValue.trim());
+                        }
+                      }
+                    });
+                    console.log(`Successfully query-fetched devices via collectionGroup REST API, total tokens now: ${tokensSet.size}`);
+                  }
+                } else {
+                  const restErr = await restRes.text();
+                  console.error("runQuery devices REST API fallback failed:", restErr);
+                }
+              } catch (queryErr) {
+                console.error("Error making runQuery REST API call for devices:", queryErr);
+              }
+            }
+          }
+        }
+
+        tokens = Array.from(tokensSet);
       }
 
-      const tokens = Array.from(tokensSet);
       if (tokens.length === 0) {
         return res.json({ 
           success: true, 
@@ -1182,6 +1435,22 @@ async function startServer() {
 
     } catch (e: any) {
       console.error("FCM dispatch API error:", e);
+      
+      const isPermissionError = e.message && (
+        e.message.includes("PERMISSION_DENIED") || 
+        e.message.includes("7 PERMISSION_DENIED") ||
+        e.message.includes("credential") ||
+        e.message.includes("permission")
+      );
+      
+      if (isPermissionError) {
+        return res.status(403).json({
+          error: "Permission denied for FCM dispatch.",
+          details: e.message,
+          instruction: "A service account with FCM sending permissions is required in this container environment. Please generate a Service Account JSON in Firebase Console -> Project Settings -> Service Accounts, copy its full content, and paste it under the 'FIREBASE_SERVICE_ACCOUNT_JSON' environment private variable in your AI Studio Settings menu."
+        });
+      }
+
       res.status(500).json({ error: e.message || "Failed to dispatch push notifications." });
     }
   });
@@ -2439,7 +2708,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
   }
 
-  async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean }> {
+  async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
     let html = template;
     
     // Basic SEO injection for specific routes
@@ -2699,6 +2968,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             if (!data) {
+              const redirectRef = doc(db, 'slug_redirects', `news_${p1}`);
+              const redirectSnap = await getDoc(redirectRef);
+              if (redirectSnap.exists()) {
+                const redirectData = redirectSnap.data();
+                if (redirectData && redirectData.newSlug) {
+                  return { html: '', isNotFound: false, redirectUrl: `/news/${redirectData.newSlug}` };
+                }
+              }
               isNotFound = true;
             } else {
               title = `${data.title} | Halal Ottawa`;
@@ -2734,6 +3011,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             if (!data) {
+              const redirectRef = doc(db, 'slug_redirects', `events_${p1}`);
+              const redirectSnap = await getDoc(redirectRef);
+              if (redirectSnap.exists()) {
+                const redirectData = redirectSnap.data();
+                if (redirectData && redirectData.newSlug) {
+                  return { html: '', isNotFound: false, redirectUrl: `/events/${redirectData.newSlug}` };
+                }
+              }
               isNotFound = true;
             } else {
               title = `${data.title} | Halal Ottawa Events`;
@@ -2769,6 +3054,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             if (!data) {
+              const redirectRef = doc(db, 'slug_redirects', `jobs_${p1}`);
+              const redirectSnap = await getDoc(redirectRef);
+              if (redirectSnap.exists()) {
+                const redirectData = redirectSnap.data();
+                if (redirectData && redirectData.newSlug) {
+                  return { html: '', isNotFound: false, redirectUrl: `/jobs/${redirectData.newSlug}` };
+                }
+              }
               isNotFound = true;
             } else {
               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
@@ -2799,6 +3092,37 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             if (!data) {
+              const redirectRef = doc(db, 'slug_redirects', `listings_${p1}`);
+              const redirectSnap = await getDoc(redirectRef);
+              if (redirectSnap.exists()) {
+                const redirectData = redirectSnap.data();
+                if (redirectData && redirectData.newSlug) {
+                  let destination = `/listings/${redirectData.newSlug}`;
+                  try {
+                    const newListingDocRef = doc(db, 'listings', redirectData.newSlug);
+                    const newListingDocSnap = await getDoc(newListingDocRef);
+                    let newListing: any = null;
+                    if (newListingDocSnap.exists()) {
+                      newListing = newListingDocSnap.data();
+                    } else {
+                      const qStatus = query(collection(db, 'listings'), where('slug', '==', redirectData.newSlug), limit(1));
+                      const snapStatus = await getDocs(qStatus);
+                      if (!snapStatus.empty) {
+                        newListing = snapStatus.docs[0].data();
+                      }
+                    }
+                    if (newListing) {
+                      const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
+                      if (cat) {
+                        destination = `/${cat.toLowerCase()}/${redirectData.newSlug}`;
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Error determining redirect destination category", e);
+                  }
+                  return { html: '', isNotFound: false, redirectUrl: destination };
+                }
+              }
               isNotFound = true;
             } else {
               title = `${data.name} | Halal Ottawa`;
@@ -3175,8 +3499,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
         
         // Execute server-side meta injection (SSI)
-        const { html } = await getInjectedHTML(template, req.path);
-        res.status(200).set({ "Content-Type": "text/html" }).end(html);
+        const result = await getInjectedHTML(template, req.path);
+        if (result.redirectUrl) {
+          res.redirect(301, result.redirectUrl);
+          return;
+        }
+        res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(result.html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
         next(e);
@@ -3203,8 +3531,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       try {
         const indexPath = path.join(distPath, "index.html");
         const template = fs.readFileSync(indexPath, "utf-8");
-        const { html } = await getInjectedHTML(template, req.path);
-        res.status(200).set({ "Content-Type": "text/html" }).send(html);
+        const result = await getInjectedHTML(template, req.path);
+        if (result.redirectUrl) {
+          res.redirect(301, result.redirectUrl);
+          return;
+        }
+        res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);
         res.sendFile(path.join(distPath, "index.html"));

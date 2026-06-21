@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Info, MapPin, Briefcase, DollarSign, Link as LinkIcon, Building2, CheckCircle2, Save, Trash2, Image as ImageIcon, Send, Upload } from 'lucide-react';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -17,6 +17,7 @@ export const EditJob: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [originalSlug, setOriginalSlug] = useState('');
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -58,6 +59,7 @@ export const EditJob: React.FC = () => {
             isFeatured: data.isFeatured || false,
             slug: data.slug || '',
           });
+          setOriginalSlug(data.slug || '');
         } else {
           navigate('/jobs');
         }
@@ -120,6 +122,21 @@ export const EditJob: React.FC = () => {
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });
+
+      if (originalSlug && newSlug && originalSlug !== newSlug) {
+        try {
+          await setDoc(doc(db, 'slug_redirects', `jobs_${originalSlug}`), {
+            type: 'jobs',
+            oldSlug: originalSlug,
+            newSlug: newSlug,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`Created job slug redirect: ${originalSlug} -> ${newSlug}`);
+        } catch (redirectErr) {
+          console.error('Failed to create job redirect:', redirectErr);
+        }
+      }
+
       setShowSuccess(true);
       setTimeout(() => {
         navigate(`/jobs/${newSlug}`, { replace: true });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Info, MapPin, Calendar, Clock, Link as LinkIcon, User, Camera, CheckCircle2, AlertCircle, Save, Trash2, Send, Upload } from 'lucide-react';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -19,6 +19,7 @@ export const EditEvent: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [originalSlug, setOriginalSlug] = useState('');
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -64,6 +65,7 @@ export const EditEvent: React.FC = () => {
             coverImage: data.coverImage || '',
             slug: data.slug || '',
           });
+          setOriginalSlug(data.slug || '');
         } else {
           navigate('/events');
         }
@@ -131,6 +133,21 @@ export const EditEvent: React.FC = () => {
         endDate: isMultiDay ? endDate : '',
         updatedAt: new Date().toISOString(),
       });
+
+      if (originalSlug && newSlug && originalSlug !== newSlug) {
+        try {
+          await setDoc(doc(db, 'slug_redirects', `events_${originalSlug}`), {
+            type: 'events',
+            oldSlug: originalSlug,
+            newSlug: newSlug,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`Created event slug redirect: ${originalSlug} -> ${newSlug}`);
+        } catch (redirectErr) {
+          console.error('Failed to create event redirect:', redirectErr);
+        }
+      }
+
       setShowSuccess(true);
       setTimeout(() => {
         navigate(`/events/${newSlug}`, { replace: true });

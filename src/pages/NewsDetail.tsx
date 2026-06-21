@@ -61,6 +61,17 @@ export const NewsDetail: React.FC = () => {
             }
           }
           
+          if (!articleData) {
+            const redirectSnap = await getDoc(doc(db, 'slug_redirects', `news_${slug}`));
+            if (redirectSnap.exists()) {
+              const rData = redirectSnap.data();
+              if (rData && rData.newSlug) {
+                navigate(`/news/${rData.newSlug}`, { replace: true });
+                return;
+              }
+            }
+          }
+
           if (articleData) {
             fetchedArticle = articleData;
             setArticle(articleData);

@@ -61,6 +61,17 @@ export const JobDetail: React.FC = () => {
             }
           }
           
+          if (!jobData) {
+            const redirectSnap = await getDoc(doc(db, 'slug_redirects', `jobs_${slug}`));
+            if (redirectSnap.exists()) {
+              const rData = redirectSnap.data();
+              if (rData && rData.newSlug) {
+                navigate(`/jobs/${rData.newSlug}`, { replace: true });
+                return;
+              }
+            }
+          }
+
           if (jobData) {
             fetchedJob = jobData;
             setJob(jobData);

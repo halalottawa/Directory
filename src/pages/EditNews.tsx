@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Info, Link as LinkIcon, User, Newspaper, Camera, CheckCircle2, Save, Trash2, Send, Upload, Image as ImageIcon, Move } from 'lucide-react';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -17,6 +17,7 @@ export const EditNews: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [originalSlug, setOriginalSlug] = useState('');
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -48,6 +49,7 @@ export const EditNews: React.FC = () => {
             coverImage: data.coverImage || '',
             slug: data.slug || '',
           });
+          setOriginalSlug(data.slug || '');
         } else {
           navigate('/news');
         }
@@ -259,6 +261,21 @@ export const EditNews: React.FC = () => {
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });
+
+      if (originalSlug && newSlug && originalSlug !== newSlug) {
+        try {
+          await setDoc(doc(db, 'slug_redirects', `news_${originalSlug}`), {
+            type: 'news',
+            oldSlug: originalSlug,
+            newSlug: newSlug,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`Created news slug redirect: ${originalSlug} -> ${newSlug}`);
+        } catch (redirectErr) {
+          console.error('Failed to create news redirect:', redirectErr);
+        }
+      }
+
       setShowSuccess(true);
       setTimeout(() => {
         navigate(`/news/${newSlug}`, { replace: true });

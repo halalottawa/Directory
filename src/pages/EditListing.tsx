@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Camera, MapPin, Info, Tag, Phone, Globe, Clock, Mail, Save, Trash2, Star, Loader2, Upload, FileText, Facebook, Instagram, Twitter, Smartphone, Send, Sparkles, RefreshCw } from 'lucide-react';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
@@ -21,6 +21,7 @@ export const EditListing: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [originalSlug, setOriginalSlug] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDetectingSuburb, setIsDetectingSuburb] = useState(false);
@@ -235,6 +236,7 @@ export const EditListing: React.FC = () => {
             menuItems: data.menuItems?.length ? data.menuItems : [{ category: '', items: [{ name: '', price: '', description: '' }] }],
             socialMediaLinks: data.socialMediaLinks?.length ? data.socialMediaLinks : [''],
           });
+          setOriginalSlug(data.slug || '');
         } else {
           toast.error('Listing not found');
           navigate('/listings');
@@ -313,6 +315,21 @@ export const EditListing: React.FC = () => {
         photos: processedPhotos,
         updatedAt: new Date().toISOString(),
       });
+
+      if (originalSlug && newSlug && originalSlug !== newSlug) {
+        try {
+          await setDoc(doc(db, 'slug_redirects', `listings_${originalSlug}`), {
+            type: 'listings',
+            oldSlug: originalSlug,
+            newSlug: newSlug,
+            createdAt: new Date().toISOString(),
+          });
+          console.log(`Created listing slug redirect: ${originalSlug} -> ${newSlug}`);
+        } catch (redirectErr) {
+          console.error('Failed to create listing redirect:', redirectErr);
+        }
+      }
+
       toast.success('Listing updated successfully!');
       const finalListing = { ...formData, slug: newSlug, id };
       navigate(getListingUrl(finalListing), { replace: true });
