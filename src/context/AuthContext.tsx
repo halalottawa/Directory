@@ -176,6 +176,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             // Auto-prompt web users who opted in but never registered a web token
+            // IMPORTANT: browsers block Notification.requestPermission() unless called
+            // from a real user gesture (click). We show a toast with an Enable button
+            // instead of calling requestPermission() directly from a timer.
             if (
               !isAppWrapper() &&
               typeof window !== 'undefined' &&
@@ -184,8 +187,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               userData.pushNotifications === true &&
               !userData.webFcmToken
             ) {
-              setTimeout(() => {
-                requestNotificationPermission();
+              setTimeout(async () => {
+                const { toast } = await import('sonner');
+                toast('🔔 Enable browser notifications?', {
+                  description: 'Get alerts for new listings, events, and updates from Halal Ottawa.',
+                  duration: Infinity,
+                  action: {
+                    label: 'Enable',
+                    onClick: () => requestNotificationPermission(),
+                  },
+                  cancel: {
+                    label: 'Not Now',
+                    onClick: () => {},
+                  },
+                });
               }, 3000);
             }
 
