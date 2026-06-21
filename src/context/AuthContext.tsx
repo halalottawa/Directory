@@ -50,51 +50,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const requestNotificationPermission = async () => {
     if (!auth.currentUser) return;
+
+    if (!('Notification' in window)) {
+      const { toast } = await import('sonner');
+      toast.error('Your browser does not support notifications.');
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      const { toast } = await import('sonner');
+      toast.error('Notifications are blocked. Go to your browser site settings and allow notifications for this site, then try again.', { duration: 8000 });
+      return;
+    }
+
     try {
-      if (!('Notification' in window)) {
-        console.warn('This browser does not support desktop notification');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        const { toast } = await import('sonner');
+        toast.error('Notification permission was not granted.');
         return;
       }
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const messaging = await getMessagingPromise();
-        if (messaging) {
-          try {
-            const { getToken } = await import('firebase/messaging');
-            const currentToken = await getToken(messaging, {
-              vapidKey: 'X3tvdqEcdb4vTJ0EI8GFcopHAciDu-g-SqstyZyFAfg'
-            });
-            if (currentToken) {
-              const uid = auth.currentUser.uid;
-              // Save web token — do NOT overwrite fcmToken if a native mobile token exists
-              const userSnap = await getDoc(doc(db, 'users', uid));
-              const existingNativeToken = safeLocalStorage.getItem('nativeFcmToken');
-              
-              const updates: Record<string, any> = {
-                webFcmToken: currentToken,
-                pushNotifications: true,
-              };
-              // Only set fcmToken if there's no native mobile token registered
-              if (!existingNativeToken) {
-                updates.fcmToken = currentToken;
-              }
-              await updateDoc(doc(db, 'users', uid), updates);
-              
-              // Also register in the devices subcollection for multi-device delivery
-              await setDoc(doc(db, 'users', uid, 'devices', currentToken), {
-                token: currentToken,
-                platform: 'web',
-                lastUpdated: new Date().toISOString(),
-                appVersion: '1.0.0-web'
-              });
-            }
-          } catch (tokenError) {
-            console.warn('Failed to get FCM token:', tokenError);
-          }
-        }
+
+      const messaging = await getMessagingPromise();
+      if (!messaging) {
+        const { toast } = await import('sonner');
+        toast.error('Push notifications are not supported in this browser.');
+        return;
       }
-    } catch (error) {
-      console.error('Error requesting notification permission:', error);
+
+      try {
+        const { getToken } = await import('firebase/messaging');
+
+        // Register the service worker explicitly before calling getToken
+        let swRegistration: ServiceWorkerRegistration | undefined;
+        if ('serviceWorker' in navigator) {
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+        }
+
+        const currentToken = await getToken(messaging, {
+          vapidKey: 'BIZWmRCjJCF2INz-bqsVSezOPEw6450oLSBzmaAVPPZwkxeDRGAy-FuxtimmvpOibPbkGnVOm9dVWLcrrICkK8M',
+          ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+        });
+
+        if (!currentToken) {
+          const { toast } = await import('sonner');
+          toast.error('Could not get a push token. Please try again.');
+          return;
+        }
+
+        const uid = auth.currentUser.uid;
+        const existingNativeToken = safeLocalStorage.getItem('nativeFcmToken');
+
+        const updates: Record<string, any> = {
+          webFcmToken: currentToken,
+          pushNotifications: true,
+        };
+        if (!existingNativeToken) {
+          updates.fcmToken = currentToken;
+        }
+        await updateDoc(doc(db, 'users', uid), updates);
+
+        await setDoc(doc(db, 'users', uid, 'devices', currentToken), {
+          token: currentToken,
+          platform: 'web',
+          lastUpdated: new Date().toISOString(),
+          appVersion: '1.0.0-web',
+        });
+
+        const { toast } = await import('sonner');
+        toast.success('Browser notifications enabled!');
+
+      } catch (tokenError: any) {
+        console.error('Failed to get FCM token:', tokenError);
+        const { toast } = await import('sonner');
+        toast.error('Push registration failed: ' + (tokenError?.message || 'Unknown error'));
+      }
+
+    } catch (error: any) {
+      console.error('Error in requestNotificationPermission:', error);
+      const { toast } = await import('sonner');
+      toast.error('Notification setup failed: ' + (error?.message || 'Unknown error'));
     }
   };
 

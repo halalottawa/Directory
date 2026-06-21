@@ -17,8 +17,8 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || payload.data?.title || 'Halal Ottawa';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.message || '',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
     data: { url: payload.data?.url || '/' },
   };
   self.registration.showNotification(notificationTitle, notificationOptions);

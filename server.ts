@@ -1416,8 +1416,8 @@ async function startServer() {
             notification: {
               title: title,
               body: message,
-              icon: 'https://www.halalottawa.ca/favicon.png',
-              badge: 'https://www.halalottawa.ca/favicon.png',
+              icon: 'https://www.halalottawa.ca/favicon.svg',
+              badge: 'https://www.halalottawa.ca/favicon.svg',
               ...(image ? { image } : {}),
             },
             fcmOptions: {
