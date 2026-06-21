@@ -39,6 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return safeLocalStorage.getItem('isGuest') === 'true';
   });
 
+  const notifPromptShown = React.useRef(false);
+
   const setGuest = (val: boolean) => {
     setIsGuest(val);
     if (val) {
@@ -185,8 +187,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               'Notification' in window &&
               Notification.permission === 'default' &&
               userData.pushNotifications === true &&
-              !userData.webFcmToken
+              !userData.webFcmToken &&
+              !notifPromptShown.current
             ) {
+              notifPromptShown.current = true;
               setTimeout(async () => {
                 const { toast } = await import('sonner');
                 toast('🔔 Enable browser notifications?', {
