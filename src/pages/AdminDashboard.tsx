@@ -1014,10 +1014,20 @@ export const AdminDashboard: React.FC = () => {
             const usersSnap = await getDocs(usersQuery);
             usersSnap.forEach(docSnap => {
               const data = docSnap.data();
-              if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
-                tokensSet.add(data.fcmToken.trim());
-              }
+              if (data?.fcmToken?.trim()) tokensSet.add(data.fcmToken.trim());
+              if (data?.webFcmToken?.trim()) tokensSet.add(data.webFcmToken.trim());
             });
+
+            try {
+              const webQuery = query(collection(db, 'users'), where('webFcmToken', '!=', ''));
+              const webSnap = await getDocs(webQuery);
+              webSnap.forEach(docSnap => {
+                const data = docSnap.data();
+                if (data?.webFcmToken?.trim()) tokensSet.add(data.webFcmToken.trim());
+              });
+            } catch (webErr) {
+              console.error('Error fetching webFcmToken users:', webErr);
+            }
           } catch (usersErr) {
             console.error('Error fetching users FCM tokens on client:', usersErr);
           }

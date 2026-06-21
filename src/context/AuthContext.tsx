@@ -175,6 +175,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(userData);
             }
 
+            // Auto-prompt web users who opted in but never registered a web token
+            if (
+              !isAppWrapper() &&
+              typeof window !== 'undefined' &&
+              'Notification' in window &&
+              Notification.permission === 'default' &&
+              userData.pushNotifications === true &&
+              !userData.webFcmToken
+            ) {
+              setTimeout(() => {
+                requestNotificationPermission();
+              }, 3000);
+            }
+
             // Strategy B Token Sync: Check if there is a pending native token to assign
             const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
             if (pendingToken) {
@@ -481,18 +495,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubscribeMessage: (() => void) | null = null;
 
     const setupForegroundMessaging = async () => {
-      if (isAppWrapper()) return; // Mobile handles its own foreground notifications
+      if (isAppWrapper()) return;
+      if (!('Notification' in window)) return;
+      if (Notification.permission !== 'granted') return;
+
+      // Re-register SW on every load so background messages keep working
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+          await navigator.serviceWorker.ready;
+        } catch (swErr) {
+          console.warn('SW re-registration failed:', swErr);
+        }
+      }
+
       const messaging = await getMessagingPromise();
       if (!messaging) return;
-      
+
       try {
         const { onMessage } = await import('firebase/messaging');
         unsubscribeMessage = onMessage(messaging, (payload) => {
           const title = payload.notification?.title || payload.data?.title || 'Halal Ottawa';
           const body = payload.notification?.body || payload.data?.message || '';
           const url = payload.data?.url || '/';
-          
-          // Show as in-app toast (since we already have sonner)
+
           import('sonner').then(({ toast }) => {
             toast(title, {
               description: body,
@@ -503,7 +529,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           });
 
-          // Also try to show a system notification if SW is available
           if ('serviceWorker' in navigator && Notification.permission === 'granted') {
             navigator.serviceWorker.ready.then((registration) => {
               registration.showNotification(title, {

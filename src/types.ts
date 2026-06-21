@@ -19,6 +19,8 @@ export interface UserProfile {
   savedNews?: string[];
   savedEvents?: string[];
   savedJobs?: string[];
+  fcmToken?: string;
+  webFcmToken?: string;
 }
 
 export type ListingCategory = 'Restaurants' | 'Mosques' | 'Organizations' | 'Grocery' | 'Clothing' | 'Schools' | 'Butchers';
