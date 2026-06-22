@@ -1247,7 +1247,7 @@ async function startServer() {
 
         // 4a. Fetch from main user profiles with runQuery REST API fallback
         try {
-          const usersSnap = await getAdminDb().collection('users').where('fcmToken', '!=', '').get();
+          const usersSnap = await getAdminDb().collection('users').where('pushNotifications', '==', true).get();
           usersSnap.forEach(docDoc => {
             const data = docDoc.data();
             if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
@@ -1271,9 +1271,9 @@ async function startServer() {
                     from: [{ collectionId: "users" }],
                     where: {
                       fieldFilter: {
-                        field: { fieldPath: "fcmToken" },
-                        op: "NOT_EQUAL",
-                        value: { stringValue: "" }
+                        field: { fieldPath: "pushNotifications" },
+                        op: "EQUAL",
+                        value: { booleanValue: true }
                       }
                     }
                   }
@@ -1401,7 +1401,7 @@ async function startServer() {
           android: {
             notification: {
               sound: "default",
-              clickAction: "FLUTTER_NOTIFICATION_CLICK"
+              clickAction: "OPEN_ACTIVITY_1"
             }
           },
           apns: {
@@ -3193,6 +3193,22 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
     if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
       canonicalPath = canonicalPath.slice(0, -1);
+    }
+
+    if (initialData) {
+      if (routeType === 'listing') {
+        const cat = Array.isArray(initialData.category) && initialData.category.length > 0
+          ? initialData.category[0]
+          : typeof initialData.category === 'string' ? initialData.category : 'listings';
+        const formattedCategory = String(cat).toLowerCase();
+        canonicalPath = `/${formattedCategory}/${initialData.slug || initialData.id}`;
+      } else if (routeType === 'news') {
+        canonicalPath = `/news/${initialData.slug || initialData.id}`;
+      } else if (routeType === 'event') {
+        canonicalPath = `/events/${initialData.slug || initialData.id}`;
+      } else if (routeType === 'job') {
+        canonicalPath = `/jobs/${initialData.slug || initialData.id}`;
+      }
     }
 
     let extraTags = `

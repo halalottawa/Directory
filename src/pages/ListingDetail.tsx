@@ -527,7 +527,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
       <SEO
         title={listing.name}
         description={`Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`}
-        canonicalUrl={getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`)}
+        canonicalUrl={getAbsoluteUrl(getListingUrl(listing))}
         ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
         structuredData={[
           {
@@ -546,8 +546,8 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
             })(),
             "name": listing.name,
             "image": listing.photos?.length > 0 ? listing.photos.map(p => getAbsoluteUrl(p)) : undefined,
-            "@id": getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`),
-            "url": listing.website || getAbsoluteUrl(`${mainCategoryStr.toLowerCase()}/${slug}`),
+            "@id": getAbsoluteUrl(getListingUrl(listing)),
+            "url": listing.website || getAbsoluteUrl(getListingUrl(listing)),
             "telephone": listing.phoneNumber || undefined,
             "address": {
               "@type": "PostalAddress",
