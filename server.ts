@@ -1247,7 +1247,7 @@ async function startServer() {
 
         // 4a. Fetch from main user profiles with runQuery REST API fallback
         try {
-          const usersSnap = await getAdminDb().collection('users').where('pushNotifications', '==', true).get();
+          const usersSnap = await getAdminDb().collection('users').where('fcmToken', '!=', '').get();
           usersSnap.forEach(docDoc => {
             const data = docDoc.data();
             if (data && typeof data.fcmToken === 'string' && data.fcmToken.trim()) {
@@ -1271,9 +1271,9 @@ async function startServer() {
                     from: [{ collectionId: "users" }],
                     where: {
                       fieldFilter: {
-                        field: { fieldPath: "pushNotifications" },
-                        op: "EQUAL",
-                        value: { booleanValue: true }
+                        field: { fieldPath: "fcmToken" },
+                        op: "NOT_EQUAL",
+                        value: { stringValue: "" }
                       }
                     }
                   }
@@ -1401,7 +1401,7 @@ async function startServer() {
           android: {
             notification: {
               sound: "default",
-              clickAction: "OPEN_ACTIVITY_1"
+              clickAction: "FLUTTER_NOTIFICATION_CLICK"
             }
           },
           apns: {

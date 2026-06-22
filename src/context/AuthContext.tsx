@@ -39,10 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return safeLocalStorage.getItem('isGuest') === 'true';
   });
 
-  const [notificationPermission, setNotificationPermission] = useState<string>(
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
-  );
-
   const notifPromptShown = React.useRef(false);
 
   const setGuest = (val: boolean) => {
@@ -71,7 +67,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
       if (permission !== 'granted') {
         const { toast } = await import('sonner');
         toast.error('Notification permission was not granted.');
@@ -307,8 +302,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let messagingListenersAdded = false;
-
     // Register global callbacks for native Google Sign-In success
     (window as any).onNativeGoogleSignIn = async (idToken: string) => {
       console.log('Strategy B: Received native Google idToken:', idToken);
@@ -422,59 +415,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       triggerNativeRegister();
     }, 1500);
 
-    const initMobilePush = async () => {
-      if (!isAppWrapper()) return;
-      try {
-        const { FirebaseMessaging } = await import('@capacitor-firebase/messaging');
-
-        await FirebaseMessaging.requestPermissions();
-
-        const { token } = await FirebaseMessaging.getToken({
-          vapidKey: 'BIZWmRCjJCF2INz-bqsVSezOPEw6450oLSBzmaAVPPZwkxeDRGAy-FuxtimmvpOibPbkGnVOm9dVWLcrrICkK8M'
-        });
-
-        if (token) {
-          console.log('Strategy B: Mobile FCM token obtained via plugin:', token);
-          if (typeof (window as any).onFCMTokenReceived === 'function') {
-            (window as any).onFCMTokenReceived(token);
-          } else {
-            // onFCMTokenReceived not yet registered, store as pending
-            safeLocalStorage.setItem('pendingNativeFcmToken', token);
-            safeLocalStorage.setItem('nativeFcmToken', token);
-          }
-        }
-
-        if (!messagingListenersAdded) {
-          messagingListenersAdded = true;
-
-          FirebaseMessaging.addListener('notificationReceived', async (event: any) => {
-            const title = event.notification?.title || 'Halal Ottawa';
-            const body = event.notification?.body || '';
-            const { toast } = await import('sonner');
-            toast(title, { description: body, duration: 6000 });
-          });
-
-          FirebaseMessaging.addListener('notificationActionPerformed', (event: any) => {
-            const url = event.notification?.data?.url;
-            if (url) window.location.href = url;
-          });
-        }
-
-      } catch (err) {
-        console.error('Strategy B: Mobile push plugin init failed:', err);
-      }
-    };
-
-    initMobilePush();
-
-    return () => {
-      clearTimeout(initTimer);
-      if (messagingListenersAdded) {
-        import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
-          FirebaseMessaging.removeAllListeners();
-        });
-      }
-    };
+    return () => clearTimeout(initTimer);
   }, [user?.uid]);
 
   const loginWithGoogle = async () => {
@@ -575,7 +516,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const setupForegroundMessaging = async () => {
       if (isAppWrapper()) return;
       if (!('Notification' in window)) return;
-      if (notificationPermission !== 'granted') return;
+      if (Notification.permission !== 'granted') return;
 
       // Re-register SW on every load so background messages keep working
       if ('serviceWorker' in navigator) {
@@ -606,6 +547,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 : undefined,
             });
           });
+
+          if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then((registration) => {
+              registration.showNotification(title, {
+                body,
+                icon: '/favicon.png',
+                badge: '/favicon.png',
+                data: { url },
+              });
+            });
+          }
         });
       } catch (err) {
         console.warn('Failed to set up foreground messaging:', err);
@@ -614,7 +566,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setupForegroundMessaging();
     return () => { if (unsubscribeMessage) unsubscribeMessage(); };
-  }, [notificationPermission, user?.uid]);
+  }, []); // Run once on mount
 
   return (
     <AuthContext.Provider value={{ user, loading, isGuest, setGuest, loginWithGoogle, logout, deleteAccount, requestNotificationPermission }}>
