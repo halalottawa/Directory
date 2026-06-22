@@ -568,7 +568,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Handle foreground push notifications (when browser tab is open)
+  // Handle foreground push notifications + keep web FCM token fresh on every page load
   useEffect(() => {
     let unsubscribeMessage: (() => void) | null = null;
 
@@ -576,11 +576,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (isAppWrapper()) return;
       if (!('Notification' in window)) return;
       if (notificationPermission !== 'granted') return;
+      if (!auth.currentUser) return;
 
-      // Re-register SW on every load so background messages keep working
+      // Register SW explicitly and hold a reference so we can call showNotification later
+      let swRegistration: ServiceWorkerRegistration | undefined;
       if ('serviceWorker' in navigator) {
         try {
-          await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
           await navigator.serviceWorker.ready;
         } catch (swErr) {
           console.warn('SW re-registration failed:', swErr);
@@ -590,6 +592,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const messaging = await getMessagingPromise();
       if (!messaging) return;
 
+      // Refresh the FCM token on every page load.
+      // Firebase can silently rotate/invalidate tokens after browser updates,
+      // data clears, or on its own schedule. Without this, Firestore holds a
+      // dead token and every push send silently fails.
+      try {
+        const { getToken } = await import('firebase/messaging');
+        const freshToken = await getToken(messaging, {
+          vapidKey: 'BIZWmRCjJCF2INz-bqsVSezOPEw6450oLSBzmaAVPPZwkxeDRGAy-FuxtimmvpOibPbkGnVOm9dVWLcrrICkK8M',
+          ...(swRegistration ? { serviceWorkerRegistration: swRegistration } : {}),
+        });
+
+        if (freshToken && auth.currentUser) {
+          const uid = auth.currentUser.uid;
+          const userSnap = await getDoc(doc(db, 'users', uid));
+          const storedWebToken = userSnap.exists() ? userSnap.data()?.webFcmToken : null;
+
+          if (freshToken !== storedWebToken) {
+            console.log('Web FCM token changed — updating Firestore with fresh token.');
+            const existingNativeToken = safeLocalStorage.getItem('nativeFcmToken');
+            const updates: Record<string, any> = { webFcmToken: freshToken };
+            if (!existingNativeToken) updates.fcmToken = freshToken;
+            await updateDoc(doc(db, 'users', uid), updates);
+
+            await setDoc(doc(db, 'users', uid, 'devices', freshToken), {
+              token: freshToken,
+              platform: 'web',
+              lastUpdated: new Date().toISOString(),
+              appVersion: '1.0.0-web',
+            });
+          }
+        }
+      } catch (tokenRefreshErr) {
+        console.warn('Web FCM token refresh failed:', tokenRefreshErr);
+      }
+
+      // Set up foreground message handler
       try {
         const { onMessage } = await import('firebase/messaging');
         unsubscribeMessage = onMessage(messaging, (payload) => {
@@ -597,6 +635,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const body = payload.notification?.body || payload.data?.message || '';
           const url = payload.data?.url || '/';
 
+          // Show in-app toast
           import('sonner').then(({ toast }) => {
             toast(title, {
               description: body,
@@ -606,6 +645,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 : undefined,
             });
           });
+
+          // Also show a system notification popup even when the tab is focused.
+          // When the tab is open, Firebase calls onMessage (not onBackgroundMessage),
+          // so the SW never fires automatically — we must trigger showNotification manually.
+          const showSystemNotif = (reg: ServiceWorkerRegistration) => {
+            reg.showNotification(title, {
+              body,
+              icon: '/favicon.svg',
+              badge: '/favicon.svg',
+              data: { url },
+            });
+          };
+
+          if (swRegistration) {
+            showSystemNotif(swRegistration);
+          } else if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(showSystemNotif);
+          }
         });
       } catch (err) {
         console.warn('Failed to set up foreground messaging:', err);
