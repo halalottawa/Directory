@@ -611,7 +611,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (freshToken !== storedWebToken) {
             console.log('Web FCM token changed — updating Firestore with fresh token.');
             const existingNativeToken = safeLocalStorage.getItem('nativeFcmToken');
-            const updates: Record<string, any> = { webFcmToken: freshToken };
+            const updates: Record<string, any> = { webFcmToken: freshToken, pushNotifications: true };
             if (!existingNativeToken) updates.fcmToken = freshToken;
             await updateDoc(doc(db, 'users', uid), updates);
 
@@ -652,8 +652,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const showSystemNotif = (reg: ServiceWorkerRegistration) => {
             reg.showNotification(title, {
               body,
-              icon: '/favicon.svg',
-              badge: '/favicon.svg',
+              icon: 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp',
+              badge: 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp',
               data: { url },
             });
           };

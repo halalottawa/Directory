@@ -17,11 +17,11 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || payload.data?.title || 'Halal Ottawa';
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.message || '',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    icon: 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp',
+    badge: 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp',
     data: { url: payload.data?.url || '/' },
   };
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 self.addEventListener('notificationclick', (event) => {
