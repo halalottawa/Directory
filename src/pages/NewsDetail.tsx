@@ -17,6 +17,31 @@ import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 
+// Beehiiv Subscription Form Embed
+const BeehiivEmbed: React.FC = () => {
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = `https://subscribe-forms.beehiiv.com/v3/loader.js?t=${Date.now()}`;
+    script.async = true;
+    script.setAttribute('data-beehiiv-form', '587dc225-734c-42ea-8148-9fcd6acfb8f7');
+    
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return (
+    <div className="my-8 py-6 px-4 bg-white rounded-3xl border border-gray-100 flex flex-col items-center justify-center min-h-[300px] animate-in fade-in duration-500 shadow-sm">
+      <div 
+        className="w-full max-w-xl mx-auto" 
+        data-beehiiv-form="587dc225-734c-42ea-8148-9fcd6acfb8f7"
+      />
+    </div>
+  );
+};
+
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -225,39 +250,75 @@ export const NewsDetail: React.FC = () => {
       </div>
 
       <div className="p-6 space-y-8">
-        <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
-          <ReactMarkdown
-            components={{
-              img: ({ src, alt }) => {
-                const [cleanSrc, hash] = (src || '').split('#');
-                const hashParts = (hash || '').split('-');
-                const alignment = hashParts[0] || 'center';
-                const posX = hashParts[1] !== undefined ? `${hashParts[1]}%` : '50%';
-                const posY = hashParts[2] !== undefined ? `${hashParts[2]}%` : '50%';
+        {(() => {
+          const markdownComponents = {
+            img: ({ src, alt }: { src?: string; alt?: string }) => {
+              const [cleanSrc, hash] = (src || '').split('#');
+              const hashParts = (hash || '').split('-');
+              const alignment = hashParts[0] || 'center';
+              const posX = hashParts[1] !== undefined ? `${hashParts[1]}%` : '50%';
+              const posY = hashParts[2] !== undefined ? `${hashParts[2]}%` : '50%';
 
-                let imgClass = "rounded-2xl my-6 mx-auto shadow-md border border-gray-100 max-h-[480px] object-cover w-full md:max-w-[100%] block clear-both";
-                
-                if (alignment === 'left') {
-                  imgClass = "rounded-2xl my-3 mr-6 md:float-left shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
-                } else if (alignment === 'right') {
-                  imgClass = "rounded-2xl my-3 ml-6 md:float-right shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
-                }
-                
-                return (
-                  <img 
-                    src={cleanSrc} 
-                    alt={alt || "Article Photo"} 
-                    className={imgClass}
-                    style={{ objectPosition: `${posX} ${posY}` }}
-                    referrerPolicy="no-referrer"
-                  />
-                );
+              let imgClass = "rounded-2xl my-6 mx-auto shadow-md border border-gray-100 max-h-[480px] object-cover w-full md:max-w-[100%] block clear-both";
+              
+              if (alignment === 'left') {
+                imgClass = "rounded-2xl my-3 mr-6 md:float-left shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
+              } else if (alignment === 'right') {
+                imgClass = "rounded-2xl my-3 ml-6 md:float-right shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
               }
-            }}
-          >
-            {article.content}
-          </ReactMarkdown>
-        </article>
+              
+              return (
+                <img 
+                  src={cleanSrc} 
+                  alt={alt || "Article Photo"} 
+                  className={imgClass}
+                  style={{ objectPosition: `${posX} ${posY}` }}
+                  referrerPolicy="no-referrer"
+                />
+              );
+            }
+          };
+
+          const paragraphs = article.content ? article.content.split(/\r?\n\s*\r?\n/) : [];
+          const numParagraphs = paragraphs.length;
+
+          if (numParagraphs <= 1) {
+            return (
+              <>
+                <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
+                  <ReactMarkdown components={markdownComponents}>
+                    {article.content}
+                  </ReactMarkdown>
+                </article>
+                <BeehiivEmbed />
+              </>
+            );
+          }
+
+          const midIndex = Math.floor(numParagraphs / 2);
+          const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
+          const secondHalf = paragraphs.slice(midIndex).join('\n\n');
+
+          return (
+            <>
+              <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
+                <ReactMarkdown components={markdownComponents}>
+                  {firstHalf}
+                </ReactMarkdown>
+              </article>
+
+              <BeehiivEmbed />
+
+              {secondHalf.trim() && (
+                <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
+                  <ReactMarkdown components={markdownComponents}>
+                    {secondHalf}
+                  </ReactMarkdown>
+                </article>
+              )}
+            </>
+          );
+        })()}
 
           {article.sourceLink && (
             <div className="flex justify-center">
@@ -271,11 +332,6 @@ export const NewsDetail: React.FC = () => {
               </a>
             </div>
           )}
-
-          {/* Ad Placeholder */}
-          <div className="bg-gray-100 h-32 rounded-2xl flex items-center justify-center text-gray-400 text-xs font-bold uppercase tracking-widest border-2 border-dashed border-gray-200">
-            Advertisement
-          </div>
 
         <CommentSection parentId={article.id} parentType="news" />
       </div>
