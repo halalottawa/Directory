@@ -70,12 +70,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-      if (permission !== 'granted') {
+      // If already granted, skip the dialog and go straight to token registration
+      if (Notification.permission === 'granted') {
+        setNotificationPermission('granted');
+      } else {
+        // Permission is 'default' — browser dialog is about to appear
         const { toast } = await import('sonner');
-        toast.error('Notification permission was not granted.');
-        return;
+        toast.info('A browser popup will appear — click Allow to enable notifications.', { duration: 4000 });
+
+        const permission = await Notification.requestPermission();
+        setNotificationPermission(permission);
+
+        if (permission !== 'granted') {
+          const { toast: t } = await import('sonner');
+          t.error('Notification permission was not granted. You can change this in your browser site settings.');
+          return;
+        }
       }
 
       const messaging = await getMessagingPromise();
@@ -182,36 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUser(userData);
             }
 
-            // Auto-prompt web users who opted in but never registered a web token
-            // IMPORTANT: browsers block Notification.requestPermission() unless called
-            // from a real user gesture (click). We show a toast with an Enable button
-            // instead of calling requestPermission() directly from a timer.
-            if (
-              !isAppWrapper() &&
-              typeof window !== 'undefined' &&
-              'Notification' in window &&
-              Notification.permission === 'default' &&
-              userData.pushNotifications === true &&
-              !userData.webFcmToken &&
-              !notifPromptShown.current
-            ) {
-              notifPromptShown.current = true;
-              setTimeout(async () => {
-                const { toast } = await import('sonner');
-                toast('🔔 Enable browser notifications?', {
-                  description: 'Get alerts for new listings, events, and updates from Halal Ottawa.',
-                  duration: Infinity,
-                  action: {
-                    label: 'Enable',
-                    onClick: () => requestNotificationPermission(),
-                  },
-                  cancel: {
-                    label: 'Not Now',
-                    onClick: () => {},
-                  },
-                });
-              }, 3000);
-            }
+
 
             // Strategy B Token Sync: Check if there is a pending native token to assign
             const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
@@ -625,6 +606,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } catch (tokenRefreshErr) {
         console.warn('Web FCM token refresh failed:', tokenRefreshErr);
+      }
+
+      // If user has push enabled in Firestore but browser permission is still 'default'
+      // (never asked), trigger the permission request automatically.
+      // We do this here because it runs after the SW is ready, which is required.
+      if (
+        auth.currentUser &&
+        Notification.permission === 'default' &&
+        !notifPromptShown.current
+      ) {
+        notifPromptShown.current = true;
+        // Small delay so the page is fully settled before the browser dialog fires
+        setTimeout(() => requestNotificationPermission(), 1500);
       }
 
       // Set up foreground message handler

@@ -202,7 +202,24 @@ export const Settings: React.FC = () => {
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${item.active ? 'bg-gray-100 text-gray-700' : 'bg-gray-50 text-gray-400'}`}>
                       <item.icon className="w-4 h-4" />
                     </div>
-                    <span className="font-medium text-gray-700">{item.label}</span>
+                    <div className="flex flex-col items-start text-left">
+                      <span className="font-medium text-gray-700">{item.label}</span>
+                      {(item.label === 'Browser Notifications' || item.label === 'Push Notifications') && !isAppWrapper() && typeof window !== 'undefined' && 'Notification' in window && (
+                        <span className={`text-xs font-medium ${
+                          Notification.permission === 'granted'
+                            ? 'text-green-500'
+                            : Notification.permission === 'denied'
+                            ? 'text-red-500'
+                            : 'text-yellow-500'
+                        }`}>
+                          {Notification.permission === 'granted'
+                            ? '✓ Browser permission granted'
+                            : Notification.permission === 'denied'
+                            ? '✗ Blocked — go to browser site settings to allow'
+                            : '○ Browser permission not yet requested'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold ${item.active ? 'text-gray-700' : 'text-gray-400'}`}>{item.value}</span>
