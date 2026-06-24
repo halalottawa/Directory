@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Clock, User, ChevronLeft, ExternalLink, Edit2, Trash2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -16,31 +16,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
-
-// Beehiiv Subscription Form Embed
-const BeehiivEmbed: React.FC = () => {
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = `https://subscribe-forms.beehiiv.com/v3/loader.js?t=${Date.now()}`;
-    script.async = true;
-    script.setAttribute('data-beehiiv-form', '587dc225-734c-42ea-8148-9fcd6acfb8f7');
-    
-    document.body.appendChild(script);
-    
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
-
-  return (
-    <div className="my-8 py-6 px-4 bg-white rounded-3xl border border-gray-100 flex flex-col items-center justify-center min-h-[300px] animate-in fade-in duration-500 shadow-sm">
-      <div 
-        className="w-full max-w-xl mx-auto" 
-        data-beehiiv-form="587dc225-734c-42ea-8148-9fcd6acfb8f7"
-      />
-    </div>
-  );
-};
+import { BeehiivEmbed } from '../components/BeehiivEmbed';
 
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();

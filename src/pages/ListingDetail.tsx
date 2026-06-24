@@ -17,6 +17,7 @@ import { OpenStreetMap } from '../components/OpenStreetMap';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { toast } from 'sonner';
+import { BeehiivEmbed } from '../components/BeehiivEmbed';
 
 // Custom inline SVG social icons for zero bundle-size cost
 const FaInstagram: React.FC<{ className?: string }> = ({ className }) => (
@@ -980,7 +981,33 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           <section className="space-y-6">
             <div className="space-y-4">
               <h2 className="text-xl font-bold">About</h2>
-              <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+              {(() => {
+                const paragraphs = listing.description ? listing.description.split(/\r?\n\s*\r?\n/) : [];
+                const numParagraphs = paragraphs.length;
+
+                if (numParagraphs <= 1) {
+                  return (
+                    <>
+                      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+                      <BeehiivEmbed />
+                    </>
+                  );
+                }
+
+                const midIndex = Math.floor(numParagraphs / 2);
+                const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
+                const secondHalf = paragraphs.slice(midIndex).join('\n\n');
+
+                return (
+                  <>
+                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{firstHalf}</p>
+                    <BeehiivEmbed />
+                    {secondHalf.trim() && (
+                      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap mt-4">{secondHalf}</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Menu Section */}
