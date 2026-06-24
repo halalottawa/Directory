@@ -14,6 +14,7 @@ import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
+import { BeehiivEmbed } from '../components/BeehiivEmbed';
 
 export const JobDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -265,7 +266,48 @@ export const JobDetail: React.FC = () => {
         <section className="space-y-4">
             <h2 className="text-xl font-bold">Job Description</h2>
             <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap">
-              <ReactMarkdown>{job.description}</ReactMarkdown>
+              {(() => {
+                const paragraphs = job.description ? job.description.split(/\r?\n\s*\r?\n/) : [];
+                const numParagraphs = paragraphs.length;
+
+                if (numParagraphs <= 1) {
+                  return (
+                    <>
+                      <ReactMarkdown>{job.description}</ReactMarkdown>
+                      <BeehiivEmbed />
+                    </>
+                  );
+                }
+
+                const isHeading = (text: string) => {
+                  const trimmed = text.trim();
+                  if (/^#{1,6}\s+/.test(trimmed)) return true;
+                  if (trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length < 120 && !trimmed.includes('\n')) return true;
+                  return false;
+                };
+
+                let midIndex = Math.floor(numParagraphs / 2);
+                if (midIndex > 0 && isHeading(paragraphs[midIndex - 1])) {
+                  if (midIndex - 1 > 0) {
+                    midIndex = midIndex - 1;
+                  } else if (midIndex + 1 < numParagraphs) {
+                    midIndex = midIndex + 1;
+                  }
+                }
+
+                const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
+                const secondHalf = paragraphs.slice(midIndex).join('\n\n');
+
+                return (
+                  <>
+                    <ReactMarkdown>{firstHalf}</ReactMarkdown>
+                    <BeehiivEmbed />
+                    {secondHalf.trim() && (
+                      <ReactMarkdown>{secondHalf}</ReactMarkdown>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </section>
 

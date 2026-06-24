@@ -994,7 +994,22 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   );
                 }
 
-                const midIndex = Math.floor(numParagraphs / 2);
+                const isHeading = (text: string) => {
+                  const trimmed = text.trim();
+                  if (/^#{1,6}\s+/.test(trimmed)) return true;
+                  if (trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length < 120 && !trimmed.includes('\n')) return true;
+                  return false;
+                };
+
+                let midIndex = Math.floor(numParagraphs / 2);
+                if (midIndex > 0 && isHeading(paragraphs[midIndex - 1])) {
+                  if (midIndex - 1 > 0) {
+                    midIndex = midIndex - 1;
+                  } else if (midIndex + 1 < numParagraphs) {
+                    midIndex = midIndex + 1;
+                  }
+                }
+
                 const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
                 const secondHalf = paragraphs.slice(midIndex).join('\n\n');
 
