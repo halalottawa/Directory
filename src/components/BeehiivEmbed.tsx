@@ -24,7 +24,7 @@ export const BeehiivEmbed: React.FC = () => {
   }, []);
 
   return (
-    <div className="my-8 py-6 px-4 bg-white rounded-3xl border border-gray-100 flex flex-col items-center justify-center min-h-[300px] animate-in fade-in duration-500 shadow-sm w-full mx-auto overflow-hidden beehiiv-embed-container-wrapper">
+    <div className="my-8 sm:py-6 sm:px-4 p-0 bg-transparent sm:bg-white rounded-none sm:rounded-3xl border-none sm:border sm:border-gray-100 flex flex-col items-center justify-center min-h-0 sm:min-h-[300px] animate-in fade-in duration-500 shadow-none sm:shadow-sm w-full mx-auto overflow-hidden beehiiv-embed-container-wrapper">
       <style>{`
         .beehiiv-embed-container-wrapper {
           display: flex !important;
@@ -32,6 +32,7 @@ export const BeehiivEmbed: React.FC = () => {
           align-items: center !important;
           justify-content: center !important;
           width: 100% !important;
+          max-width: 1000px !important;
           margin: 1.5rem auto !important;
         }
         .beehiiv-embed-container-wrapper iframe,
@@ -41,6 +42,8 @@ export const BeehiivEmbed: React.FC = () => {
           margin-right: auto !important;
           display: block !important;
           text-align: center !important;
+          width: 1000px !important;
+          max-width: 100% !important;
         }
       `}</style>
       <div 
