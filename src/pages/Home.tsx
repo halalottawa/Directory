@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Newspaper, Calendar, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
+import { Search, MapPin, Newspaper, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db, getGeneralSettings } from '../firebase';
-import { Listing, NewsArticle, Event, Job } from '../types';
+import { Listing, NewsArticle, Job } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { AdDisplay } from '../components/AdDisplay';
-import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_EVENTS, DEMO_JOBS } from '../constants';
+import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_JOBS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { useAuth } from '../context/AuthContext';
@@ -77,7 +77,6 @@ export const Home: React.FC = () => {
   const [loading, setLoading] = useState(!initData);
   const [featuredListings, setFeaturedListings] = useState<Listing[]>(initData?.listings || []);
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
-  const [featuredEvents, setFeaturedEvents] = useState<Event[]>(initData?.events || []);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>(initData?.jobs || []);
   const [heroImageUrl, setHeroImageUrl] = useState<string>('');
   const navigate = useNavigate();
@@ -149,22 +148,6 @@ export const Home: React.FC = () => {
           }
         };
 
-        // Fetch Events with fallback
-        const fetchEvents = async () => {
-          try {
-            const q = isAdmin
-              ? query(collection(db, 'events'), orderBy('dateTime', 'desc'), limit(10))
-              : query(collection(db, 'events'), where('isApproved', '==', true), orderBy('dateTime', 'desc'), limit(10));
-            return await getDocs(q);
-          } catch (error) {
-            console.warn("Index not found for ordered events. Falling back to unordered larger fetch.", error);
-            const qFallback = isAdmin
-              ? query(collection(db, 'events'), limit(100))
-              : query(collection(db, 'events'), where('isApproved', '==', true), limit(100));
-            return await getDocs(qFallback);
-          }
-        };
-
         // Fetch Latest Jobs with fallback
         const fetchJobs = async () => {
           try {
@@ -182,10 +165,9 @@ export const Home: React.FC = () => {
         };
 
         // Execute all queries in parallel
-        const [listingsResult, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
+        const [listingsResult, newsSnap, jobsSnap] = await Promise.all([
           listingsPromise,
           fetchNews(),
-          fetchEvents(),
           fetchJobs()
         ]);
 
@@ -249,28 +231,6 @@ export const Home: React.FC = () => {
           })
           .slice(0, 6);
         setLatestNews(sortedNews);
-
-        const eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Event[];
-        
-        // Merge with DEMO_EVENTS, deduplicating by ID or slug
-        const mergedEventsMap = new Map<string, Event>();
-        DEMO_EVENTS.forEach(item => mergedEventsMap.set(item.id, item));
-        eventsData.forEach(item => {
-          mergedEventsMap.set(item.id, item);
-          if (item.slug) {
-            const demoItem = DEMO_EVENTS.find(d => d.slug === item.slug);
-            if (demoItem) mergedEventsMap.delete(demoItem.id);
-          }
-        });
-
-        const allEventsList = Array.from(mergedEventsMap.values());
-        const nowMs = new Date().getTime();
-        const upcomingEvents = allEventsList.filter(e => new Date(e.dateTime).getTime() >= nowMs)
-          .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime());
-        const pastEvents = allEventsList.filter(e => new Date(e.dateTime).getTime() < nowMs)
-          .sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime());
-        const sortedEvents = [...upcomingEvents, ...pastEvents].slice(0, 8);
-        setFeaturedEvents(sortedEvents);
 
         const jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
         
@@ -572,74 +532,6 @@ export const Home: React.FC = () => {
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
               <Newspaper className="w-8 h-8 text-gray-300 mb-2" />
               <p className="text-gray-400 text-sm font-medium">No news articles published recently.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Featured Events */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Events</h2>
-          <Link 
-            to="/events" 
-            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
-            aria-label="View all latest events"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden border border-gray-100/60 shadow-sm flex flex-col">
-                <div className="animate-pulse bg-gray-200 aspect-[2/1] w-full" />
-                <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
-                  <div className="animate-pulse bg-gray-200 h-4 w-3/4 rounded-md" />
-                  <div className="animate-pulse bg-gray-200 h-3 w-1/2 rounded-md mt-1" />
-                </div>
-              </div>
-            ))
-          ) : featuredEvents.length > 0 ? (
-            featuredEvents.map((event) => (
-              <Link
-                key={event.id}
-                to={`/events/${event.slug || event.id}`}
-                className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
-              >
-                <div className="relative aspect-[2/1] bg-gray-100">
-                  {event.coverImage && event.coverImage.trim() !== '' ? (
-                    <img 
-                      src={getOptimizedImageUrl(event.coverImage, 400, 200)} 
-                      alt={event.title} 
-                      className="w-full h-full object-cover" 
-                      loading="lazy"
-                      width="400"
-                      height="200"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400 text-xs font-medium">No Image</span>
-                    </div>
-                  )}
-                  <div className="absolute top-3 left-3 bg-white px-2 py-1 rounded-lg text-center shadow-lg">
-                    <span className="block text-[10px] font-bold text-[#e90b35] uppercase">{new Date(event.dateTime).toLocaleString('default', { month: 'short' })}</span>
-                    <span className="block text-lg font-black leading-none">{new Date(event.dateTime).getDate()}</span>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold leading-tight line-clamp-1">{event.title}</h3>
-                  <p className="text-[#e90b35] font-bold text-sm flex items-center gap-2 mt-1">
-                    <User className="w-3 h-3" /> {event.organizer}
-                  </p>
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
-              <Calendar className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm font-medium">No upcoming events scheduled right now.</p>
             </div>
           )}
         </div>
