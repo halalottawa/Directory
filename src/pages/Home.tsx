@@ -14,6 +14,7 @@ import { isAppWrapper } from '../utils/platform';
 import useEmblaCarousel from 'embla-carousel-react';
 import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
+import { Helmet } from 'react-helmet-async';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 const faqs = [
@@ -267,6 +268,9 @@ export const Home: React.FC = () => {
 
   return (
     <div className="animate-in fade-in duration-500 w-full">
+      <Helmet>
+        <meta name="man-site-verification" content="a2a54c227a8165de30c8765717af49c3" />
+      </Helmet>
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities."
