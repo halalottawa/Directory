@@ -15,6 +15,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { BeehiivEmbed } from '../components/BeehiivEmbed';
+import { ArticleAd } from '../components/ArticleAd';
 
 export const JobDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -270,10 +271,16 @@ export const JobDetail: React.FC = () => {
                 const paragraphs = job.description ? job.description.split(/\r?\n\s*\r?\n/) : [];
                 const numParagraphs = paragraphs.length;
 
+                const renderMd = (content: string) => {
+                  if (!content || !content.trim()) return null;
+                  return <ReactMarkdown>{content}</ReactMarkdown>;
+                };
+
                 if (numParagraphs <= 1) {
                   return (
                     <>
-                      <ReactMarkdown>{job.description}</ReactMarkdown>
+                      {renderMd(job.description || '')}
+                      <ArticleAd />
                       <BeehiivEmbed />
                     </>
                   );
@@ -286,25 +293,35 @@ export const JobDetail: React.FC = () => {
                   return false;
                 };
 
-                let midIndex = Math.floor(numParagraphs / 2);
-                if (midIndex > 0 && isHeading(paragraphs[midIndex - 1])) {
-                  if (midIndex - 1 > 0) {
-                    midIndex = midIndex - 1;
-                  } else if (midIndex + 1 < numParagraphs) {
-                    midIndex = midIndex + 1;
+                let adIndex = Math.floor(numParagraphs / 2);
+                if (adIndex > 0 && adIndex < numParagraphs && isHeading(paragraphs[adIndex - 1])) {
+                  if (adIndex - 1 > 0) {
+                    adIndex = adIndex - 1;
+                  } else if (adIndex + 1 < numParagraphs) {
+                    adIndex = adIndex + 1;
                   }
                 }
 
-                const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
-                const secondHalf = paragraphs.slice(midIndex).join('\n\n');
+                let beehiivIndex = Math.floor(numParagraphs / 2) * 2;
+                if (beehiivIndex > adIndex && beehiivIndex < numParagraphs && isHeading(paragraphs[beehiivIndex - 1])) {
+                  if (beehiivIndex - 1 > adIndex) {
+                    beehiivIndex = beehiivIndex - 1;
+                  } else if (beehiivIndex + 1 < numParagraphs) {
+                    beehiivIndex = beehiivIndex + 1;
+                  }
+                }
+
+                const firstPart = paragraphs.slice(0, adIndex).join('\n\n');
+                const secondPart = paragraphs.slice(adIndex, beehiivIndex).join('\n\n');
+                const thirdPart = paragraphs.slice(beehiivIndex).join('\n\n');
 
                 return (
                   <>
-                    <ReactMarkdown>{firstHalf}</ReactMarkdown>
+                    {renderMd(firstPart)}
+                    <ArticleAd />
+                    {renderMd(secondPart)}
                     <BeehiivEmbed />
-                    {secondHalf.trim() && (
-                      <ReactMarkdown>{secondHalf}</ReactMarkdown>
-                    )}
+                    {renderMd(thirdPart)}
                   </>
                 );
               })()}

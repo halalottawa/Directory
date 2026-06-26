@@ -18,6 +18,7 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { toast } from 'sonner';
 import { BeehiivEmbed } from '../components/BeehiivEmbed';
+import { ArticleAd } from '../components/ArticleAd';
 
 // Custom inline SVG social icons for zero bundle-size cost
 const FaInstagram: React.FC<{ className?: string }> = ({ className }) => (
@@ -985,10 +986,16 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 const paragraphs = listing.description ? listing.description.split(/\r?\n\s*\r?\n/) : [];
                 const numParagraphs = paragraphs.length;
 
+                const renderText = (content: string) => {
+                  if (!content || !content.trim()) return null;
+                  return <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{content}</p>;
+                };
+
                 if (numParagraphs <= 1) {
                   return (
                     <>
-                      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{listing.description}</p>
+                      {renderText(listing.description || '')}
+                      <ArticleAd />
                       <BeehiivEmbed />
                     </>
                   );
@@ -1001,25 +1008,35 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   return false;
                 };
 
-                let midIndex = Math.floor(numParagraphs / 2);
-                if (midIndex > 0 && isHeading(paragraphs[midIndex - 1])) {
-                  if (midIndex - 1 > 0) {
-                    midIndex = midIndex - 1;
-                  } else if (midIndex + 1 < numParagraphs) {
-                    midIndex = midIndex + 1;
+                let adIndex = Math.floor(numParagraphs / 2);
+                if (adIndex > 0 && adIndex < numParagraphs && isHeading(paragraphs[adIndex - 1])) {
+                  if (adIndex - 1 > 0) {
+                    adIndex = adIndex - 1;
+                  } else if (adIndex + 1 < numParagraphs) {
+                    adIndex = adIndex + 1;
                   }
                 }
 
-                const firstHalf = paragraphs.slice(0, midIndex).join('\n\n');
-                const secondHalf = paragraphs.slice(midIndex).join('\n\n');
+                let beehiivIndex = Math.floor(numParagraphs / 2) * 2;
+                if (beehiivIndex > adIndex && beehiivIndex < numParagraphs && isHeading(paragraphs[beehiivIndex - 1])) {
+                  if (beehiivIndex - 1 > adIndex) {
+                    beehiivIndex = beehiivIndex - 1;
+                  } else if (beehiivIndex + 1 < numParagraphs) {
+                    beehiivIndex = beehiivIndex + 1;
+                  }
+                }
+
+                const firstPart = paragraphs.slice(0, adIndex).join('\n\n');
+                const secondPart = paragraphs.slice(adIndex, beehiivIndex).join('\n\n');
+                const thirdPart = paragraphs.slice(beehiivIndex).join('\n\n');
 
                 return (
                   <>
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">{firstHalf}</p>
+                    {renderText(firstPart)}
+                    <ArticleAd />
+                    {renderText(secondPart)}
                     <BeehiivEmbed />
-                    {secondHalf.trim() && (
-                      <p className="text-gray-600 leading-relaxed whitespace-pre-wrap mt-4">{secondHalf}</p>
-                    )}
+                    {renderText(thirdPart)}
                   </>
                 );
               })()}
