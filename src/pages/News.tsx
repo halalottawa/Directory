@@ -8,7 +8,6 @@ import { NewsArticle } from '../types';
 import { DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
-import { AdDisplay } from '../components/AdDisplay';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
@@ -136,8 +135,6 @@ export const News: React.FC = () => {
           ]
         }}
       />
-
-      <AdDisplay />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">News</h1>

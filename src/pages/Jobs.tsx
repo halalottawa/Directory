@@ -9,7 +9,6 @@ import { DEMO_JOBS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
-import { AdDisplay } from '../components/AdDisplay';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
 
@@ -131,8 +130,6 @@ export const Jobs: React.FC = () => {
           ]
         }}
       />
-
-      <AdDisplay />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">Jobs</h1>

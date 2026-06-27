@@ -179,13 +179,7 @@ export interface Comment {
   replyTo?: string; // ID of another comment
 }
 
-export interface Ad {
-  id: string;
-  imageUrl: string;
-  link: string;
-  placement: 'news' | 'event';
-  createdAt: string;
-}
+
 
 export interface Notification {
   id: string;

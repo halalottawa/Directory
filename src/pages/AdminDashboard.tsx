@@ -66,11 +66,6 @@ export const AdminDashboard: React.FC = () => {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
 
-  // Ads states
-  const [ads, setAds] = useState<any[]>([]);
-  const [newAd, setNewAd] = useState({ type: 'banner', imageUrl: '', linkUrl: '', codeSnippet: '', isActive: true });
-  const [isAddingAd, setIsAddingAd] = useState(false);
-
   // Settings states
   const [siteLogoUrl, setSiteLogoUrl] = useState('');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
@@ -131,7 +126,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
-        reviewsSnap, commentsSnap, usersSnap, adsSnap, planRequestsSnap, settingsSnap, shortLinksSnap, subscribersSnap
+        reviewsSnap, commentsSnap, usersSnap, planRequestsSnap, settingsSnap, shortLinksSnap, subscribersSnap
       ] = await Promise.all([
         getDocs(collection(db, 'listings')),
         getDocs(collection(db, 'events')),
@@ -140,7 +135,6 @@ export const AdminDashboard: React.FC = () => {
         getDocs(collection(db, 'reviews')),
         getDocs(collection(db, 'comments')),
         getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'ads')),
         getDocs(collection(db, 'plan_requests')),
         getDoc(doc(db, 'settings', 'general')),
         getDocs(collection(db, 'short_links')),
@@ -161,7 +155,6 @@ export const AdminDashboard: React.FC = () => {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile))
         .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      const adsData = adsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       const plansData = planRequestsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -193,7 +186,6 @@ export const AdminDashboard: React.FC = () => {
       setAllReviews(reviews);
       setAllComments(comments);
       setAllUsers(users);
-      setAds(adsData);
       setPlanRequests(plansData);
       setShortLinks(shortLinksData.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       setStandaloneSubscribers(subs);
@@ -1270,62 +1262,6 @@ export const AdminDashboard: React.FC = () => {
     } finally {
       setIsImporting(false);
     }
-  };
-
-  const handleSaveAd = async () => {
-    if (newAd.type === 'banner' && (!newAd.imageUrl || !newAd.linkUrl)) {
-      toast.error('Please provide both image URL and link URL for banner ads.');
-      return;
-    }
-    if (newAd.type === 'code' && !newAd.codeSnippet) {
-      toast.error('Please provide the code snippet.');
-      return;
-    }
-    
-    try {
-      const { addDoc, serverTimestamp } = await import('firebase/firestore');
-      await addDoc(collection(db, 'ads'), {
-        ...newAd,
-        createdAt: serverTimestamp()
-      });
-      toast.success('Ad saved successfully!');
-      setNewAd({ type: 'banner', imageUrl: '', linkUrl: '', codeSnippet: '', isActive: true });
-      setIsAddingAd(false);
-      fetchData();
-    } catch (err) {
-      toast.error('Failed to save ad.');
-    }
-  };
-
-  const toggleAdStatus = async (adId: string, currentStatus: boolean) => {
-    try {
-      await updateDoc(doc(db, 'ads', adId), { isActive: !currentStatus });
-      toast.success('Ad status updated');
-      fetchData();
-    } catch (err) {
-      toast.error('Failed to update ad status');
-    }
-  };
-
-  const deleteAd = (adId: string) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Delete Ad',
-      message: 'Are you sure you want to delete this ad?',
-      confirmText: 'Delete',
-      confirmVariant: 'danger',
-      onConfirm: async () => {
-        try {
-          await deleteDoc(doc(db, 'ads', adId));
-          toast.success('Ad deleted successfully');
-          fetchData();
-        } catch (err) {
-          toast.error('Failed to delete ad');
-        } finally {
-          setConfirmModal(null);
-        }
-      }
-    });
   };
 
   const handleCreateShortLink = async () => {
@@ -2413,141 +2349,6 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </>
             )}
-          </div>
-        </section>
-
-        {/* Ads Management Section */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between ml-2">
-            <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-              Ads Management
-            </h2>
-            <button 
-              onClick={() => setIsAddingAd(!isAddingAd)}
-              className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
-            >
-              {isAddingAd ? 'Cancel' : '+ Add New Ad'}
-            </button>
-          </div>
-          
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden p-6 space-y-6">
-            {isAddingAd && (
-              <div className="bg-gray-50 rounded-2xl p-4 space-y-4 border border-gray-100 mb-6">
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="adType" 
-                      value="banner" 
-                      checked={newAd.type === 'banner'} 
-                      onChange={() => setNewAd({...newAd, type: 'banner'})}
-                      className="text-blue-600 focus:ring-blue-500"
-                    />
-                    Banner Image
-                  </label>
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      name="adType" 
-                      value="code" 
-                      checked={newAd.type === 'code'} 
-                      onChange={() => setNewAd({...newAd, type: 'code'})}
-                      className="text-blue-600 focus:ring-blue-500"
-                    />
-                    Custom Code Snippet
-                  </label>
-                </div>
-
-                {newAd.type === 'banner' ? (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Image URL</label>
-                      <input 
-                        type="text" 
-                        value={newAd.imageUrl}
-                        onChange={(e) => setNewAd({...newAd, imageUrl: e.target.value})}
-                        placeholder="https://example.com/banner.jpg" 
-                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">Link URL</label>
-                      <input 
-                        type="text" 
-                        value={newAd.linkUrl}
-                        onChange={(e) => setNewAd({...newAd, linkUrl: e.target.value})}
-                        placeholder="https://example.com" 
-                        className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 ml-1">HTML/JS Code Snippet</label>
-                    <textarea 
-                      value={newAd.codeSnippet}
-                      onChange={(e) => setNewAd({...newAd, codeSnippet: e.target.value})}
-                      placeholder="<script src='...'></script>" 
-                      rows={4}
-                      className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all resize-none"
-                    />
-                  </div>
-                )}
-                
-                <div className="flex justify-end pt-2">
-                  <button 
-                    onClick={handleSaveAd}
-                    className="px-6 py-2 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-gray-800 transition-colors"
-                  >
-                    Save Ad
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              {ads.length === 0 ? (
-                <p className="text-gray-400 text-sm font-medium italic text-center py-4">No ads configured.</p>
-              ) : (
-                ads.map(ad => (
-                  <div key={ad.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                        {ad.type === 'banner' && ad.imageUrl ? (
-                          <img src={(ad.imageUrl) || undefined} alt="Ad" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-xs font-bold text-gray-400">CODE</span>
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-gray-900 text-sm truncate">
-                          {ad.type === 'banner' ? 'Banner Ad' : 'Code Snippet Ad'}
-                        </h4>
-                        <p className="text-xs text-gray-500 truncate max-w-[200px] sm:max-w-md">
-                          {ad.type === 'banner' ? ad.linkUrl : 'Custom HTML/JS'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button 
-                        onClick={() => toggleAdStatus(ad.id, ad.isActive)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                          ad.isActive ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                        }`}
-                      >
-                        {ad.isActive ? 'Active' : 'Inactive'}
-                      </button>
-                      <button 
-                        onClick={() => deleteAd(ad.id)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
         </section>
 

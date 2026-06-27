@@ -8,7 +8,6 @@ import { Event } from '../types';
 import { DEMO_EVENTS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate, formatTime, formatEventDates } from '../utils/dateFormatter';
-import { AdDisplay } from '../components/AdDisplay';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
@@ -135,8 +134,6 @@ export const Events: React.FC = () => {
           ]
         }}
       />
-
-      <AdDisplay />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">Events</h1>

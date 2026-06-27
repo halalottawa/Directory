@@ -5,7 +5,6 @@ import { collection, query, where, getDocs, limit, orderBy } from 'firebase/fire
 import { db, getGeneralSettings } from '../firebase';
 import { Listing, NewsArticle, Job } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_JOBS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
@@ -341,8 +340,6 @@ export const Home: React.FC = () => {
 
       {/* Main Content Container with standard padding and maximum width */}
       <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
-        <AdDisplay />
-
         {/* Categories - Mobile Grid */}
       <section className="grid grid-cols-3 gap-3 md:hidden">
         {CATEGORIES.slice(0, 6).map((cat) => (

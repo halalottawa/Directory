@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Compass, MapPin, Navigation2, Crosshair, AlertCircle } from 'lucide-react';
 import { SEO } from '../components/SEO';
-import { AdDisplay } from '../components/AdDisplay';
 
 const KAABA_LAT = 21.422487;
 const KAABA_LNG = 39.826206;
@@ -141,8 +140,6 @@ export const QiblaDirection: React.FC = () => {
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
-        <AdDisplay />
-
         <div className="flex flex-col items-center text-center space-y-8">
         <div className="space-y-4">
           <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">

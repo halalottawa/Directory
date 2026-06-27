@@ -6,7 +6,6 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { AdDisplay } from '../components/AdDisplay';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
@@ -298,8 +297,6 @@ export const Listings: React.FC = () => {
           }
         ]}
       />
-
-      <AdDisplay />
 
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">Listings</h1>
