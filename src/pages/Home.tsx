@@ -75,7 +75,18 @@ export const Home: React.FC = () => {
     : null;
 
   const [loading, setLoading] = useState(!initData);
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>(initData?.listings || []);
+  const parseInitTime = (val: any): number => {
+    if (!val) return 0;
+    if (typeof val.toDate === 'function') return val.toDate().getTime();
+    if (typeof val.seconds === 'number') return val.seconds * 1000;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  };
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>(
+    initData?.listings
+      ? [...initData.listings].sort((a, b) => parseInitTime(b.createdAt) - parseInitTime(a.createdAt)).slice(0, 8)
+      : []
+  );
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>(initData?.jobs || []);
   const [heroImageUrl, setHeroImageUrl] = useState<string>('');

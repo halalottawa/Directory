@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, getDoc, query, where, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } from 'firebase/firestore';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -263,7 +263,7 @@ async function prerender() {
 
       // Pre-fetch Home Page Initial Data
       try {
-        const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), limit(50));
+        const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
         const qNewsHome = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
         const qEventsHome = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
         const qJobsHome = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
@@ -272,7 +272,15 @@ async function prerender() {
           getDocs(qListingsHome), getDocs(qNewsHome), getDocs(qEventsHome), getDocs(qJobsHome)
         ]);
 
-        const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        const parseListingTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val.toDate === 'function') return val.toDate().getTime();
+          if (typeof val.seconds === 'number') return val.seconds * 1000;
+          const d = new Date(val);
+          return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+        listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 8);
         let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
         let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
