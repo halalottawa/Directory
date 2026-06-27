@@ -16,7 +16,6 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
-import { BeehiivEmbed } from '../components/BeehiivEmbed';
 import { ArticleAd } from '../components/ArticleAd';
 
 export const NewsDetail: React.FC = () => {
@@ -275,47 +274,24 @@ export const NewsDetail: React.FC = () => {
               <>
                 {renderMd(article.content || '')}
                 <ArticleAd />
-                <BeehiivEmbed />
               </>
             );
           }
 
-          const isHeading = (text: string) => {
-            const trimmed = text.trim();
-            if (/^#{1,6}\s+/.test(trimmed)) return true;
-            if (trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length < 120 && !trimmed.includes('\n')) return true;
-            return false;
-          };
+          const idx1 = Math.floor(numParagraphs / 2);
+          const idx2 = idx1 * 2;
 
-          let adIndex = Math.floor(numParagraphs / 2);
-          if (adIndex > 0 && adIndex < numParagraphs && isHeading(paragraphs[adIndex - 1])) {
-            if (adIndex - 1 > 0) {
-              adIndex = adIndex - 1;
-            } else if (adIndex + 1 < numParagraphs) {
-              adIndex = adIndex + 1;
-            }
-          }
-
-          let beehiivIndex = Math.floor(numParagraphs / 2) * 2;
-          if (beehiivIndex > adIndex && beehiivIndex < numParagraphs && isHeading(paragraphs[beehiivIndex - 1])) {
-            if (beehiivIndex - 1 > adIndex) {
-              beehiivIndex = beehiivIndex - 1;
-            } else if (beehiivIndex + 1 < numParagraphs) {
-              beehiivIndex = beehiivIndex + 1;
-            }
-          }
-
-          const firstPart = paragraphs.slice(0, adIndex).join('\n\n');
-          const secondPart = paragraphs.slice(adIndex, beehiivIndex).join('\n\n');
-          const thirdPart = paragraphs.slice(beehiivIndex).join('\n\n');
+          const firstPart = paragraphs.slice(0, idx1).join('\n\n');
+          const secondPart = paragraphs.slice(idx1, idx2).join('\n\n');
+          const thirdPart = paragraphs.slice(idx2).join('\n\n');
 
           return (
             <>
               {renderMd(firstPart)}
               <ArticleAd />
               {renderMd(secondPart)}
-              <BeehiivEmbed />
-              {renderMd(thirdPart)}
+              <ArticleAd />
+              {thirdPart.trim() ? renderMd(thirdPart) : null}
             </>
           );
         })()}
