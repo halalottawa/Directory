@@ -1837,6 +1837,131 @@ async function startServer() {
     }
   });
 
+  app.get("/sitemap-news.xml", async (req, res) => {
+    try {
+      const fs = await import("fs");
+      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+
+      let db: any = null;
+
+      if (fs.existsSync(configPath)) {
+        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        const { initializeApp, getApps } = await import("firebase/app");
+        const { getFirestore } = await import("firebase/firestore");
+        const fbApp = getApps().find((app: any) => app.name === 'news-sitemap-app') || initializeApp(firebaseConfig, 'news-sitemap-app');
+        db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+      }
+
+      const BASE_URL = 'https://www.halalottawa.ca';
+
+      const escapeXml = (str: string): string => {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      };
+
+      const toIso = (val: any): string => {
+        if (!val) return new Date().toISOString();
+        if (typeof val.toDate === 'function') return val.toDate().toISOString();
+        if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      };
+
+      interface NewsUrl {
+        loc: string;
+        title: string;
+        publishDate: string;
+      }
+
+      const newsUrls: NewsUrl[] = [];
+
+      if (db) {
+        const { collection, getDocs, query, where, orderBy, limit } = await import("firebase/firestore");
+        try {
+          const q = query(
+            collection(db, 'news'),
+            where('isApproved', '==', true),
+            orderBy('publishDate', 'desc'),
+            limit(1000)
+          );
+          const snap = await getDocs(q);
+          snap.forEach((docSnap: any) => {
+            const data = docSnap.data();
+            const idPath = data.slug || docSnap.id;
+            newsUrls.push({
+              loc: `${BASE_URL}/news/${idPath}`,
+              title: data.title || '',
+              publishDate: toIso(data.publishDate || data.createdAt),
+            });
+          });
+        } catch (e) {
+          console.error("Error fetching news for sitemap-news.xml:", e);
+          try {
+            const fallbackQ = query(collection(db, 'news'), where('isApproved', '==', true));
+            const fallbackSnap = await getDocs(fallbackQ);
+            const docs: any[] = [];
+            fallbackSnap.forEach((docSnap: any) => docs.push({ id: docSnap.id, data: docSnap.data() }));
+            docs.sort((a, b) => {
+              const dateA = new Date(toIso(a.data.publishDate || a.data.createdAt)).getTime();
+              const dateB = new Date(toIso(b.data.publishDate || b.data.createdAt)).getTime();
+              return dateB - dateA;
+            });
+            docs.slice(0, 1000).forEach(({ id, data }) => {
+              const idPath = data.slug || id;
+              newsUrls.push({
+                loc: `${BASE_URL}/news/${idPath}`,
+                title: data.title || '',
+                publishDate: toIso(data.publishDate || data.createdAt),
+              });
+            });
+          } catch (fallbackErr) {
+            console.error("Fallback news fetch failed:", fallbackErr);
+          }
+        }
+      }
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+      xml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
+
+      for (const item of newsUrls) {
+        xml += `  <url>\n`;
+        xml += `    <loc>${item.loc}</loc>\n`;
+        xml += `    <news:news>\n`;
+        xml += `      <news:publication>\n`;
+        xml += `        <news:name>Halal Ottawa</news:name>\n`;
+        xml += `        <news:language>en</news:language>\n`;
+        xml += `      </news:publication>\n`;
+        xml += `      <news:publication_date>${item.publishDate}</news:publication_date>\n`;
+        xml += `      <news:title>${escapeXml(item.title)}</news:title>\n`;
+        xml += `    </news:news>\n`;
+        xml += `  </url>\n`;
+      }
+
+      xml += `</urlset>\n`;
+
+      res.header('Content-Type', 'application/xml');
+      res.send(xml);
+    } catch (e: any) {
+      console.error("Error generating news sitemap:", e);
+      try {
+        const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap-news.xml");
+        if (fs.existsSync(distStaticPath)) {
+          res.header('Content-Type', 'application/xml');
+          return res.sendFile(distStaticPath);
+        }
+        const publicStaticPath = path.resolve(process.cwd(), "public", "sitemap-news.xml");
+        if (fs.existsSync(publicStaticPath)) {
+          res.header('Content-Type', 'application/xml');
+          return res.sendFile(publicStaticPath);
+        }
+      } catch (fallbackError) {
+        console.error("Static news sitemap fallback serve failed:", fallbackError);
+      }
+      res.status(500).send('Error generating news sitemap');
+    }
+  });
+
   app.post("/api/admin/fetch-listing-ai-info", express.json(), async (req, res) => {
     const { name, currentAddress } = req.body;
     try {

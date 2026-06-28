@@ -1,13 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
 const escapeXml = (str: string): string => {
   if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
 const staticUrls = [
@@ -185,6 +185,97 @@ async function generateSitemap() {
     const distLogPath = path.join(distPath, 'sitemap.xml');
     fs.writeFileSync(distLogPath, xml);
     console.log(`Sitemap written to ${distLogPath}`);
+  }
+
+  // Generate Google News sitemap (sitemap-news.xml)
+  const toIso = (val: any): string => {
+    if (!val) return new Date().toISOString();
+    if (typeof val.toDate === 'function') return val.toDate().toISOString();
+    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  };
+
+  interface NewsUrl {
+    loc: string;
+    title: string;
+    publishDate: string;
+  }
+
+  const newsUrls: NewsUrl[] = [];
+
+  if (db) {
+    try {
+      const q = query(
+        collection(db, 'news'),
+        where('isApproved', '==', true),
+        orderBy('publishDate', 'desc'),
+        limit(1000)
+      );
+      const snap = await getDocs(q);
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const idPath = data.slug || docSnap.id;
+        newsUrls.push({
+          loc: `${BASE_URL}/news/${idPath}`,
+          title: data.title || '',
+          publishDate: toIso(data.publishDate || data.createdAt),
+        });
+      });
+    } catch (e) {
+      console.error("Error fetching news for sitemap-news.xml:", e);
+      try {
+        const fallbackQ = query(collection(db, 'news'), where('isApproved', '==', true));
+        const fallbackSnap = await getDocs(fallbackQ);
+        const docs: any[] = [];
+        fallbackSnap.forEach((docSnap: any) => docs.push({ id: docSnap.id, data: docSnap.data() }));
+        docs.sort((a, b) => {
+          const dateA = new Date(toIso(a.data.publishDate || a.data.createdAt)).getTime();
+          const dateB = new Date(toIso(b.data.publishDate || b.data.createdAt)).getTime();
+          return dateB - dateA;
+        });
+        docs.slice(0, 1000).forEach(({ id, data }) => {
+          const idPath = data.slug || id;
+          newsUrls.push({
+            loc: `${BASE_URL}/news/${idPath}`,
+            title: data.title || '',
+            publishDate: toIso(data.publishDate || data.createdAt),
+          });
+        });
+      } catch (fallbackErr) {
+        console.error("Fallback news fetch failed:", fallbackErr);
+      }
+    }
+  }
+
+  let newsXml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  newsXml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
+  newsXml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
+
+  for (const item of newsUrls) {
+    newsXml += `  <url>\n`;
+    newsXml += `    <loc>${item.loc}</loc>\n`;
+    newsXml += `    <news:news>\n`;
+    newsXml += `      <news:publication>\n`;
+    newsXml += `        <news:name>Halal Ottawa</news:name>\n`;
+    newsXml += `        <news:language>en</news:language>\n`;
+    newsXml += `      </news:publication>\n`;
+    newsXml += `      <news:publication_date>${item.publishDate}</news:publication_date>\n`;
+    newsXml += `      <news:title>${escapeXml(item.title)}</news:title>\n`;
+    newsXml += `    </news:news>\n`;
+    newsXml += `  </url>\n`;
+  }
+
+  newsXml += `</urlset>\n`;
+
+  const outputNewsPath = path.resolve(process.cwd(), 'public', 'sitemap-news.xml');
+  fs.writeFileSync(outputNewsPath, newsXml);
+  console.log(`News sitemap written to ${outputNewsPath}`);
+
+  if (fs.existsSync(distPath)) {
+    const distNewsPath = path.join(distPath, 'sitemap-news.xml');
+    fs.writeFileSync(distNewsPath, newsXml);
+    console.log(`News sitemap written to ${distNewsPath}`);
   }
 }
 

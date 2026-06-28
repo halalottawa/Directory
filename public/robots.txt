@@ -38,3 +38,4 @@ Allow: /llm.txt
 
 # Sitemap
 Sitemap: https://www.halalottawa.ca/sitemap.xml
+Sitemap: https://www.halalottawa.ca/sitemap-news.xml
