@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -188,13 +188,18 @@ async function generateSitemap() {
   }
 
   // Generate Google News sitemap (sitemap-news.xml)
-  const toIso = (val: any): string => {
-    if (!val) return new Date().toISOString();
-    if (typeof val.toDate === 'function') return val.toDate().toISOString();
-    if (typeof val.seconds === 'number') return new Date(val.seconds * 1000).toISOString();
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+  const toW3CDate = (val: any): string => {
+    if (!val) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    let d: Date;
+    if (typeof val.toDate === 'function') d = val.toDate();
+    else if (typeof val.seconds === 'number') d = new Date(val.seconds * 1000);
+    else d = new Date(val);
+    if (isNaN(d.getTime())) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // YYYY-MM-DDThh:mm:ssZ
   };
+
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
   interface NewsUrl {
     loc: string;
@@ -206,9 +211,11 @@ async function generateSitemap() {
 
   if (db) {
     try {
+      const cutoff = Timestamp.fromDate(twoDaysAgo);
       const q = query(
         collection(db, 'news'),
         where('isApproved', '==', true),
+        where('publishDate', '>=', cutoff),
         orderBy('publishDate', 'desc'),
         limit(1000)
       );
@@ -219,7 +226,7 @@ async function generateSitemap() {
         newsUrls.push({
           loc: `${BASE_URL}/news/${idPath}`,
           title: data.title || '',
-          publishDate: toIso(data.publishDate || data.createdAt),
+          publishDate: toW3CDate(data.publishDate || data.createdAt),
         });
       });
     } catch (e) {
@@ -230,16 +237,20 @@ async function generateSitemap() {
         const docs: any[] = [];
         fallbackSnap.forEach((docSnap: any) => docs.push({ id: docSnap.id, data: docSnap.data() }));
         docs.sort((a, b) => {
-          const dateA = new Date(toIso(a.data.publishDate || a.data.createdAt)).getTime();
-          const dateB = new Date(toIso(b.data.publishDate || b.data.createdAt)).getTime();
+          const dateA = new Date(toW3CDate(a.data.publishDate || a.data.createdAt)).getTime();
+          const dateB = new Date(toW3CDate(b.data.publishDate || b.data.createdAt)).getTime();
           return dateB - dateA;
         });
-        docs.slice(0, 1000).forEach(({ id, data }) => {
+        const cutoffTime = twoDaysAgo.getTime();
+        docs.filter(item => {
+          const itemTime = new Date(toW3CDate(item.data.publishDate || item.data.createdAt)).getTime();
+          return itemTime >= cutoffTime;
+        }).slice(0, 1000).forEach(({ id, data }) => {
           const idPath = data.slug || id;
           newsUrls.push({
             loc: `${BASE_URL}/news/${idPath}`,
             title: data.title || '',
-            publishDate: toIso(data.publishDate || data.createdAt),
+            publishDate: toW3CDate(data.publishDate || data.createdAt),
           });
         });
       } catch (fallbackErr) {
