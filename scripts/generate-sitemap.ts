@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -188,74 +188,34 @@ async function generateSitemap() {
   }
 
   // Generate Google News sitemap (sitemap-news.xml)
-  const toW3CDate = (val: any): string => {
-    if (!val) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-    let d: Date;
-    if (typeof val.toDate === 'function') d = val.toDate();
-    else if (typeof val.seconds === 'number') d = new Date(val.seconds * 1000);
-    else d = new Date(val);
-    if (isNaN(d.getTime())) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-    return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // YYYY-MM-DDThh:mm:ssZ
+  const getDocPubDate = (data: any): string => {
+    const rawDate = data.publishDate || data.createdAt;
+    if (!rawDate) return today;
+    if (typeof rawDate.toDate === 'function') {
+      return rawDate.toDate().toISOString().split('T')[0];
+    }
+    const d = new Date(rawDate);
+    return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
   };
 
-  const twoDaysAgo = new Date();
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-
-  interface NewsUrl {
-    loc: string;
-    title: string;
-    publishDate: string;
-  }
-
-  const newsUrls: NewsUrl[] = [];
+  const newsUrls: { loc: string; title: string; pubDate: string }[] = [];
 
   if (db) {
     try {
-      const cutoff = Timestamp.fromDate(twoDaysAgo);
-      const q = query(
-        collection(db, 'news'),
-        where('isApproved', '==', true),
-        where('publishDate', '>=', cutoff),
-        orderBy('publishDate', 'desc'),
-        limit(1000)
-      );
+      const q = query(collection(db, 'news'));
       const snap = await getDocs(q);
-      snap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const idPath = data.slug || docSnap.id;
+      snap.forEach((doc) => {
+        const data = doc.data();
+        if (data.isApproved === false) return;
+        const idPath = data.slug || doc.id;
         newsUrls.push({
           loc: `${BASE_URL}/news/${idPath}`,
           title: data.title || '',
-          publishDate: toW3CDate(data.publishDate || data.createdAt),
+          pubDate: getDocPubDate(data)
         });
       });
     } catch (e) {
       console.error("Error fetching news for sitemap-news.xml:", e);
-      try {
-        const fallbackQ = query(collection(db, 'news'), where('isApproved', '==', true));
-        const fallbackSnap = await getDocs(fallbackQ);
-        const docs: any[] = [];
-        fallbackSnap.forEach((docSnap: any) => docs.push({ id: docSnap.id, data: docSnap.data() }));
-        docs.sort((a, b) => {
-          const dateA = new Date(toW3CDate(a.data.publishDate || a.data.createdAt)).getTime();
-          const dateB = new Date(toW3CDate(b.data.publishDate || b.data.createdAt)).getTime();
-          return dateB - dateA;
-        });
-        const cutoffTime = twoDaysAgo.getTime();
-        docs.filter(item => {
-          const itemTime = new Date(toW3CDate(item.data.publishDate || item.data.createdAt)).getTime();
-          return itemTime >= cutoffTime;
-        }).slice(0, 1000).forEach(({ id, data }) => {
-          const idPath = data.slug || id;
-          newsUrls.push({
-            loc: `${BASE_URL}/news/${idPath}`,
-            title: data.title || '',
-            publishDate: toW3CDate(data.publishDate || data.createdAt),
-          });
-        });
-      } catch (fallbackErr) {
-        console.error("Fallback news fetch failed:", fallbackErr);
-      }
     }
   }
 
@@ -271,8 +231,8 @@ async function generateSitemap() {
     newsXml += `        <news:name>Halal Ottawa</news:name>\n`;
     newsXml += `        <news:language>en</news:language>\n`;
     newsXml += `      </news:publication>\n`;
-    newsXml += `      <news:publication_date>${item.publishDate}</news:publication_date>\n`;
-    newsXml += `      <news:title>${escapeXml(item.title)}</news:title>\n`;
+    newsXml += `      <news:publication_date>${item.pubDate}</news:publication_date>\n`;
+    newsXml += `      <news:title>${escapeXml((item.title || '').trim())}</news:title>\n`;
     newsXml += `    </news:news>\n`;
     newsXml += `  </url>\n`;
   }

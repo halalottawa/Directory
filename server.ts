@@ -1842,97 +1842,58 @@ async function startServer() {
       const fs = await import("fs");
       const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
 
-      let db: any = null;
+      let fbApp;
+      let db;
 
       if (fs.existsSync(configPath)) {
         const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
         const { initializeApp, getApps } = await import("firebase/app");
         const { getFirestore } = await import("firebase/firestore");
-        const fbApp = getApps().find((app: any) => app.name === 'news-sitemap-app') || initializeApp(firebaseConfig, 'news-sitemap-app');
+
+        fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
         db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
       }
 
       const BASE_URL = 'https://www.halalottawa.ca';
+      const today = new Date().toISOString().split('T')[0];
 
       const escapeXml = (str: string): string => {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       };
 
-      const toW3CDate = (val: any): string => {
-        if (!val) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-        let d: Date;
-        if (typeof val.toDate === 'function') d = val.toDate();
-        else if (typeof val.seconds === 'number') d = new Date(val.seconds * 1000);
-        else d = new Date(val);
-        if (isNaN(d.getTime())) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-        return d.toISOString().replace(/\.\d{3}Z$/, 'Z'); // YYYY-MM-DDThh:mm:ssZ
+      const getDocPubDate = (data: any): string => {
+        const rawDate = data.publishDate || data.createdAt;
+        if (!rawDate) return today;
+        if (typeof rawDate.toDate === 'function') {
+          return rawDate.toDate().toISOString().split('T')[0];
+        }
+        const d = new Date(rawDate);
+        return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
       };
 
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-
-      interface NewsUrl {
-        loc: string;
-        title: string;
-        publishDate: string;
-      }
-
-      const newsUrls: NewsUrl[] = [];
+      const newsUrls: { loc: string; title: string; pubDate: string }[] = [];
 
       if (db) {
-        const { collection, getDocs, query, where, orderBy, limit, Timestamp } = await import("firebase/firestore");
+        const { collection, getDocs, query } = await import("firebase/firestore");
         try {
-          // Only fetch articles published in the last 2 days per Google's spec
-          const cutoff = Timestamp.fromDate(twoDaysAgo);
-          const q = query(
-            collection(db, 'news'),
-            where('isApproved', '==', true),
-            where('publishDate', '>=', cutoff),
-            orderBy('publishDate', 'desc'),
-            limit(1000)
-          );
+          const q = query(collection(db, 'news'));
           const snap = await getDocs(q);
-          snap.forEach((docSnap: any) => {
-            const data = docSnap.data();
-            const idPath = data.slug || docSnap.id;
+          snap.forEach((doc) => {
+            const data = doc.data();
+            if (data.isApproved === false) return;
+            const idPath = data.slug || doc.id;
             newsUrls.push({
               loc: `${BASE_URL}/news/${idPath}`,
               title: data.title || '',
-              publishDate: toW3CDate(data.publishDate || data.createdAt),
+              pubDate: getDocPubDate(data)
             });
           });
         } catch (e) {
           console.error("Error fetching news for sitemap-news.xml:", e);
-          try {
-            const fallbackQ = query(collection(db, 'news'), where('isApproved', '==', true));
-            const fallbackSnap = await getDocs(fallbackQ);
-            const docs: any[] = [];
-            fallbackSnap.forEach((docSnap: any) => docs.push({ id: docSnap.id, data: docSnap.data() }));
-            docs.sort((a, b) => {
-              const dateA = new Date(toW3CDate(a.data.publishDate || a.data.createdAt)).getTime();
-              const dateB = new Date(toW3CDate(b.data.publishDate || b.data.createdAt)).getTime();
-              return dateB - dateA;
-            });
-            const cutoffTime = twoDaysAgo.getTime();
-            docs.filter(item => {
-              const itemTime = new Date(toW3CDate(item.data.publishDate || item.data.createdAt)).getTime();
-              return itemTime >= cutoffTime;
-            }).slice(0, 1000).forEach(({ id, data }) => {
-              const idPath = data.slug || id;
-              newsUrls.push({
-                loc: `${BASE_URL}/news/${idPath}`,
-                title: data.title || '',
-                publishDate: toW3CDate(data.publishDate || data.createdAt),
-              });
-            });
-          } catch (fallbackErr) {
-            console.error("Fallback news fetch failed:", fallbackErr);
-          }
         }
       }
 
-      // Sitemap may be empty if no articles published in last 2 days — this is fine per Google's spec
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
       xml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
@@ -1945,8 +1906,8 @@ async function startServer() {
         xml += `        <news:name>Halal Ottawa</news:name>\n`;
         xml += `        <news:language>en</news:language>\n`;
         xml += `      </news:publication>\n`;
-        xml += `      <news:publication_date>${item.publishDate}</news:publication_date>\n`;
-        xml += `      <news:title>${escapeXml(item.title)}</news:title>\n`;
+        xml += `      <news:publication_date>${item.pubDate}</news:publication_date>\n`;
+        xml += `      <news:title>${escapeXml((item.title || '').trim())}</news:title>\n`;
         xml += `    </news:news>\n`;
         xml += `  </url>\n`;
       }
