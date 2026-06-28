@@ -190,28 +190,36 @@ async function generateSitemap() {
   // Generate Google News sitemap (sitemap-news.xml)
   const getDocPubDate = (data: any): string => {
     const rawDate = data.publishDate || data.createdAt;
-    if (!rawDate) return today;
+    if (!rawDate) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     if (typeof rawDate.toDate === 'function') {
-      return rawDate.toDate().toISOString().split('T')[0];
+      return rawDate.toDate().toISOString().replace(/\.\d{3}Z$/, 'Z');
     }
     const d = new Date(rawDate);
-    return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
+    return isNaN(d.getTime()) ? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') : d.toISOString().replace(/\.\d{3}Z$/, 'Z');
   };
 
   const newsUrls: { loc: string; title: string; pubDate: string }[] = [];
 
   if (db) {
     try {
-      const q = query(collection(db, 'news'));
+      // Google News spec: only include articles from the last 2 days
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      twoDaysAgo.setHours(0, 0, 0, 0);
+      const cutoffStr = twoDaysAgo.toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+      const q = query(collection(db, 'news'), where('isApproved', '==', true));
       const snap = await getDocs(q);
       snap.forEach((doc) => {
         const data = doc.data();
-        if (data.isApproved === false) return;
+        const pubDateStr = data.publishDate || data.createdAt || '';
+        // Filter to last 2 days in JS (publishDate is stored as "YYYY-MM-DD" string)
+        if (pubDateStr < cutoffStr) return;
         const idPath = data.slug || doc.id;
         newsUrls.push({
           loc: `${BASE_URL}/news/${idPath}`,
           title: data.title || '',
-          pubDate: getDocPubDate(data)
+          pubDate: pubDateStr
         });
       });
     } catch (e) {
