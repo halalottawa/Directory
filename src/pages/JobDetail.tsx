@@ -151,7 +151,7 @@ export const JobDetail: React.FC = () => {
         <SEO
         title={`${job.title} | ${job.company}`}
         description={`Compare requirement details and apply for the ${job.title} (${job.type}) position at ${job.company} in ${job.location}. Explore career tasks, qualifications, salary, and online application guidelines.`}
-        canonicalUrl={`https://www.halalottawa.ca/jobs/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/jobs/${job.slug || job.id}`}
         ogImage={job.companyLogo || undefined}
         disableSuffix={true}
         structuredData={[

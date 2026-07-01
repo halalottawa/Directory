@@ -421,17 +421,24 @@ async function prerender() {
     try {
       let html = baseTemplate;
       
+      // Strip existing OG, Twitter and canonical tags to prevent duplicates and ensure fresh values are injected
+      html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
+      html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
+      html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
+
       // Inject standard SEO Tags with safe HTML escaping
       html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(page.title)}</title>`);
       html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
       
+      const ogType = (page.routeType === 'news' || page.routeType === 'event') ? 'article' : 'website';
+
       let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
     <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + page.urlPath)}" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="${ogType}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(page.title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(page.description)}" />

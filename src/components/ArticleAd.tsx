@@ -23,6 +23,11 @@ export const ArticleAd: React.FC = () => {
   return (
     <div className="my-8 w-full flex flex-col items-center justify-center overflow-hidden">
       <div ref={containerRef} className="w-full flex justify-center" />
+      <p style={{ textAlign: 'center' }} className="mt-2 text-xs text-gray-500">
+        <a href="https://www.muslimadnetwork.com/?pub=halalottawa" title="Advertise and Market to Muslims" target="_blank" rel="noopener noreferrer" className="hover:underline">
+          Ads by Muslim Ad Network
+        </a>
+      </p>
     </div>
   );
 };

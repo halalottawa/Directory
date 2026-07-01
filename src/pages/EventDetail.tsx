@@ -195,7 +195,7 @@ export const EventDetail: React.FC = () => {
         <SEO
         title={event.title}
         description={event.description.length > 150 ? event.description.substring(0, 150) + '...' : event.description}
-        canonicalUrl={`https://www.halalottawa.ca/events/${slug}`}
+        canonicalUrl={`https://www.halalottawa.ca/events/${event.slug || event.id}`}
         ogImage={event.coverImage || undefined}
         structuredData={[
           {
