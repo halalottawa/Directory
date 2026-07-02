@@ -361,7 +361,9 @@ async function startServer() {
     const host = String(req.headers.host || "").toLowerCase();
     const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
     
-    if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa')) {
+    const isStagingSandbox = host.includes('ais-dev-') || host.includes('ais-pre-') || host.includes('google-') || host.includes('localhost') || host.includes('127.0.0.1');
+    
+    if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa') && !isStagingSandbox) {
       return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
     }
     next();
@@ -3307,7 +3309,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const cat = Array.isArray(initialData.category) && initialData.category.length > 0
           ? initialData.category[0]
           : typeof initialData.category === 'string' ? initialData.category : 'listings';
-        const formattedCategory = String(cat).toLowerCase();
+        const formattedCategory = normalizeCategoryToSlug(cat);
         canonicalPath = `/${formattedCategory}/${initialData.slug || initialData.id}`;
       } else if (routeType === 'news') {
         canonicalPath = `/news/${initialData.slug || initialData.id}`;
