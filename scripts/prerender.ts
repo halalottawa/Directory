@@ -432,18 +432,35 @@ async function prerender() {
       
       const ogType = (page.routeType === 'news' || page.routeType === 'event') ? 'article' : 'website';
 
+      let resolvedCanonicalPath = page.urlPath;
+      if (page.initialData) {
+        if (page.routeType === 'listing') {
+          const cat = Array.isArray(page.initialData.category) && page.initialData.category.length > 0
+            ? page.initialData.category[0]
+            : typeof page.initialData.category === 'string' ? page.initialData.category : 'listings';
+          const formattedCategory = normalizeCategoryToSlug(cat);
+          resolvedCanonicalPath = `/${formattedCategory}/${page.initialData.slug || page.initialData.id}`;
+        } else if (page.routeType === 'news') {
+          resolvedCanonicalPath = `/news/${page.initialData.slug || page.initialData.id}`;
+        } else if (page.routeType === 'event') {
+          resolvedCanonicalPath = `/events/${page.initialData.slug || page.initialData.id}`;
+        } else if (page.routeType === 'job') {
+          resolvedCanonicalPath = `/jobs/${page.initialData.slug || page.initialData.id}`;
+        }
+      }
+
       let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
-    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + page.urlPath)}" />
+    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
     <meta property="og:type" content="${ogType}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(page.title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(page.description)}" />
     <meta name="twitter:image" content="${escapeHtmlAttr(page.ogImage)}" />
-    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + page.urlPath)}" />
+    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
       `;
 
       // Dynamic LCP image preloads
