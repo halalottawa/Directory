@@ -187,7 +187,16 @@ export const CategoryListings: React.FC = () => {
     seoDescription = `Discover top-rated, certified halal ${formattedCategory} options in Ottawa for ${monthYearStr}. Find verified business locations, operating hours, phone info, and user reviews.`;
   }
 
-  const [rawListings, setRawListings] = useState<Listing[]>([]);
+  const [rawListings, setRawListings] = useState<Listing[]>(() => {
+    if (
+      typeof window !== 'undefined' &&
+      (window as any).__INITIAL_ROUTE_TYPE__ === 'category' &&
+      Array.isArray((window as any).__INITIAL_DATA__?.listings)
+    ) {
+      return (window as any).__INITIAL_DATA__.listings;
+    }
+    return [];
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [showBoundaryDetails, setShowBoundaryDetails] = useState(true);
@@ -223,6 +232,14 @@ export const CategoryListings: React.FC = () => {
     if (!isValidCategory) return;
 
     let isMounted = true;
+
+    if (
+      typeof window !== 'undefined' &&
+      (window as any).__INITIAL_ROUTE_TYPE__ === 'category' &&
+      Array.isArray((window as any).__INITIAL_DATA__?.listings)
+    ) {
+      setRawListings((window as any).__INITIAL_DATA__.listings);
+    }
 
     const fetchListings = async () => {
       try {

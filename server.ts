@@ -3037,6 +3037,32 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             title = `Islamic Clothing Stores in Ottawa - ${currentMonth} ${currentYear}`;
             description = `Explore Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${currentMonth} ${currentYear}.`;
           }
+
+          try {
+            const targetCat = categoryMap[p0];
+            const qListings = query(
+              collection(db, 'listings'),
+              where('isApproved', '==', true),
+              limit(50)
+            );
+            const listingsSnap = await getDocs(qListings);
+            const filteredListings = listingsSnap.docs
+              .map(doc => ({ id: doc.id, ...doc.data() }))
+              .filter((data: any) => {
+                if (!data.category) return false;
+                const catArray = Array.isArray(data.category) ? data.category : [data.category];
+                return catArray.some((c: any) =>
+                  String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
+                );
+              });
+
+            initialData = {
+              listings: filteredListings,
+              timestamp: Date.now()
+            };
+          } catch (e) {
+            console.error(`Error pre-fetching category listings for ${p0}`, e);
+          }
         } else if (p0 === 'listings') {
           title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
           description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
