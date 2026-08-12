@@ -454,6 +454,8 @@ async function prerender() {
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(page.description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
     <meta property="og:type" content="${ogType}" />
     <meta name="twitter:card" content="summary_large_image" />

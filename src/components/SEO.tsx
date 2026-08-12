@@ -81,7 +81,13 @@ export const SEO: React.FC<SEOProps> = ({
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={siteTitle} />
       {!noindex && <meta property="og:description" content={description} />}
-      {ogImage && !noindex && <meta property="og:image" content={ogImage} />}
+      {ogImage && !noindex && (
+        <>
+          <meta property="og:image" content={ogImage} />
+          <meta property="og:image:width" content="1200" />
+          <meta property="og:image:height" content="630" />
+        </>
+      )}
       {resolvedCanonical && <meta property="og:url" content={resolvedCanonical} />}
 
       {/* Twitter */}

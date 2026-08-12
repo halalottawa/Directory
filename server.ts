@@ -3201,7 +3201,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           } catch (e) {
             console.error("Error fetching job details", e);
           }
-        } else if (p0 === 'listings' || isSingleSegmentValid(p0)) {
+        } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
           try {
             // Try fetching by Firestore Document ID first
             const listingDocRef = doc(db, 'listings', p1);
@@ -3325,6 +3325,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <meta property="og:title" content="${escapeHtmlAttr(title)}" />
     <meta property="og:description" content="${escapeHtmlAttr(description)}" />
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
     <meta property="og:type" content="${escapeHtmlAttr(ogType)}" />
     <meta name="twitter:card" content="summary_large_image" />

@@ -1,11 +1,24 @@
 import { Listing } from '../types';
 
+export const normalizeCategoryToSlug = (cat: string): string => {
+  if (!cat) return 'listings';
+  const c = String(cat).toLowerCase().trim();
+  if (c.includes('restaurant')) return 'restaurants';
+  if (c.includes('mosque') || c.includes('masjid')) return 'mosques';
+  if (c.includes('organization')) return 'organizations';
+  if (c.includes('grocery')) return 'grocery';
+  if (c.includes('clothing')) return 'clothing';
+  if (c.includes('school')) return 'schools';
+  if (c.includes('butcher')) return 'butchers';
+  return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
+};
+
 export const getListingUrl = (listing: Listing | any): string => {
   const cat = Array.isArray(listing.category) && listing.category.length > 0
     ? listing.category[0]
     : typeof listing.category === 'string' ? listing.category : 'listings';
   
-  const formattedCategory = String(cat).toLowerCase();
+  const formattedCategory = normalizeCategoryToSlug(cat);
   return `/${formattedCategory}/${listing.slug || listing.id}`;
 };
 
