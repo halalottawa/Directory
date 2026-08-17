@@ -193,7 +193,10 @@ export const CategoryListings: React.FC = () => {
       (window as any).__INITIAL_ROUTE_TYPE__ === 'category' &&
       Array.isArray((window as any).__INITIAL_DATA__?.listings)
     ) {
-      return (window as any).__INITIAL_DATA__.listings;
+      const initListings = (window as any).__INITIAL_DATA__.listings;
+      delete (window as any).__INITIAL_DATA__;
+      delete (window as any).__INITIAL_ROUTE_TYPE__;
+      return initListings;
     }
     return [];
   });
@@ -232,14 +235,6 @@ export const CategoryListings: React.FC = () => {
     if (!isValidCategory) return;
 
     let isMounted = true;
-
-    if (
-      typeof window !== 'undefined' &&
-      (window as any).__INITIAL_ROUTE_TYPE__ === 'category' &&
-      Array.isArray((window as any).__INITIAL_DATA__?.listings)
-    ) {
-      setRawListings((window as any).__INITIAL_DATA__.listings);
-    }
 
     const fetchListings = async () => {
       try {
@@ -402,7 +397,7 @@ export const CategoryListings: React.FC = () => {
                 "@type": "ListItem",
                 "position": 2,
                 "name": formattedCategory,
-                "item": `https://www.halalottawa.ca/${paramCategory || pathname.split('/')[1]}`
+                "item": `https://www.halalottawa.ca${pathname}`
               }
             ]
           },
@@ -682,7 +677,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/restaurants/${item.toLowerCase()}`}
+                    to={`/restaurants/${item.toLowerCase().replace(/\s+/g, '-')}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
@@ -712,7 +707,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/restaurants/${item.toLowerCase()}`}
+                    to={`/restaurants/${item.toLowerCase().replace(/\s+/g, '-')}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">

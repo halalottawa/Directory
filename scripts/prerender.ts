@@ -15,6 +15,38 @@ const staticUrls = [
   "/restaurants/kanata",
   "/restaurants/barrhaven",
   "/restaurants/downtown",
+  "/restaurants/bakery",
+  "/restaurants/pizza",
+  "/restaurants/burgers",
+  "/restaurants/cafes",
+  "/restaurants/seafood",
+  "/restaurants/steakhouse",
+  "/restaurants/shawarma",
+  "/restaurants/poutine",
+  "/restaurants/brunch",
+  "/restaurants/breakfast",
+  "/restaurants/pho",
+  "/restaurants/ramen",
+  "/restaurants/fried-chicken",
+  "/restaurants/buffet",
+  "/restaurants/tacos",
+  "/restaurants/turkish",
+  "/restaurants/middle-eastern",
+  "/restaurants/moroccan",
+  "/restaurants/lebanese",
+  "/restaurants/syrian",
+  "/restaurants/pakistani",
+  "/restaurants/afghani",
+  "/restaurants/indian",
+  "/restaurants/persian",
+  "/restaurants/chinese",
+  "/restaurants/mediterranean",
+  "/restaurants/thai",
+  "/restaurants/korean",
+  "/restaurants/italian",
+  "/restaurants/bangladeshi",
+  "/restaurants/mexican",
+  "/restaurants/ethiopian",
   "/mosques",
   "/organizations",
   "/grocery",
@@ -379,6 +411,12 @@ async function prerender() {
     } else if (url === "/restaurants/downtown") {
       title = `Halal Restaurants in Downtown Ottawa - ${monthYearStr}`;
       description = `Find the best verified halal restaurants and food spots in Downtown, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
+    } else if (url.startsWith("/restaurants/")) {
+      const subSlug = url.replace("/restaurants/", "");
+      const cleanSub = decodeURIComponent(subSlug).replace(/-/g, " ");
+      const formattedSub = cleanSub.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+      title = `Halal ${formattedSub} in Ottawa - ${monthYearStr}`;
+      description = `Discover the best verified halal ${formattedSub.toLowerCase()} spots and restaurants in Ottawa for ${monthYearStr}. Search by cuisine, read verified reviews, and get directions.`;
     } else if (url === "/mosques") {
       title = `Mosques in Ottawa - ${monthYearStr}`;
       description = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${monthYearStr}.`;
@@ -565,6 +603,40 @@ async function prerender() {
 
           locPage.routeType = 'location';
           locPage.initialData = {
+            listings: filtered,
+            timestamp: Date.now()
+          };
+        }
+      }
+
+      // Restaurant Subcategories (Food Types and Cuisines) SSG
+      const subcategoriesSSG = [
+        'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine', 
+        'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos',
+        'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 
+        'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 
+        'italian', 'bangladeshi', 'mexican', 'ethiopian'
+      ];
+      for (const sub of subcategoriesSSG) {
+        const subPage = pagesToPrerender.find(p => p.urlPath === `/restaurants/${sub}`);
+        if (subPage) {
+          const cleanSub = sub.replace(/-/g, ' ').toLowerCase();
+          const filtered = allApprovedListings
+            .filter((l: any) => {
+              const catArray = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
+              const typesArray = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
+              const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
+
+              const matchesCat = catArray.some((c: any) => String(c).toLowerCase().trim() === cleanSub);
+              const matchesType = typesArray.some((t: any) => String(t).toLowerCase().trim() === cleanSub);
+              const matchesCuisine = cuisinesArray.some((c: any) => String(c).toLowerCase().trim() === cleanSub);
+
+              return matchesCat || matchesType || matchesCuisine;
+            })
+            .sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+
+          subPage.routeType = 'category';
+          subPage.initialData = {
             listings: filtered,
             timestamp: Date.now()
           };
