@@ -2836,6 +2836,173 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
   }
 
+  function getNeighborhoodFromAddress(address: string = '', suburb: string = ''): 'orleans' | 'kanata' | 'barrhaven' | 'downtown' | null {
+    const normalizedAddr = (address || '').toLowerCase();
+    const normalizedSub = (suburb || '').toLowerCase();
+    const combined = `${normalizedSub} ${normalizedAddr}`;
+
+    // 1. Direct Postal Code / Forward Sortation Area (FSA) matching
+    const fsaMatch = combined.match(/\b([kK][12][a-zA-Z])\s?\d/);
+    if (fsaMatch) {
+      const fsa = fsaMatch[1].toUpperCase();
+      if (['K1C', 'K1E', 'K1W'].includes(fsa)) return 'orleans';
+      if (['K2K', 'K2L', 'K2M', 'K2T', 'K2S'].includes(fsa)) return 'kanata';
+      if (['K2J'].includes(fsa)) return 'barrhaven';
+      if (['K1N', 'K1P', 'K1R', 'K1S', 'K1Y', 'K1A'].includes(fsa)) return 'downtown';
+    }
+
+    // 2. Suburb or Neighborhood Name Keyword Matching
+    const orleansKeywords = [
+      'orleans', 'orléans', 'convent glen', 'chateauneuf', 'queenswood height', 'fallingbrook', 
+      'chatelaine village', 'cardinal creek', 'avalon', 'notting gate', 'chapel hill'
+    ];
+    if (orleansKeywords.some(keyword => combined.includes(keyword))) return 'orleans';
+
+    const kanataKeywords = [
+      'kanata', 'stittsville', 'glen cairn', 'hazeldean', 'beaverbrook', 'katimavik', 
+      'morgan\'s grant', 'morgans grant', 'bridlewood', 'emerald meadows'
+    ];
+    if (kanataKeywords.some(keyword => combined.includes(keyword))) return 'kanata';
+
+    const barrhavenKeywords = [
+      'barrhaven', 'stonebridge', 'half moon bay', 'chapman mills', 'longfields', 
+      'davidson heights', 'jockvale'
+    ];
+    if (barrhavenKeywords.some(keyword => combined.includes(keyword))) return 'barrhaven';
+
+    const downtownKeywords = [
+      'downtown', 'centretown', 'byward market', 'byward', 'lowertown', 'sandy hill', 
+      'the glebe', 'glebe', 'golden triangle', 'lebreton flats', 'hintonburg', 
+      'chinatown', 'little italy', 'westboro', 'old ottawa south', 'old ottawa east'
+    ];
+    if (downtownKeywords.some(keyword => combined.includes(keyword))) return 'downtown';
+
+    // 3. Street checks
+    const orleansStreets = [
+      'st. joseph blvd', 'st joseph blvd', 'tenth line', '10th line', 'trim rd', 'trim road',
+      'jeanne d\'arc', 'jeanne darc', 'prestone', 'dufount', 'prestwick', 'charette', 'portobello',
+      'watters', 'valin', 'charlemagne', 'belcourt'
+    ];
+    if (orleansStreets.some(street => normalizedAddr.includes(street))) return 'orleans';
+    if (normalizedAddr.includes('innes') && !normalizedAddr.includes('kanata') && !normalizedAddr.includes('barrhaven')) return 'orleans';
+
+    const kanataStreets = [
+      'terry fox', 'earl grey', 'campeau', 'march rd', 'march road', 'hazeldean', 
+      'eagleson', 'kanata ave', 'castlefrank', 'katimavik road', 'palladium', 'iber rd'
+    ];
+    if (kanataStreets.some(street => normalizedAddr.includes(street))) return 'kanata';
+
+    const barrhavenStreets = [
+      'strandherd', 'marketplace ave', 'berrigan', 'cresthaven', 'chapman mills'
+    ];
+    if (barrhavenStreets.some(street => normalizedAddr.includes(street))) return 'barrhaven';
+    const blockCheck = normalizedAddr.match(/(\d+)\s+(greenbank|woodroffe)/);
+    if (blockCheck && parseInt(blockCheck[1], 10) >= 3000) return 'barrhaven';
+
+    const downtownStreets = [
+      'rideau st', 'elgin st', 'laurier ave', 'sparks st', 'dalhousie st', 
+      'albert st', 'slater st', 'o\'connor', 'metcalfe', 'kent st', 'lyon st', 
+      'gloucester st', 'cooper st', 'lisgar st', 'gladstone', 'somerset st'
+    ];
+    if (downtownStreets.some(street => normalizedAddr.includes(street))) return 'downtown';
+    const bankCheck = normalizedAddr.match(/(\d+)\s+bank\s+st/);
+    if (bankCheck && parseInt(bankCheck[1], 10) < 1300) return 'downtown';
+
+    return null;
+  }
+
+  function renderCategorySSRHtml(options: {
+    title: string;
+    h1Text: string;
+    description: string;
+    formattedCategory: string;
+    urlPath: string;
+    listings: any[];
+  }): string {
+    const { h1Text, description, formattedCategory, urlPath, listings } = options;
+    const categories = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
+
+    const categoryPillsHtml = categories.map(cat => {
+      const slug = cat.toLowerCase();
+      const isActive = formattedCategory.toLowerCase() === cat.toLowerCase();
+      const activeClass = isActive 
+        ? 'background-color: #e90b35; color: #ffffff; border: 1px solid #e90b35;' 
+        : 'background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;';
+      return `<a href="/${slug}" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; ${activeClass}">${escapeHtmlText(cat)}</a>`;
+    }).join('\n');
+
+    const listingsCardsHtml = listings.length > 0 ? listings.map(l => {
+      let catSlug = 'listings';
+      if (Array.isArray(l.category) && l.category.length > 0) {
+        catSlug = normalizeCategoryToSlug(l.category[0]);
+      } else if (typeof l.category === 'string') {
+        catSlug = normalizeCategoryToSlug(l.category);
+      }
+      const listingUrl = `/${catSlug}/${l.slug || l.id}`;
+      const photoUrl = (l.photos && l.photos.length > 0) ? l.photos[0] : (l.coverImage || '/ottawa-sunset.webp');
+      const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
+      const reviewCount = l.reviewCount || 0;
+      const address = l.address ? escapeHtmlText(l.address) : 'Ottawa, ON';
+
+      return `
+      <article style="background-color: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; text-decoration: none; color: inherit;">
+        <a href="${escapeHtmlAttr(listingUrl)}" style="display: flex; flex-direction: column; text-decoration: none; color: inherit; height: 100%;">
+          <div style="position: relative; width: 100%; height: 190px; background-color: #f3f4f6; overflow: hidden;">
+            <img src="${escapeHtmlAttr(photoUrl)}" alt="${escapeHtmlAttr(l.name)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" />
+            <div style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #e90b35; background-color: rgba(254, 242, 242, 0.95); border: 1px solid #fee2e2; padding: 4px 8px; border-radius: 6px;">
+              ${escapeHtmlText(Array.isArray(l.category) ? l.category[0] : (l.category || formattedCategory))}
+            </div>
+          </div>
+          <div style="padding: 16px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                <h2 style="font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; color: #111827;">${escapeHtmlText(l.name)}</h2>
+                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; background-color: #fefce8; color: #a16207; padding: 4px 8px; border-radius: 8px; white-space: nowrap;">
+                  ★ ${rating}
+                </div>
+              </div>
+              <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">📍 ${address}</p>
+              ${l.description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtmlText(l.description)}</p>` : ''}
+            </div>
+            <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #f9fafb; padding-top: 8px;">
+              <span>${reviewCount} reviews</span>
+              <span style="color: #e90b35; font-weight: 600;">View Details →</span>
+            </div>
+          </div>
+        </a>
+      </article>`;
+    }).join('\n') : `
+      <div style="text-align: center; padding: 48px 16px; grid-column: 1 / -1;">
+        <p style="color: #6b7280; font-size: 16px;">Verified ${escapeHtmlText(formattedCategory)} listings in Ottawa.</p>
+      </div>`;
+
+    return `
+      <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto" style="min-height: 100vh; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <nav aria-label="Breadcrumb" style="font-size: 13px; color: #6b7280; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+          <a href="/" style="color: #6b7280; text-decoration: none;">Home</a>
+          <span>/</span>
+          <span style="color: #111827; font-weight: 600;">${escapeHtmlText(formattedCategory)}</span>
+        </nav>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h1 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.025em;">${escapeHtmlText(h1Text)}</h1>
+            <p style="font-size: 14px; color: #4b5563; margin-top: 6px; max-width: 800px; line-height: 1.5;">${escapeHtmlText(description)}</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 24px; flex-wrap: wrap;">
+          <a href="/listings" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;">All</a>
+          ${categoryPillsHtml}
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+          ${listingsCardsHtml}
+        </div>
+      </div>
+    `;
+  }
+
   async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
     let html = template;
     
@@ -3042,11 +3209,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             const targetCat = categoryMap[p0];
             const qListings = query(
               collection(db, 'listings'),
-              where('isApproved', '==', true),
-              limit(50)
+              where('isApproved', '==', true)
             );
             const listingsSnap = await getDocs(qListings);
-            const filteredListings = listingsSnap.docs
+            let filteredListings = listingsSnap.docs
               .map(doc => ({ id: doc.id, ...doc.data() }))
               .filter((data: any) => {
                 if (!data.category) return false;
@@ -3055,6 +3221,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                   String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
                 );
               });
+
+            const parseListingTime = (val: any): number => {
+              if (!val) return 0;
+              if (typeof val.toDate === 'function') return val.toDate().getTime();
+              if (typeof val.seconds === 'number') return val.seconds * 1000;
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+            filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
 
             initialData = {
               listings: filteredListings,
@@ -3091,6 +3266,51 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               title = `Halal ${formattedSub} Restaurants in Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
               description = `Discover the best verified halal ${formattedSub} restaurants and food spots in Ottawa for ${currentMonth} ${currentYear}. Search by cuisine, read reviews, and get directions.`;
               routeType = 'category';
+            }
+
+            try {
+              const qListings = query(
+                collection(db, 'listings'),
+                where('isApproved', '==', true)
+              );
+              const listingsSnap = await getDocs(qListings);
+              const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase());
+              
+              let filteredListings = listingsSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() }))
+                .filter((data: any) => {
+                  const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+                  const isRestaurant = listingCategories.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
+                  if (!isRestaurant) return false;
+
+                  if (isLoc) {
+                    const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
+                    return neighborhood === p1.toLowerCase();
+                  } else {
+                    const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
+                    const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
+                    const targetSub = p1.toLowerCase().replace(/-/g, ' ');
+                    const matchesType = listingTypes.some((t: any) => String(t).toLowerCase() === targetSub || String(t).toLowerCase() === p1.toLowerCase());
+                    const matchesCuisine = listingCuisines.some((c: any) => String(c).toLowerCase() === targetSub || String(c).toLowerCase() === p1.toLowerCase());
+                    return matchesType || matchesCuisine;
+                  }
+                });
+
+              const parseListingTime = (val: any): number => {
+                if (!val) return 0;
+                if (typeof val.toDate === 'function') return val.toDate().getTime();
+                if (typeof val.seconds === 'number') return val.seconds * 1000;
+                const d = new Date(val);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+              };
+              filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+
+              initialData = {
+                listings: filteredListings,
+                timestamp: Date.now()
+              };
+            } catch (e) {
+              console.error(`Error pre-fetching location/subcategory listings for ${p0}/${p1}`, e);
             }
           }
         } else if (p0 === 'go') {
@@ -3539,6 +3759,34 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
             }
           };
+        } else if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
+          const categoryDisplayName = (title.split(' - ')[0] || 'Halal Directory').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "CollectionPage",
+            "name": title,
+            "description": description,
+            "url": fullUrl,
+            "mainEntity": {
+              "@type": "ItemList",
+              "name": title,
+              "numberOfItems": (initialData.listings || []).length,
+              "itemListElement": (initialData.listings || []).slice(0, 25).map((l: any, idx: number) => {
+                let catSlug = 'listings';
+                if (Array.isArray(l.category) && l.category.length > 0) {
+                  catSlug = normalizeCategoryToSlug(l.category[0]);
+                } else if (typeof l.category === 'string') {
+                  catSlug = normalizeCategoryToSlug(l.category);
+                }
+                return {
+                  "@type": "ListItem",
+                  "position": idx + 1,
+                  "name": l.name,
+                  "url": `https://www.halalottawa.ca/${catSlug}/${l.slug || l.id}`
+                };
+              })
+            }
+          };
         }
 
         const breadcrumbItems = [
@@ -3568,6 +3816,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "@type": "ListItem",
             "position": 3,
             "name": initialData.name,
+            "item": fullUrl
+          });
+        } else if (routeType === 'category' || routeType === 'location') {
+          const categoryDisplayName = (title.split(' - ')[0] || 'Category').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": categoryDisplayName,
             "item": fullUrl
           });
         } else if (routeType === 'news') {
@@ -3620,12 +3876,43 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           "itemListElement": breadcrumbItems
         };
 
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+        if (schemaData) {
+          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+        }
         extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
       }
       
       if (initialData) {
         extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
+      }
+
+      if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
+        const h1 = title.split(' - ')[0] || title;
+        let categoryName = 'Directory';
+        if (pathParts.length === 1) {
+          const map: Record<string, string> = {
+            restaurants: 'Restaurants',
+            mosques: 'Mosques',
+            organizations: 'Organizations',
+            grocery: 'Grocery',
+            clothing: 'Clothing',
+            schools: 'Schools',
+            butchers: 'Butchers'
+          };
+          categoryName = map[pathParts[0].toLowerCase()] || pathParts[0];
+        } else if (pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants') {
+          categoryName = pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace(/-/g, ' ');
+        }
+
+        const ssrBodyHtml = renderCategorySSRHtml({
+          title,
+          h1Text: h1,
+          description,
+          formattedCategory: categoryName,
+          urlPath,
+          listings: initialData.listings
+        });
+        html = html.replace('<div id="root"></div>', `<div id="root">${ssrBodyHtml}</div>`);
       }
 
       try {
