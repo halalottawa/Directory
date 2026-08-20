@@ -168,21 +168,28 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
   // Combine them for aggregate analysis
   const combined = `${normalizedSub} ${normalizedAddr}`;
 
-  // 1. Direct Postal Code / Forward Sortation Area (FSA) matching - extremely reliable in Ottawa
-  const fsaMatch = combined.match(/\b([kK][12][a-zA-Z])\s?\d/);
+  // 1. Direct Postal Code / Forward Sortation Area (FSA) matching - highly reliable in Ottawa
+  const fsaMatch = combined.match(/\b([kK][0-2][a-zA-Z])\s?\d/);
   if (fsaMatch) {
     const fsa = fsaMatch[1].toUpperCase();
-    if (['K1C', 'K1E', 'K1W'].includes(fsa)) return 'orleans';
-    if (['K2K', 'K2L', 'K2M', 'K2T', 'K2S'].includes(fsa)) return 'kanata';
-    if (['K2J'].includes(fsa)) return 'barrhaven';
-    if (['K1N', 'K1P', 'K1R', 'K1S', 'K1Y', 'K1A'].includes(fsa)) return 'downtown';
+    if (['K1C', 'K1E', 'K1W', 'K4A'].includes(fsa)) return 'orleans';
+    if (['K2K', 'K2L', 'K2M', 'K2T', 'K2S', 'K2V'].includes(fsa)) return 'kanata';
+    if (['K2J', 'K2R'].includes(fsa)) return 'barrhaven';
+    if (['K1N', 'K1P', 'K1R', 'K1S', 'K1Y', 'K1A', 'K2P', 'K1Z'].includes(fsa)) return 'downtown';
+    if (['K2G'].includes(fsa)) {
+      // K2G covers both Nepean and Chapman Mills / Barrhaven North
+      if (combined.includes('barrhaven') || combined.includes('chapman') || combined.includes('strandherd') || combined.includes('longfields')) {
+        return 'barrhaven';
+      }
+    }
   }
 
   // 2. Suburb or Neighborhood Name Keyword Matching
   // ORLEANS
   const orleansKeywords = [
-    'orleans', 'orléans', 'convent glen', 'chateauneuf', 'queenswood height', 'fallingbrook', 
-    'chatelaine village', 'cardinal creek', 'avalon', 'notting gate', 'chapel hill'
+    'orleans', 'orléans', 'convent glen', 'chateauneuf', 'queenswood', 'fallingbrook', 
+    'chatelaine village', 'cardinal creek', 'avalon', 'notting gate', 'chapel hill',
+    'cumberland', 'blackburn hamlet', 'bilberry creek'
   ];
   if (orleansKeywords.some(keyword => combined.includes(keyword))) {
     return 'orleans';
@@ -191,7 +198,7 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
   // KANATA / STITTSVILLE
   const kanataKeywords = [
     'kanata', 'stittsville', 'glen cairn', 'hazeldean', 'beaverbrook', 'katimavik', 
-    'morgan\'s grant', 'morgans grant', 'bridlewood', 'emerald meadows'
+    'morgan\'s grant', 'morgans grant', 'bridlewood', 'emerald meadows', 'carp'
   ];
   if (kanataKeywords.some(keyword => combined.includes(keyword))) {
     return 'kanata';
@@ -200,7 +207,7 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
   // BARRHAVEN
   const barrhavenKeywords = [
     'barrhaven', 'stonebridge', 'half moon bay', 'chapman mills', 'longfields', 
-    'davidson heights', 'jockvale'
+    'davidson heights', 'jockvale', 'cedarhill', 'orchard estates', 'manotick'
   ];
   if (barrhavenKeywords.some(keyword => combined.includes(keyword))) {
     return 'barrhaven';
@@ -210,7 +217,8 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
   const downtownKeywords = [
     'downtown', 'centretown', 'byward market', 'byward', 'lowertown', 'sandy hill', 
     'the glebe', 'glebe', 'golden triangle', 'lebreton flats', 'hintonburg', 
-    'chinatown', 'little italy', 'westboro', 'old ottawa south', 'old ottawa east'
+    'chinatown', 'little italy', 'westboro', 'old ottawa south', 'old ottawa east',
+    'centretown west', 'wellington west', 'parliament hill'
   ];
   if (downtownKeywords.some(keyword => combined.includes(keyword))) {
     return 'downtown';
@@ -220,15 +228,15 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
   
   // ORLEANS Streets
   const orleansStreets = [
-    'st. joseph blvd', 'st joseph blvd', 'tenth line', '10th line', 'trim rd', 'trim road',
+    'st. joseph blvd', 'st joseph blvd', 'st-joseph', 'tenth line', '10th line', 'trim rd', 'trim road',
     'jeanne d\'arc', 'jeanne darc', 'prestone', 'dufount', 'prestwick', 'charette', 'portobello',
-    'watters', 'valin', 'charlemagne', 'belcourt'
+    'watters', 'valin', 'charlemagne', 'belcourt', 'cumberland'
   ];
   if (orleansStreets.some(street => normalizedAddr.includes(street))) {
     return 'orleans';
   }
 
-  // Specific check for Innes Road (Only Orleans side, since Innes starts east of Trainyards)
+  // Specific check for Innes Road (Orleans side, east of Blair/Trainyards)
   if (normalizedAddr.includes('innes') && !normalizedAddr.includes('kanata') && !normalizedAddr.includes('barrhaven')) {
     return 'orleans';
   }
@@ -244,32 +252,37 @@ export function getNeighborhoodFromAddress(address: string = '', suburb: string 
 
   // BARRHAVEN Streets
   const barrhavenStreets = [
-    'strandherd', 'marketplace ave', 'berrigan', 'cresthaven', 'chapman mills'
+    'strandherd', 'marketplace ave', 'berrigan', 'cresthaven', 'chapman mills', 'jockvale'
   ];
   if (barrhavenStreets.some(street => normalizedAddr.includes(street))) {
     return 'barrhaven';
   }
-  // Greenbank / Woodroffe in South Ottawa (above 3000 block is Barrhaven)
+  // Greenbank / Woodroffe in South Ottawa (above 2800 block is Barrhaven)
   const blockCheck = normalizedAddr.match(/(\d+)\s+(greenbank|woodroffe)/);
   if (blockCheck) {
     const num = parseInt(blockCheck[1], 10);
-    if (num >= 3000) return 'barrhaven';
+    if (num >= 2800) return 'barrhaven';
   }
 
   // DOWNTOWN / CENTRAL Streets
   const downtownStreets = [
     'rideau st', 'elgin st', 'laurier ave', 'sparks st', 'dalhousie st', 
     'albert st', 'slater st', 'o\'connor', 'metcalfe', 'kent st', 'lyon st', 
-    'gloucester st', 'cooper st', 'lisgar st', 'gladstone', 'somerset st'
+    'gloucester st', 'cooper st', 'lisgar st', 'gladstone', 'somerset st',
+    'wellington st', 'preston st', 'clarence st', 'george st', 'york st',
+    'queen st', 'bank st'
   ];
   if (downtownStreets.some(street => normalizedAddr.includes(street))) {
+    // Bank street check (under 1300 is downtown/glebe, above is Ottawa South/Heron Gate)
+    if (normalizedAddr.includes('bank st')) {
+      const bankCheck = normalizedAddr.match(/(\d+)\s+bank\s+st/);
+      if (bankCheck) {
+        const num = parseInt(bankCheck[1], 10);
+        if (num < 1300) return 'downtown';
+        return null;
+      }
+    }
     return 'downtown';
-  }
-  // Bank street check (under 1300 is downtown/glebe, above is Ottawa South/Heron Gate/etc.)
-  const bankCheck = normalizedAddr.match(/(\d+)\s+bank\s+st/);
-  if (bankCheck) {
-    const num = parseInt(bankCheck[1], 10);
-    if (num < 1300) return 'downtown';
   }
 
   return null;

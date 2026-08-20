@@ -190,7 +190,7 @@ export const CategoryListings: React.FC = () => {
   const [rawListings, setRawListings] = useState<Listing[]>(() => {
     if (
       typeof window !== 'undefined' &&
-      (window as any).__INITIAL_ROUTE_TYPE__ === 'category' &&
+      ((window as any).__INITIAL_ROUTE_TYPE__ === 'category' || (window as any).__INITIAL_ROUTE_TYPE__ === 'location') &&
       Array.isArray((window as any).__INITIAL_DATA__?.listings)
     ) {
       const initListings = (window as any).__INITIAL_DATA__.listings;
@@ -331,7 +331,7 @@ export const CategoryListings: React.FC = () => {
       );
     }
     return filtered;
-  }, [rawListings, searchQuery, formattedCategory]);
+  }, [rawListings, searchQuery, formattedCategory, isLocationCategory]);
 
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isApp, setIsApp] = useState(false);
@@ -375,6 +375,159 @@ export const CategoryListings: React.FC = () => {
 
   const listings = filteredListings;
 
+  const locationGuides: Record<string, { guide: string; highlights: string[]; faqs: { q: string; a: string }[] }> = {
+    orleans: {
+      guide: "Orleans and East Ottawa offer a thriving halal dining scene along St. Joseph Blvd, Innes Road, and Tenth Line. From authentic Lebanese shawarma rotisseries and charcoal grills to Middle Eastern bakeries, gourmet smash burgers, and family-friendly bistros, Muslims across East Ottawa have access to top-quality verified halal choices.",
+      highlights: ["Renowned charcoal grilled kebabs & shawarma along St. Joseph Blvd", "Family-friendly dining centers along Innes Rd & Tenth Line", "Fresh halal bakeries, manakeesh, and sweet shops"],
+      faqs: [
+        {
+          q: `Are the restaurants in Orleans verified halal?`,
+          a: `Yes! Listings on Halal Ottawa specify whether an establishment is 100% halal certified, Muslim-owned, or serves verified halal meat options with transparent preparation.`
+        },
+        {
+          q: `What cuisines are most popular in Orleans?`,
+          a: `Middle Eastern, Lebanese shawarma, pizza, flame-grilled chicken, and burgers are the most widely available cuisines in the Orleans and Cumberland area.`
+        },
+        {
+          q: `How can I submit a new halal restaurant in Orleans?`,
+          a: `You can submit a listing anytime using the 'Add Place' button in the header. Our team verifies the halal certification before publishing.`
+        }
+      ]
+    },
+    kanata: {
+      guide: "Kanata and West Ottawa feature a rapidly growing selection of verified halal restaurants centered along March Road, Hazeldean Road, Terry Fox Drive, and the Kanata Centrum district. Whether you're working in the tech park or living in Stittsville/Bridlewood, you can find authentic Indian curries, Afghan kebabs, halal fried chicken, and artisanal burgers.",
+      highlights: ["Quick-service lunch spots along March Road tech corridor", "Family restaurants and cafes in Kanata Centrum & Hazeldean", "Diverse flavors from South Asian biryanis to gourmet burgers"],
+      faqs: [
+        {
+          q: `Where can I find halal food near the Kanata North tech park?`,
+          a: `March Road and Campeau Drive offer multiple halal lunch options, including shawarma, bowls, Pakistani dishes, and specialty burgers.`
+        },
+        {
+          q: `Are there family-friendly halal dining spots in Kanata?`,
+          a: `Yes, Hazeldean Road and Kanata Centrum host several spacious, family-friendly halal restaurants with dine-in seating.`
+        },
+        {
+          q: `Are vegetarian and vegan options available at halal spots in Kanata?`,
+          a: `Most halal Mediterranean and South Asian spots in Kanata offer extensive vegetarian, vegan, and gluten-sensitive choices.`
+        }
+      ]
+    },
+    barrhaven: {
+      guide: "Barrhaven and South Ottawa have become one of the premier hubs for halal food in the National Capital Region. Centered around Strandherd Drive, Marketplace Avenue, and Chapman Mills, you will find an extensive variety of halal smash burgers, shawarma platters, Afghan grills, Pakistani curries, and halal pizza parlours.",
+      highlights: ["Concentrated dining hubs along Strandherd Drive & Marketplace Ave", "Popular late-night halal takeout and dessert spots", "Authentic Afghan, Pakistani, and Mediterranean specialities"],
+      faqs: [
+        {
+          q: `What are the best areas for halal dining in Barrhaven?`,
+          a: `Strandherd Drive and Marketplace Avenue contain the highest concentration of halal restaurants, grills, and cafes in South Ottawa.`
+        },
+        {
+          q: `Is halal takeout and delivery readily available in Barrhaven?`,
+          a: `Yes, almost all halal restaurants in Barrhaven offer convenient online ordering, takeout counters, and delivery across South Ottawa.`
+        },
+        {
+          q: `Can I find halal desserts and bakeries in Barrhaven?`,
+          a: `Yes, Barrhaven is home to specialty dessert shops, knafeh spots, and bubble tea cafes that cater to the local Muslim community.`
+        }
+      ]
+    },
+    downtown: {
+      guide: "Downtown Ottawa, Centretown, ByWard Market, and Sandy Hill offer Ottawa's most dynamic and walkable halal dining landscape. From iconic late-night shawarma landmarks and Turkish kebabs to Somali sambusas, upscale South Asian dining, and artisanal halal pizzerias, Central Ottawa delivers incredible variety for students, professionals, and tourists alike.",
+      highlights: ["Legendary ByWard Market & Rideau Street late-night eateries", "Centretown & Elgin Street trendy cafes, brunch, and grills", "Walkable dining near the University of Ottawa and Parliament Hill"],
+      faqs: [
+        {
+          q: `Are there late-night halal food options in Downtown Ottawa?`,
+          a: `Yes! Rideau Street and ByWard Market feature numerous halal shawarma, burger, and poutine spots open until the early morning hours.`
+        },
+        {
+          q: `Where can students near uOttawa find budget-friendly halal meals?`,
+          a: `Rideau Street, King Edward Ave, and Somerset Street offer numerous budget-friendly halal wraps, rice platters, and noodles.`
+        },
+        {
+          q: `Are there fine dining or upscale halal restaurants in Centretown?`,
+          a: `Yes, Elgin Street and ByWard Market have upscale Turkish, Indian, and Mediterranean restaurants suitable for business dinners and celebrations.`
+        }
+      ]
+    }
+  };
+
+  const currentLocationKey = isLocationCategory ? formattedCategory.toLowerCase() : null;
+  const currentGuide = currentLocationKey ? locationGuides[currentLocationKey] : null;
+
+  const breadcrumbsList = isUnderRestaurants && pathname !== '/restaurants'
+    ? [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.halalottawa.ca"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Restaurants",
+          "item": "https://www.halalottawa.ca/restaurants"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": formattedCategory,
+          "item": `https://www.halalottawa.ca${pathname}`
+        }
+      ]
+    : [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.halalottawa.ca"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": formattedCategory,
+          "item": `https://www.halalottawa.ca${pathname}`
+        }
+      ];
+
+  const structuredDataList: any[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": breadcrumbsList
+    }
+  ];
+
+  if (listings.length > 0) {
+    structuredDataList.push({
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": `Halal ${formattedCategory} in Ottawa`,
+      "url": `https://www.halalottawa.ca${pathname}`,
+      "numberOfItems": listings.length,
+      "itemListElement": listings.slice(0, 10).map((listing, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "name": listing.name,
+        "url": `https://www.halalottawa.ca${getListingUrl(listing)}`
+      }))
+    });
+  }
+
+  if (currentGuide && currentGuide.faqs.length > 0) {
+    structuredDataList.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": currentGuide.faqs.map(faq => ({
+        "@type": "Question",
+        "name": faq.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.a
+        }
+      }))
+    });
+  }
+
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
@@ -382,40 +535,19 @@ export const CategoryListings: React.FC = () => {
         description={seoDescription} 
         canonicalUrl={`https://www.halalottawa.ca${pathname}`} 
         disableSuffix={true}
-        structuredData={[
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": "https://www.halalottawa.ca"
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": formattedCategory,
-                "item": `https://www.halalottawa.ca${pathname}`
-              }
-            ]
-          },
-          ...(listings.length > 0 ? [{
-            "@context": "https://schema.org",
-            "@type": "ItemList",
-            "name": `Halal ${formattedCategory} in Ottawa`,
-            "url": `https://www.halalottawa.ca${pathname}`,
-            "numberOfItems": listings.length,
-            "itemListElement": listings.slice(0, 10).map((listing, index) => ({
-              "@type": "ListItem",
-              "position": index + 1,
-              "name": listing.name,
-              "url": `https://www.halalottawa.ca${getListingUrl(listing)}`
-            }))
-          } as any] : [])
-        ]}
+        structuredData={structuredDataList}
       />
+
+      {/* Breadcrumb Bar */}
+      {isUnderRestaurants && pathname !== '/restaurants' && (
+        <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+          <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+          <Link to="/restaurants" className="hover:text-[#e90b35] transition-colors">Restaurants</Link>
+          <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+          <span className="font-semibold text-gray-900">{formattedCategory}</span>
+        </nav>
+      )}
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
@@ -431,12 +563,13 @@ export const CategoryListings: React.FC = () => {
         <Link 
           to="/listings/add" 
           className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
+          title="Add New Listing"
         >
           <Plus className="w-6 h-6 md:w-5 md:h-5" />
         </Link>
       </div>
 
-      {/* Search & Tabs */}
+      {/* Search & Main Category Tabs */}
       <div className="space-y-4">
         <div className="relative w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -467,26 +600,66 @@ export const CategoryListings: React.FC = () => {
           />
         </div>
 
+        {/* Categories Bar */}
         <div className="flex md:flex-wrap gap-2 overflow-x-auto pb-2 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
           <Link
             to="/listings"
-            className="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white text-gray-500 border border-gray-100"
+            className="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all bg-white text-gray-500 border border-gray-100 hover:bg-gray-50"
           >
             All
           </Link>
-          {CATEGORIES.map((cat) => (
-            <Link
-              key={cat}
-              to={`/${cat.toLowerCase()}`}
-              className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
-                formattedCategory === cat ? 'bg-[#e90b35] text-white' : 'bg-white text-gray-500 border border-gray-100'
-              }`}
-            >
-              <CategoryIcon category={cat as any} className="w-4 h-4" />
-              {cat}
-            </Link>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const isCatActive = !isUnderRestaurants && formattedCategory.toLowerCase() === cat.toLowerCase();
+            return (
+              <Link
+                key={cat}
+                to={`/${cat.toLowerCase()}`}
+                className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+                  isCatActive ? 'bg-[#e90b35] text-white' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'
+                }`}
+              >
+                <CategoryIcon category={cat as any} className="w-4 h-4" />
+                {cat}
+              </Link>
+            );
+          })}
         </div>
+
+        {/* Ottawa Locations Bar (Shown on all /restaurants routes) */}
+        {isUnderRestaurants && (
+          <div className="pt-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-400 shrink-0 mr-1">Locations:</span>
+              <Link
+                to="/restaurants"
+                className={`px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all ${
+                  pathname === '/restaurants'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                All Ottawa
+              </Link>
+              {['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].map((loc) => {
+                const isLocActive = formattedCategory.toLowerCase() === loc.toLowerCase();
+                return (
+                  <Link
+                    key={loc}
+                    to={`/restaurants/${loc.toLowerCase()}`}
+                    className={`px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      isLocActive
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
+                    {loc}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Listings Grid */}
@@ -618,13 +791,56 @@ export const CategoryListings: React.FC = () => {
         </div>
       )}
 
-      {/* Categories for Restaurants */}
-      {formattedCategory === 'Restaurants' && (
+      {/* Categories & Dining Guides for Restaurants and Locations */}
+      {isUnderRestaurants && (
         <div className="mt-12 space-y-12">
-          {/* Browse by Location */}
-          <section className="space-y-6 pt-8 pb-4">
+          {/* Location Area Guide & FAQs (When on a specific location page) */}
+          {currentGuide && (
+            <section className="bg-white border border-gray-100 rounded-3xl p-6 md:p-8 space-y-6 shadow-sm">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-50 text-[#e90b35] rounded-full text-xs font-bold uppercase tracking-wider">
+                  <MapPin className="w-3.5 h-3.5" />
+                  Area Dining Guide
+                </div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">
+                  Halal Dining in {formattedCategory}, Ottawa
+                </h2>
+                <p className="text-gray-600 leading-relaxed text-sm md:text-base">
+                  {currentGuide.guide}
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-4 pt-2">
+                {currentGuide.highlights.map((highlight, idx) => (
+                  <div key={idx} className="bg-gray-50 rounded-2xl p-4 border border-gray-100/80">
+                    <p className="text-xs md:text-sm font-semibold text-gray-800">
+                      ✨ {highlight}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* FAQs */}
+              <div className="pt-4 border-t border-gray-100 space-y-4">
+                <h3 className="text-lg font-bold text-gray-900">Frequently Asked Questions</h3>
+                <div className="space-y-3">
+                  {currentGuide.faqs.map((faq, idx) => (
+                    <div key={idx} className="bg-gray-50/70 rounded-2xl p-4 border border-gray-100">
+                      <p className="font-semibold text-sm text-gray-900 mb-1">Q: {faq.q}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">{faq.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Browse by Location (Show on All Restaurants & Location Pages) */}
+          <section className="space-y-6 pt-4 pb-2">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Location</h2>
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+                {isLocationCategory ? 'Explore Other Ottawa Neighborhoods' : 'Browse by Location'}
+              </h2>
               <p className="text-gray-500">Find the perfect halal spot near you by exploring top-rated restaurants across Ottawa's key neighborhoods and districts.</p>
             </div>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -643,12 +859,17 @@ export const CategoryListings: React.FC = () => {
                 }).length;
                 
                 const displayCount = count;
+                const isCurrent = formattedCategory.toLowerCase() === item.name.toLowerCase();
                 
                 return (
                   <Link
                     key={item.name}
                     to={`/restaurants/${item.name.toLowerCase()}`}
-                    className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
+                    className={`group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border rounded-2xl transition-all duration-300 ${
+                      isCurrent
+                        ? 'border-[#e90b35] shadow-md ring-1 ring-[#e90b35]'
+                        : 'border-gray-100 hover:border-[#e90b35]/20 hover:shadow-md'
+                    }`}
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors group-hover:scale-105 duration-300">
                        <MapPin className="w-5 h-5" />
@@ -664,9 +885,9 @@ export const CategoryListings: React.FC = () => {
           </section>
 
           {/* Browse by Food */}
-          <section className="space-y-6 pt-8 pb-4">
+          <section className="space-y-6 pt-4 pb-2">
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Food</h2>
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Food Style</h2>
               <p className="text-gray-500">Looking for a quick bite, sweet dessert, or specialty dish? Explore local food spots by their specific food offerings and styles.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -694,7 +915,7 @@ export const CategoryListings: React.FC = () => {
           </section>
 
           {/* Browse by Cuisine */}
-          <section className="space-y-6 pt-8 pb-4">
+          <section className="space-y-6 pt-4 pb-4">
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Browse by Cuisine</h2>
               <p className="text-gray-500">Embark on a culinary journey and discover authentic halal restaurants featuring traditional flavors and recipes from around the globe.</p>
