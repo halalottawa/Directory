@@ -41,9 +41,11 @@ export const SEO: React.FC<SEOProps> = ({
           path = parsedUrl.pathname;
         }
         currentPath = path;
+      } else if (currentPath.includes('__cookie_check')) {
+        currentPath = '/';
       }
     } catch (e) {
-      console.error("Error parsing return_url for SEO canonical path", e);
+      currentPath = '/';
     }
   }
 
@@ -53,8 +55,25 @@ export const SEO: React.FC<SEOProps> = ({
     resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
     
     // Clean up direct occurrences of cookie check path if any remain
-    if (resolvedCanonical.includes('__cookie_check.html')) {
-      resolvedCanonical = resolvedCanonical.split('__cookie_check.html')[0];
+    if (resolvedCanonical.includes('__cookie_check')) {
+      if (resolvedCanonical.includes('return_url=')) {
+        try {
+          const returnParam = new URL(resolvedCanonical).searchParams.get('return_url');
+          if (returnParam) {
+            let p = returnParam;
+            if (p.startsWith('http://') || p.startsWith('https://')) {
+              p = new URL(p).pathname;
+            }
+            resolvedCanonical = `https://www.halalottawa.ca${p.startsWith('/') ? '' : '/'}${p}`;
+          } else {
+            resolvedCanonical = 'https://www.halalottawa.ca';
+          }
+        } catch (e) {
+          resolvedCanonical = 'https://www.halalottawa.ca';
+        }
+      } else {
+        resolvedCanonical = resolvedCanonical.split('__cookie_check')[0] || 'https://www.halalottawa.ca';
+      }
     }
     
     // Clean up any potential double slashes in paths like https://www.halalottawa.ca//news

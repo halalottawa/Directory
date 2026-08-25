@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Newspaper, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
@@ -10,8 +10,6 @@ import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { useAuth } from '../context/AuthContext';
 import { isAppWrapper } from '../utils/platform';
-import useEmblaCarousel from 'embla-carousel-react';
-import Autoplay from 'embla-carousel-autoplay';
 import { SEO } from '../components/SEO';
 import { Helmet } from 'react-helmet-async';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -65,11 +63,23 @@ export const Home: React.FC = () => {
   const currentYear = currentDate.getFullYear();
   const monthYearStr = `${currentMonth} ${currentYear}`;
 
-  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, align: 'start', slidesToScroll: 1 }, [Autoplay({ delay: 3000, stopOnInteraction: false })]);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const { user } = useAuth();
   const [isApp, setIsApp] = useState(false);
+
+  const scrollPrevCategories = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: -260, behavior: 'smooth' });
+    }
+  };
+
+  const scrollNextCategories = () => {
+    if (categoryScrollRef.current) {
+      categoryScrollRef.current.scrollBy({ left: 260, behavior: 'smooth' });
+    }
+  };
 
   const initData = typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home' 
     ? (window as any).__INITIAL_DATA__ 
@@ -110,39 +120,55 @@ export const Home: React.FC = () => {
 
         const isAdmin = user?.role === 'admin';
 
-        let listingsPromise;
-        if (isAdmin) {
-          listingsPromise = getDocs(
-            query(collection(db, 'listings'), orderBy('createdAt', 'desc'), limit(8))
-          );
-        } else if (user) {
-          listingsPromise = Promise.all([
-            getDocs(
-              query(
-                collection(db, 'listings'),
-                where('isApproved', '==', true),
-                orderBy('createdAt', 'desc'),
-                limit(8)
-              )
-            ),
-            getDocs(
-              query(
-                collection(db, 'listings'),
-                where('submittedBy', '==', user.uid),
-                limit(50)
-              )
-            )
-          ]);
-        } else {
-          listingsPromise = getDocs(
-            query(
-              collection(db, 'listings'),
-              where('isApproved', '==', true),
-              orderBy('createdAt', 'desc'),
-              limit(8)
-            )
-          );
-        }
+        // Fetch Latest Listings with fallback
+        const fetchListings = async () => {
+          try {
+            if (isAdmin) {
+              return await getDocs(
+                query(collection(db, 'listings'), orderBy('createdAt', 'desc'), limit(8))
+              );
+            } else if (user) {
+              return await Promise.all([
+                getDocs(
+                  query(
+                    collection(db, 'listings'),
+                    where('isApproved', '==', true),
+                    orderBy('createdAt', 'desc'),
+                    limit(8)
+                  )
+                ),
+                getDocs(
+                  query(
+                    collection(db, 'listings'),
+                    where('submittedBy', '==', user.uid),
+                    limit(50)
+                  )
+                )
+              ]);
+            } else {
+              return await getDocs(
+                query(
+                  collection(db, 'listings'),
+                  where('isApproved', '==', true),
+                  orderBy('createdAt', 'desc'),
+                  limit(8)
+                )
+              );
+            }
+          } catch (error) {
+            console.warn("Index or query error for ordered listings. Falling back to unordered fetch.", error);
+            if (isAdmin) {
+              return await getDocs(query(collection(db, 'listings')));
+            } else if (user) {
+              return await Promise.all([
+                getDocs(query(collection(db, 'listings'), where('isApproved', '==', true))),
+                getDocs(query(collection(db, 'listings'), where('submittedBy', '==', user.uid)))
+              ]);
+            } else {
+              return await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
+            }
+          }
+        };
 
         // Fetch Latest News with fallback to unordered query if Firestore composite index is not yet built
         const fetchNews = async () => {
@@ -178,7 +204,7 @@ export const Home: React.FC = () => {
 
         // Execute all queries in parallel
         const [listingsResult, newsSnap, jobsSnap] = await Promise.all([
-          listingsPromise,
+          fetchListings(),
           fetchNews(),
           fetchJobs()
         ]);
@@ -374,15 +400,16 @@ export const Home: React.FC = () => {
       {/* Categories - Desktop Carousel */}
       <section className="hidden md:block relative group mb-8">
         <button 
-          onClick={() => emblaApi?.scrollPrev()}
-          className="absolute -left-10 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/90 backdrop-blur-sm border border-gray-100/50 rounded-xl flex items-center justify-center text-gray-400 hover:text-[#e90b35] transition-all duration-300 hover:scale-105 hover:bg-white z-10"
+          onClick={scrollPrevCategories}
+          aria-label="Scroll categories left"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full flex items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
         >
           <ChevronLeft className="w-4 h-4 transition-transform hover:-translate-x-0.5" />
         </button>
-        <div className="overflow-hidden py-2" ref={emblaRef}>
-          <div className="flex -ml-3">
-            {[...CATEGORIES, ...CATEGORIES, ...CATEGORIES].map((cat, i) => (
-              <div key={`${cat}-${i}`} className="flex-[0_0_calc(100%/6)] min-w-0 pl-3">
+        <div className="overflow-x-auto py-2 scroll-smooth scrollbar-hide" ref={categoryScrollRef}>
+          <div className="flex gap-3">
+            {CATEGORIES.map((cat, i) => (
+              <div key={`${cat}-${i}`} className="flex-1 min-w-[130px]">
                 <Link
                   to={`/${cat.toLowerCase()}`}
                   aria-label={`Browse ${cat} category`}
@@ -398,8 +425,9 @@ export const Home: React.FC = () => {
           </div>
         </div>
         <button 
-          onClick={() => emblaApi?.scrollNext()}
-          className="absolute -right-10 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/90 backdrop-blur-sm border border-gray-100/50 rounded-xl flex items-center justify-center text-gray-400 hover:text-[#e90b35] transition-all duration-300 hover:scale-105 hover:bg-white z-10"
+          onClick={scrollNextCategories}
+          aria-label="Scroll categories right"
+          className="absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full flex items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
         >
           <ChevronRight className="w-4 h-4 transition-transform hover:translate-x-0.5" />
         </button>

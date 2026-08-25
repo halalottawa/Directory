@@ -2772,6 +2772,74 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
+  // Dedicated handler for __cookie_check.html to resolve Cloud Run / AI Studio preview proxy redirects & bots
+  app.get("/__cookie_check.html", async (req, res) => {
+    try {
+      const returnUrl = req.query.return_url as string | undefined;
+      let targetPath = "/";
+
+      if (returnUrl) {
+        try {
+          const decoded = decodeURIComponent(returnUrl);
+          if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+            const parsed = new URL(decoded);
+            targetPath = parsed.pathname + (parsed.search || "");
+          } else {
+            targetPath = decoded;
+          }
+        } catch (e) {
+          targetPath = "/";
+        }
+      }
+
+      // Strip any upstream domain or run.app prefix
+      targetPath = targetPath.replace(/https?:\/\/[^\/]+/i, "");
+      if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
+      if (targetPath.includes("__cookie_check")) targetPath = "/";
+
+      const userAgent = (req.headers["user-agent"] || "").toLowerCase();
+      const isBot = /facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|pinterest|googlebot|bingbot|applebot|baiduspider|yandexbot|duckduckbot|bytespider|google-inspectiontool|ahrefsbot|semrushbot/i.test(userAgent);
+
+      // If requested by a social crawler/bot, directly render and return the full SSR/SSI page with 200 OK and proper canonical tags
+      if (isBot) {
+        const distPath = path.join(process.cwd(), "dist");
+        const spaPath = path.join(distPath, "template.spa.html");
+        let templatePath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
+        if (!fs.existsSync(templatePath)) {
+          templatePath = path.resolve(process.cwd(), "index.html");
+        }
+        const template = fs.readFileSync(templatePath, "utf-8");
+        const cleanPathOnly = targetPath.split("?")[0] || "/";
+        const result = await getInjectedHTML(template, cleanPathOnly, req);
+        
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        return res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
+      }
+
+      // For human browser visitors: set session cookies and redirect cleanly to canonical URL
+      const cleanTargetUrl = `https://www.halalottawa.ca${targetPath}`;
+      res.cookie("__session", "true", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
+      res.cookie("cookie_check", "passed", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
+
+      return res.status(200).send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting...</title>
+  <meta http-equiv="refresh" content="0;url=${cleanTargetUrl}">
+  <link rel="canonical" href="${cleanTargetUrl}" />
+  <script>window.location.replace(${JSON.stringify(cleanTargetUrl)});</script>
+</head>
+<body>
+  <p>Redirecting to <a href="${cleanTargetUrl}">${cleanTargetUrl}</a>...</p>
+</body>
+</html>`);
+    } catch (err) {
+      console.error("Error handling __cookie_check.html:", err);
+      return res.redirect(302, "https://www.halalottawa.ca/");
+    }
+  });
+
   // Helper functions for secure character escaping and robust schema URLs in server
   function escapeHtmlText(str: string): string {
     if (!str) return '';
@@ -3055,9 +3123,39 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     `;
   }
 
-  async function getInjectedHTML(template: string, urlPath: string): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
+  async function getInjectedHTML(template: string, urlPath: string, req?: express.Request): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
     let html = template;
     
+    // Resolve cleanUrlPath by inspecting urlPath and req query parameter return_url
+    let cleanUrlPath = urlPath || '/';
+    const returnUrlParam = (req && req.query && typeof req.query.return_url === 'string') 
+      ? req.query.return_url 
+      : (cleanUrlPath.includes('return_url=') ? cleanUrlPath.split('return_url=')[1]?.split('&')[0] : null);
+
+    if (returnUrlParam) {
+      try {
+        const decoded = decodeURIComponent(returnUrlParam);
+        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+          const parsed = new URL(decoded);
+          cleanUrlPath = parsed.pathname;
+        } else {
+          cleanUrlPath = decoded.split('?')[0];
+        }
+      } catch (e) {
+        console.warn("Could not decode return_urlParam in getInjectedHTML:", e);
+      }
+    }
+
+    if (cleanUrlPath.includes('__cookie_check.html')) {
+      cleanUrlPath = cleanUrlPath.split('__cookie_check.html')[0] || '/';
+    }
+    
+    cleanUrlPath = cleanUrlPath.replace(/https?:\/\/[^\/]+/i, '');
+    if (!cleanUrlPath.startsWith('/')) cleanUrlPath = '/' + cleanUrlPath;
+    if (cleanUrlPath.length > 1 && cleanUrlPath.endsWith('/')) {
+      cleanUrlPath = cleanUrlPath.slice(0, -1);
+    }
+
     // Basic SEO injection for specific routes
     let title = "Halal Ottawa - Halal Places in Ottawa";
     let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
@@ -3066,7 +3164,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     let initialData: any = null;
     let routeType: string = '';
-    const pathParts = urlPath.split('/').filter(Boolean);
+    const pathParts = cleanUrlPath.split('/').filter(Boolean);
     let isNotFound = false;
 
     const isSingleSegmentValid = (segment: string): boolean => {
@@ -3131,27 +3229,36 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         try {
           const qListings = query(
             collection(db, 'listings'), 
-            where('isApproved', '==', true), 
-            limit(50)
+            where('isApproved', '==', true)
           );
-          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
+          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
           const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
-          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
+          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
           
           const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
             getDocs(qListings), getDocs(qNews), getDocs(qEvents), getDocs(qJobs)
           ]);
           
-          const listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const parseListingTime = (val: any): number => {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val.toDate === 'function') return val.toDate().getTime();
+            if (typeof val.seconds === 'number') return val.seconds * 1000;
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+          };
+
+          let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 12);
           
           let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
+          newsData = newsData.sort((a, b) => parseListingTime(b.publishDate || b.createdAt) - parseListingTime(a.publishDate || a.createdAt)).slice(0, 6);
           
           let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          eventsData = eventsData.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 8);
+          eventsData = eventsData.sort((a, b) => parseListingTime(b.dateTime || b.createdAt) - parseListingTime(a.dateTime || a.createdAt)).slice(0, 8);
           
           let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          jobsData = jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
+          jobsData = jobsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 4);
           
           initialData = {
             listings: listingsData,
@@ -3553,7 +3660,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             } else {
               title = `${data.name} | Halal Ottawa`;
               description = data.description?.substring(0, 160) || description;
-              if (data.photos && data.photos.length > 0) ogImage = getAbsoluteUrl(data.photos[0]);
+              const photoCandidate = (Array.isArray(data.photos) ? data.photos.find((p: any) => typeof p === 'string' && p.trim() !== '') : null) || data.photo || data.coverImage || data.image || '';
+              if (photoCandidate) {
+                ogImage = getAbsoluteUrl(photoCandidate);
+              } else {
+                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+              }
               initialData = data;
               routeType = 'listing';
             }
@@ -3584,19 +3696,23 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
     }
 
-    // Strip existing OG, Twitter and canonical tags to prevent duplicates and ensure fresh values are injected
+    // Strip existing OG, Twitter, canonical, JSON-LD schemas, preloads and previous initial data scripts to prevent duplicates
     html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
+    html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
+    html = html.replace(/<script\b[^>]*>window\.__INITIAL_ROUTE_TYPE__[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<div\s+id=["']root["']>[\s\S]*?<\/div>/i, '<div id="root"></div>');
 
     // Robust HTML tag replacements for title and description
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(title)}</title>`);
     html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
     
-    // Normalize urlPath to strip trailing slash for canonical matching (e.g. /grocery/marche-ali/ -> /grocery/marche-ali)
-    let canonicalPath = urlPath;
+    // Normalize cleanUrlPath to strip trailing slash for canonical matching (e.g. /grocery/marche-ali/ -> /grocery/marche-ali)
+    let canonicalPath = cleanUrlPath;
     if (canonicalPath.includes('__cookie_check.html')) {
-      canonicalPath = canonicalPath.split('__cookie_check.html')[0];
+      canonicalPath = canonicalPath.split('__cookie_check.html')[0] || '/';
     }
     if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
       canonicalPath = canonicalPath.slice(0, -1);
@@ -4027,7 +4143,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
         
         // Execute server-side meta injection (SSI)
-        const result = await getInjectedHTML(template, req.path);
+        const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
           res.redirect(301, result.redirectUrl);
           return;
@@ -4057,13 +4173,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     app.get("*", async (req, res) => {
       try {
-        const indexPath = path.join(distPath, "index.html");
+        const spaPath = path.join(distPath, "template.spa.html");
+        const indexPath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
         const template = fs.readFileSync(indexPath, "utf-8");
-        const result = await getInjectedHTML(template, req.path);
+        const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
           res.redirect(301, result.redirectUrl);
           return;
         }
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);

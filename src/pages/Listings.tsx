@@ -137,11 +137,20 @@ export const Listings: React.FC = () => {
         return l.isApproved || (user && l.submittedBy === user.uid);
       });
 
+      const parseTime = (val: any): number => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        if (typeof val.toDate === 'function') return val.toDate().getTime();
+        if (typeof val.seconds === 'number') return val.seconds * 1000;
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      };
+
       // Sort client-side: Featured first, then by date
       filtered.sort((a, b) => {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return parseTime(b.createdAt) - parseTime(a.createdAt);
       });
       setRawListings(filtered);
     }, (error) => {
@@ -155,11 +164,20 @@ export const Listings: React.FC = () => {
     // Merge with demo data
     const allListings = [...rawListings, ...DEMO_LISTINGS];
     
+    const parseTime = (val: any): number => {
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      if (typeof val.toDate === 'function') return val.toDate().getTime();
+      if (typeof val.seconds === 'number') return val.seconds * 1000;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
     // Sort allListings: Featured first, then by date
     allListings.sort((a, b) => {
       if (a.isFeatured && !b.isFeatured) return -1;
       if (!a.isFeatured && b.isFeatured) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return parseTime(b.createdAt) - parseTime(a.createdAt);
     });
     
     // Filter by category and search query

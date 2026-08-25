@@ -402,6 +402,11 @@ async function prerender() {
   }
   
   const baseTemplate = fs.readFileSync(templatePath, 'utf-8');
+  try {
+    fs.writeFileSync(path.resolve(distPath, 'template.spa.html'), baseTemplate, 'utf-8');
+  } catch (spaErr) {
+    console.warn("Could not save template.spa.html:", spaErr);
+  }
   
   const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
   let fbApp;
@@ -576,7 +581,8 @@ async function prerender() {
         const url = `/${categoryPath}/${idPath}`;
         const title = `${data.name} | Halal Ottawa`;
         const description = data.description ? truncateDescription(data.description) : "Discover verified halal details, reviews, and address info.";
-        const ogImage = getAbsoluteUrl((data.photos && data.photos.length > 0) ? data.photos[0] : "");
+        const photoCandidate = (Array.isArray(data.photos) ? data.photos.find((p: any) => typeof p === 'string' && p.trim() !== '') : null) || data.photo || data.coverImage || data.image || "";
+        const ogImage = getAbsoluteUrl(photoCandidate);
 
         pagesToPrerender.push({
           urlPath: url,
@@ -604,6 +610,7 @@ async function prerender() {
       const allApprovedListings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
       const parseListingTime = (val: any): number => {
         if (!val) return 0;
+        if (typeof val === 'number') return val;
         if (typeof val.toDate === 'function') return val.toDate().getTime();
         if (typeof val.seconds === 'number') return val.seconds * 1000;
         const d = new Date(val);

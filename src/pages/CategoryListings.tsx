@@ -274,12 +274,17 @@ export const CategoryListings: React.FC = () => {
           return l.isApproved || (user && l.submittedBy === user.uid);
         });
 
+        const parseTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val === 'number') return val;
+          if (typeof val.toDate === 'function') return val.toDate().getTime();
+          if (typeof val.seconds === 'number') return val.seconds * 1000;
+          const d = new Date(val);
+          return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+
         // Sort: Recent added ones first
-        filtered.sort((a, b) => {
-          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return dateB - dateA;
-        });
+        filtered.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt));
         
         setRawListings(filtered);
       } catch (error) {
@@ -315,12 +320,17 @@ export const CategoryListings: React.FC = () => {
                cuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
     })];
     
+    const parseTime = (val: any): number => {
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      if (typeof val.toDate === 'function') return val.toDate().getTime();
+      if (typeof val.seconds === 'number') return val.seconds * 1000;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
     // Sort allListings: Recent added ones first
-    allListings.sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
+    allListings.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt));
     
     let filtered = allListings;
 
