@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Pagination } from '../components/Pagination';
 import { uploadFile } from '../utils/storageUtils';
 import { getApiUrl } from '../utils/platform';
+import { getListingUrl } from '../utils/url';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -977,7 +978,7 @@ export const AdminDashboard: React.FC = () => {
             if (pushTargetType === 'listing') {
               const matched = approvedListings.find(l => l.id === pushTargetId);
               if (matched) {
-                targetUrl = `/listings/${matched.slug || matched.id}`;
+                targetUrl = getListingUrl(matched);
               }
             } else if (pushTargetType === 'news') {
               const matched = approvedNews.find(n => n.id === pushTargetId);

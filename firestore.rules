@@ -228,6 +228,11 @@ function isValidPlanRequest(data) {
       allow update: if isAdmin() || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['visits']));
     }
 
+    match /slug_redirects/{slugId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /test/{docId} {
       allow read: if true;
     }

@@ -78,6 +78,7 @@ import { safeLocalStorage } from './utils/safeStorage';
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isApp, setIsApp] = useState(() => isAppWrapper());
 
   useEffect(() => {
@@ -113,12 +114,47 @@ const AppContent: React.FC = () => {
             target = target.replace(/https?:\/\/[^\/]+/i, '');
             if (!target.startsWith('/')) target = '/' + target;
             window.history.replaceState(null, '', target);
+            if (location.pathname.includes('__cookie_check')) {
+              navigate(target, { replace: true });
+            }
           } else {
             window.history.replaceState(null, '', '/');
+            if (location.pathname.includes('__cookie_check')) {
+              navigate('/', { replace: true });
+            }
           }
         } catch (e) {
           window.history.replaceState(null, '', '/');
         }
+      }
+
+      // Automatically strip internal preview tokens (like __aistudio_auth_token and return_url)
+      // and normalize trailing slashes in the browser URL bar
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        let hasModifiedSearch = false;
+        if (searchParams.has('__aistudio_auth_token')) {
+          searchParams.delete('__aistudio_auth_token');
+          hasModifiedSearch = true;
+        }
+        if (searchParams.has('return_url')) {
+          searchParams.delete('return_url');
+          hasModifiedSearch = true;
+        }
+
+        let cleanPath = window.location.pathname;
+        if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+          cleanPath = cleanPath.slice(0, -1);
+          hasModifiedSearch = true;
+        }
+
+        if (hasModifiedSearch) {
+          const queryString = searchParams.toString();
+          const newUrl = cleanPath + (queryString ? `?${queryString}` : '') + window.location.hash;
+          window.history.replaceState(null, '', newUrl);
+        }
+      } catch (err) {
+        // Safe fallback
       }
 
       const hostname = window.location.hostname;
@@ -130,13 +166,19 @@ const AppContent: React.FC = () => {
       }
       
       const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
-      const isStagingSandbox = hostname.includes('ais-dev-') || hostname.includes('ais-pre-') || hostname.includes('google-');
+      const isStagingSandbox = hostname.includes('ais-dev-') || hostname.includes('ais-pre-') || hostname.includes('google-') || isLocal;
       
-      if (hostname.endsWith('.run.app') && !isIframe && !isLocal && !isStagingSandbox) {
-        window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${window.location.search}${window.location.hash}`);
+      // If visited directly on any standalone Cloud Run host outside the builder iframe and staging sandbox,
+      // seamlessly redirect to the official production domain www.halalottawa.ca
+      if (hostname.endsWith('.run.app') && !isIframe && !isStagingSandbox) {
+        const searchParams = new URLSearchParams(window.location.search);
+        searchParams.delete('__aistudio_auth_token');
+        searchParams.delete('return_url');
+        const cleanSearch = searchParams.toString() ? `?${searchParams.toString()}` : '';
+        window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${cleanSearch}${window.location.hash}`);
       }
     }
-  }, []);
+  }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

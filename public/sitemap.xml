@@ -3,91 +3,91 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.halalottawa.ca/</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/news</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/events</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/jobs</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/mosques</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/organizations</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/grocery</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/clothing</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/schools</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/butchers</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/faq</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/terms</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/privacy-policy</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/tools/qibla</loc>
-    <lastmod>2026-06-28</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -1172,6 +1172,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/restaurants/chainsmoker-urban-halal-bbq-kanata</loc>
+    <lastmod>2026-08-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/chainsmoker-urban-halal-bbq.webp</image:loc>
+      <image:title>Chainsmoker Urban Halal BBQ</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/restaurants/bab-marrakech</loc>
     <lastmod>2026-05-23</lastmod>
     <changefreq>weekly</changefreq>
@@ -1462,6 +1472,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/restaurants/kadoushi-ottawa</loc>
+    <lastmod>2026-08-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/kadoushi-ottawa-photo.webp</image:loc>
+      <image:title>Kadoushi Ottawa</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/restaurants/supreme-kabob-house</loc>
     <lastmod>2026-06-07</lastmod>
     <changefreq>weekly</changefreq>
@@ -1629,6 +1649,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/moroccan-market-centre.webp</image:loc>
       <image:title>Moroccan Market Centre</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/moul-chouaya</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/moul-chouaya-photo.webp</image:loc>
+      <image:title>Moul Chouaya</image:title>
     </image:image>
   </url>
   <url>
@@ -1882,6 +1912,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/restaurants/sahtein-bakery</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/sahtein-bakery-photo.webp</image:loc>
+      <image:title>Sahtein Bakery</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/grocery/sam-a-fruits</loc>
     <lastmod>2026-05-23</lastmod>
     <changefreq>weekly</changefreq>
@@ -1979,6 +2019,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/hci-musalla-photo.webp</image:loc>
       <image:title> HCI Musalla</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/taste-of-shawarma</loc>
+    <lastmod>2026-07-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/taste-of-shawarma-photo.webp</image:loc>
+      <image:title>Taste of Shawarma</image:title>
     </image:image>
   </url>
   <url>
@@ -2142,16 +2192,6 @@
     </image:image>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/restaurants/a-la-istanbul-turkish-cuisine</loc>
-    <lastmod>2026-06-12</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/a-la-istanbul-turkish-cuisine.webp</image:loc>
-      <image:title>A La Istanbul Turkish Cuisine</image:title>
-    </image:image>
-  </url>
-  <url>
     <loc>https://www.halalottawa.ca/restaurants/mocha-mirage-cafe</loc>
     <lastmod>2026-06-22</lastmod>
     <changefreq>weekly</changefreq>
@@ -2219,6 +2259,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/pak-india-restaurant-photo.webp</image:loc>
       <image:title>Pak India Restaurant</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/restaurants/zarzoor-bakery-grill</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/zarzoor-bakery-grill-photo.webp</image:loc>
+      <image:title>Zarzoor Bakery &amp; Grill</image:title>
     </image:image>
   </url>
   <url>
@@ -2419,6 +2469,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/when-and-where-eid-al-adha-prayers-will-take-place-in-ottawa-and-gatineau.webp</image:loc>
       <image:title> When and where Eid al-Adha prayers will take place in Ottawa and Gatineau</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/news/where-to-celebrate-canada-day-in-ottawa</loc>
+    <lastmod>2026-07-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/where-to-celebrate-canada-day-in-ottawa-this-year.webp</image:loc>
+      <image:title>Where to celebrate Canada Day in Ottawa this year</image:title>
     </image:image>
   </url>
   <url>

@@ -2759,6 +2759,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         targetUrl = "https://" + targetUrl;
       }
 
+      try {
+        const parsed = new URL(targetUrl);
+        parsed.searchParams.delete('__aistudio_auth_token');
+        parsed.searchParams.delete('return_url');
+        const cleanSearch = parsed.searchParams.toString() ? `?${parsed.searchParams.toString()}` : '';
+        targetUrl = `${parsed.protocol}//${parsed.host}${parsed.pathname}${cleanSearch}${parsed.hash}`;
+      } catch (e) {}
+
       // Guard against self-reference
       if (targetUrl.includes("/go/" + slug)) return next();
 

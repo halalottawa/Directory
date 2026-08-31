@@ -25,7 +25,7 @@ export const getListingUrl = (listing: Listing | any): string => {
 export const getAbsoluteUrl = (path: string): string => {
   if (!path) return 'https://www.halalottawa.ca';
   
-  let url = path;
+  let url = path.trim();
   
   if (url.includes('.run.app') && !url.startsWith('http')) {
     url = 'https://' + url;
@@ -34,20 +34,44 @@ export const getAbsoluteUrl = (path: string): string => {
   if (url.startsWith('http://') || url.startsWith('https://')) {
     url = url.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
     
-    // Trim trailing slash for non-root paths
-    if (url.endsWith('/') && url !== 'https://www.halalottawa.ca/') {
-      url = url.slice(0, -1);
+    try {
+      const parsed = new URL(url);
+      parsed.searchParams.delete('__aistudio_auth_token');
+      parsed.searchParams.delete('return_url');
+      const search = parsed.searchParams.toString() ? `?${parsed.searchParams.toString()}` : '';
+      let cleanPathname = parsed.pathname;
+      if (cleanPathname.endsWith('/') && cleanPathname !== '/') {
+        cleanPathname = cleanPathname.slice(0, -1);
+      }
+      return `${parsed.protocol}//${parsed.host}${cleanPathname}${search}${parsed.hash}`;
+    } catch (e) {
+      // Trim trailing slash for non-root paths
+      if (url.endsWith('/') && url !== 'https://www.halalottawa.ca/') {
+        url = url.slice(0, -1);
+      }
+      return url;
     }
-    
-    return url;
   }
   
   const baseUrl = 'https://www.halalottawa.ca';
-  let resolved = `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
-  if (resolved.endsWith('/') && resolved !== 'https://www.halalottawa.ca/') {
-    resolved = resolved.slice(0, -1);
+  let cleanRelative = path.startsWith('/') ? path : '/' + path;
+  try {
+    const dummy = new URL(`https://dummy.com${cleanRelative}`);
+    dummy.searchParams.delete('__aistudio_auth_token');
+    dummy.searchParams.delete('return_url');
+    const search = dummy.searchParams.toString() ? `?${dummy.searchParams.toString()}` : '';
+    let p = dummy.pathname;
+    if (p.endsWith('/') && p !== '/') {
+      p = p.slice(0, -1);
+    }
+    return `${baseUrl}${p}${search}${dummy.hash}`;
+  } catch (e) {
+    let resolved = `${baseUrl}${cleanRelative}`;
+    if (resolved.endsWith('/') && resolved !== 'https://www.halalottawa.ca/') {
+      resolved = resolved.slice(0, -1);
+    }
+    return resolved;
   }
-  return resolved;
 };
 
 export const formatAddressWithoutProvinceAndPostalCode = (address: string): string => {

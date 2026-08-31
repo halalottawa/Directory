@@ -38,6 +38,12 @@ export const ShortLinkRedirect: React.FC = () => {
             if (targetUrl.includes('.run.app')) {
               targetUrl = targetUrl.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
             }
+            try {
+              const parsed = new URL(targetUrl.startsWith('http') ? targetUrl : `https://${targetUrl}`);
+              parsed.searchParams.delete('__aistudio_auth_token');
+              parsed.searchParams.delete('return_url');
+              targetUrl = parsed.toString();
+            } catch (e) {}
           }
 
           if (targetUrl.startsWith('/')) {
