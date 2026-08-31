@@ -2797,43 +2797,40 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
       if (targetPath.includes("__cookie_check")) targetPath = "/";
 
-      const userAgent = (req.headers["user-agent"] || "").toLowerCase();
-      const isBot = /facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|slackbot|pinterest|googlebot|bingbot|applebot|baiduspider|yandexbot|duckduckbot|bytespider|google-inspectiontool|ahrefsbot|semrushbot/i.test(userAgent);
+      const distPath = path.join(process.cwd(), "dist");
+      const spaPath = path.join(distPath, "template.spa.html");
+      let templatePath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
+      if (!fs.existsSync(templatePath)) {
+        templatePath = path.resolve(process.cwd(), "index.html");
+      }
+      let template = fs.readFileSync(templatePath, "utf-8");
 
-      // If requested by a social crawler/bot, directly render and return the full SSR/SSI page with 200 OK and proper canonical tags
-      if (isBot) {
-        const distPath = path.join(process.cwd(), "dist");
-        const spaPath = path.join(distPath, "template.spa.html");
-        let templatePath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
-        if (!fs.existsSync(templatePath)) {
-          templatePath = path.resolve(process.cwd(), "index.html");
-        }
-        const template = fs.readFileSync(templatePath, "utf-8");
-        const cleanPathOnly = targetPath.split("?")[0] || "/";
-        const result = await getInjectedHTML(template, cleanPathOnly, req);
-        
-        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-        return res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const rawTemplate = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
+          template = rawTemplate;
+        } catch (e) {}
       }
 
-      // For human browser visitors: set session cookies and redirect cleanly to canonical URL
-      const cleanTargetUrl = `https://www.halalottawa.ca${targetPath}`;
+      const cleanPathOnly = targetPath.split("?")[0] || "/";
+      const result = await getInjectedHTML(template, cleanPathOnly, req);
+
+      // Always set session cookies so subsequent requests from browsers are authenticated
       res.cookie("__session", "true", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
       res.cookie("cookie_check", "passed", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
 
-      return res.status(200).send(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="0;url=${cleanTargetUrl}">
-  <link rel="canonical" href="${cleanTargetUrl}" />
-  <script>window.location.replace(${JSON.stringify(cleanTargetUrl)});</script>
-</head>
-<body>
-  <p>Redirecting to <a href="${cleanTargetUrl}">${cleanTargetUrl}</a>...</p>
-</body>
-</html>`);
+      let htmlToSend = result.html;
+
+      // Inject history replaceState script so browser address bar updates to clean URL without page reload
+      const scriptInjection = `<script>try{if(window.location.pathname.includes("__cookie_check")){window.history.replaceState(null,"",${JSON.stringify(targetPath)});}}catch(e){}</script>`;
+      if (htmlToSend.includes("</head>")) {
+        htmlToSend = htmlToSend.replace("</head>", `${scriptInjection}\n</head>`);
+      } else {
+        htmlToSend += scriptInjection;
+      }
+
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      return res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(htmlToSend);
     } catch (err) {
       console.error("Error handling __cookie_check.html:", err);
       return res.redirect(302, "https://www.halalottawa.ca/");

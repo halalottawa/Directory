@@ -1,10 +1,38 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { isAppWrapper } from './utils/platform';
 import { getGeneralSettings } from './firebase';
+
+const CookieCheckRedirect: React.FC = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const returnUrl = params.get('return_url');
+      if (returnUrl) {
+        let target = returnUrl;
+        if (returnUrl.startsWith('http://') || returnUrl.startsWith('https://')) {
+          const parsed = new URL(returnUrl);
+          target = parsed.pathname + parsed.search + parsed.hash;
+        }
+        target = target.replace(/https?:\/\/[^\/]+/i, '');
+        if (!target.startsWith('/')) target = '/' + target;
+        navigate(target, { replace: true });
+        return;
+      }
+    } catch (e) {}
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+};
 
 // Lazy load pages
 const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
@@ -71,6 +99,28 @@ const AppContent: React.FC = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      if (pathname.includes('__cookie_check')) {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const returnUrl = params.get('return_url');
+          if (returnUrl) {
+            let target = returnUrl;
+            if (returnUrl.startsWith('http://') || returnUrl.startsWith('https://')) {
+              const parsed = new URL(returnUrl);
+              target = parsed.pathname + parsed.search + parsed.hash;
+            }
+            target = target.replace(/https?:\/\/[^\/]+/i, '');
+            if (!target.startsWith('/')) target = '/' + target;
+            window.history.replaceState(null, '', target);
+          } else {
+            window.history.replaceState(null, '', '/');
+          }
+        } catch (e) {
+          window.history.replaceState(null, '', '/');
+        }
+      }
+
       const hostname = window.location.hostname;
       let isIframe = false;
       try {
@@ -183,6 +233,7 @@ const AppContent: React.FC = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Login />} />
         <Route path="/go/:slug" element={<ShortLinkRedirect />} />
+        <Route path="/__cookie_check.html" element={<CookieCheckRedirect />} />
       </Routes>
       </Suspense>
     </ErrorBoundary>
