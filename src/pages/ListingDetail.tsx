@@ -622,6 +622,8 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           className="absolute inset-0 w-full h-full object-cover object-center"
           loading="eager"
           fetchPriority="high"
+          width="1920"
+          height="600"
           decoding="async"
         />
         <div className="absolute inset-0 bg-black/70"></div>
@@ -1372,7 +1374,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               to={getListingUrl(related)}
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col transition-all group"
             >
-              <div className="relative h-48 w-full shrink-0">
+              <div className="relative h-48 w-full shrink-0 aspect-[25/12] bg-gray-100 overflow-hidden">
                 {related.photos && related.photos[0] && related.photos[0].trim() !== '' ? (
                   <img 
                     src={getOptimizedImageUrl(related.photos[0], 400, 192)} 

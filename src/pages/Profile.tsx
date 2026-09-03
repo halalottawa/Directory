@@ -11,6 +11,7 @@ import { X, Save, ChevronRight } from 'lucide-react';
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { Pagination } from '../components/Pagination';
 
@@ -102,17 +103,18 @@ export const Profile: React.FC = () => {
       return `/${type}/${item.slug || item.id}`;
     };
     const getImage = () => {
-      if (item.photos?.[0] && item.photos[0].trim() !== '') return item.photos[0];
-      if (item.coverImage && item.coverImage.trim() !== '') return item.coverImage;
-      if (item.companyLogo && item.companyLogo.trim() !== '') return item.companyLogo;
-      if (item.logo && item.logo.trim() !== '') return item.logo;
-      return `https://picsum.photos/seed/${item.id}/200/200`;
+      let rawUrl = `https://picsum.photos/seed/${item.id}/200/200`;
+      if (item.photos?.[0] && item.photos[0].trim() !== '') rawUrl = item.photos[0];
+      else if (item.coverImage && item.coverImage.trim() !== '') rawUrl = item.coverImage;
+      else if (item.companyLogo && item.companyLogo.trim() !== '') rawUrl = item.companyLogo;
+      else if (item.logo && item.logo.trim() !== '') rawUrl = item.logo;
+      return getOptimizedImageUrl(rawUrl, 80, 80);
     };
 
     return (
       <div key={item.id} className="w-full flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-xs hover:border-gray-200 transition-all duration-200">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center aspect-square">
             {type === 'jobs' && !item.companyLogo ? (
               <Briefcase className="w-5 h-5 text-gray-400" />
             ) : (
@@ -120,6 +122,10 @@ export const Profile: React.FC = () => {
                 src={(getImage()) || undefined} 
                 alt={getTitle()} 
                 className="w-full h-full object-cover"
+                width="40"
+                height="40"
+                loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
               />
             )}
@@ -171,12 +177,17 @@ export const Profile: React.FC = () => {
         <div className="max-w-5xl mx-auto px-6 py-8 md:py-10 flex flex-col md:flex-row items-center md:items-start justify-between gap-6 md:gap-8">
           <div className="flex flex-col md:flex-row items-center md:items-start gap-6 text-center md:text-left w-full md:w-auto">
             <div className="relative group flex-shrink-0">
-              <div className="w-24 h-24 rounded-[2rem] overflow-hidden border border-gray-100 shadow-md bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-3xl font-bold">
+              <div className="w-24 h-24 rounded-[2rem] overflow-hidden border border-gray-100 shadow-md bg-gradient-to-br from-[#e90b35] to-[#ff4d6d] flex items-center justify-center text-white text-3xl font-bold aspect-square">
                 {user.photoURL ? (
                   <img 
-                    src={user.photoURL} 
+                    src={getOptimizedImageUrl(user.photoURL, 192, 192)} 
                     alt={user.name} 
                     className="w-full h-full object-cover" 
+                    width="96"
+                    height="96"
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
@@ -363,7 +374,15 @@ export const Profile: React.FC = () => {
                         <div className="flex items-center gap-3 mb-4">
                           <div className="w-10 h-10 aspect-square rounded-xl bg-gray-50 flex items-center justify-center border border-gray-100 overflow-hidden shrink-0">
                             {listing.photos && listing.photos[0] ? (
-                              <img src={(listing.photos[0]) || undefined} alt={listing.name || "Listing photo"} className="w-full h-full object-cover" />
+                              <img 
+                                src={getOptimizedImageUrl(listing.photos[0], 80, 80)} 
+                                alt={listing.name || "Listing photo"} 
+                                className="w-full h-full object-cover" 
+                                width="40"
+                                height="40"
+                                loading="lazy"
+                                decoding="async"
+                              />
                             ) : (
                               <Activity className="w-5 h-5 text-gray-400" />
                             )}

@@ -86,6 +86,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             fetchPriority="high"
             width="180"
             height="52"
+            decoding="async"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -179,6 +180,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             width="152"
             height="44"
             fetchPriority="high"
+            decoding="async"
             referrerPolicy="no-referrer"
           />
         </div>
@@ -290,6 +292,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   width="180"
                   height="52"
                   loading="lazy"
+                  decoding="async"
                   referrerPolicy="no-referrer"
                 />
               </div>

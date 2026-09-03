@@ -2,11 +2,20 @@ import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } from 'firebase/firestore';
+import {
+  renderHomeSSRHtml,
+  renderCategorySSRHtml,
+  renderListingDetailSSRHtml,
+  renderNewsDetailSSRHtml,
+  renderEventDetailSSRHtml,
+  renderJobDetailSSRHtml
+} from '../src/utils/ssrTemplates';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
 const staticUrls = [
   "/",
+  "/listings",
   "/news",
   "/events",
   "/jobs",
@@ -263,133 +272,6 @@ function getNeighborhoodFromAddress(address: string = '', suburb: string = ''): 
   return null;
 }
 
-function renderCategorySSRHtml(options: {
-  title: string;
-  h1Text: string;
-  description: string;
-  formattedCategory: string;
-  urlPath: string;
-  listings: any[];
-}): string {
-  const { h1Text, description, formattedCategory, urlPath, listings } = options;
-  const isUnderRestaurants = urlPath.startsWith('/restaurants') || urlPath.startsWith('/restaurants/');
-  const cleanUrlPath = urlPath.replace(/\/+$/, '');
-  const categories = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
-
-  const categoryPillsHtml = categories.map(cat => {
-    const slug = cat.toLowerCase();
-    const isActive = !isUnderRestaurants && formattedCategory.toLowerCase() === cat.toLowerCase();
-    const activeClass = isActive 
-      ? 'background-color: #e90b35; color: #ffffff; border: 1px solid #e90b35;' 
-      : 'background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;';
-    return `<a href="/${slug}" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; ${activeClass}">${escapeHtmlText(cat)}</a>`;
-  }).join('\n');
-
-  const locations = [
-    { name: 'All Ottawa', path: '/restaurants' },
-    { name: 'Orleans', path: '/restaurants/orleans' },
-    { name: 'Kanata', path: '/restaurants/kanata' },
-    { name: 'Barrhaven', path: '/restaurants/barrhaven' },
-    { name: 'Downtown', path: '/restaurants/downtown' }
-  ];
-
-  const locationPillsHtml = locations.map(loc => {
-    const isActive = cleanUrlPath === loc.path;
-    const activeClass = isActive 
-      ? 'background-color: #111827; color: #ffffff; border: 1px solid #111827;' 
-      : 'background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;';
-    return `<a href="${loc.path}" style="padding: 6px 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; ${activeClass}">📍 ${escapeHtmlText(loc.name)}</a>`;
-  }).join('\n');
-
-  const listingsCardsHtml = listings.length > 0 ? listings.map(l => {
-    let catSlug = 'listings';
-    if (Array.isArray(l.category) && l.category.length > 0) {
-      catSlug = normalizeCategoryToSlug(l.category[0]);
-    } else if (typeof l.category === 'string') {
-      catSlug = normalizeCategoryToSlug(l.category);
-    }
-    const listingUrl = `/${catSlug}/${l.slug || l.id}`;
-    const photoUrl = (l.photos && l.photos.length > 0) ? l.photos[0] : (l.coverImage || '/ottawa-sunset.webp');
-    const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
-    const reviewCount = l.reviewCount || 0;
-    const address = l.address ? escapeHtmlText(l.address) : 'Ottawa, ON';
-
-    return `
-    <article style="background-color: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; text-decoration: none; color: inherit;">
-      <a href="${escapeHtmlAttr(listingUrl)}" style="display: flex; flex-direction: column; text-decoration: none; color: inherit; height: 100%;">
-        <div style="position: relative; width: 100%; height: 190px; background-color: #f3f4f6; overflow: hidden;">
-          <img src="${escapeHtmlAttr(photoUrl)}" alt="${escapeHtmlAttr(l.name)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" />
-          <div style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #e90b35; background-color: rgba(254, 242, 242, 0.95); border: 1px solid #fee2e2; padding: 4px 8px; border-radius: 6px;">
-            ${escapeHtmlText(Array.isArray(l.category) ? l.category[0] : (l.category || formattedCategory))}
-          </div>
-        </div>
-        <div style="padding: 16px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-              <h2 style="font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; color: #111827;">${escapeHtmlText(l.name)}</h2>
-              <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; background-color: #fefce8; color: #a16207; padding: 4px 8px; border-radius: 8px; white-space: nowrap;">
-                ★ ${rating}
-              </div>
-            </div>
-            <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">📍 ${address}</p>
-            ${l.description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtmlText(l.description)}</p>` : ''}
-          </div>
-          <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #f9fafb; padding-top: 8px;">
-            <span>${reviewCount} reviews</span>
-            <span style="color: #e90b35; font-weight: 600;">View Details →</span>
-          </div>
-        </div>
-      </a>
-    </article>`;
-  }).join('\n') : `
-    <div style="text-align: center; padding: 48px 16px; grid-column: 1 / -1; background: #fafafa; border-radius: 16px; border: 1px dashed #e5e7eb;">
-      <p style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">Verified ${escapeHtmlText(formattedCategory)} in Ottawa</p>
-      <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">Explore local halal dining options, browse nearby neighborhoods, or submit a new community listing.</p>
-      <a href="/restaurants" style="display: inline-block; background-color: #e90b35; color: #ffffff; padding: 8px 18px; border-radius: 9999px; text-decoration: none; font-size: 14px; font-weight: 700;">View All Halal Restaurants</a>
-    </div>`;
-
-  const breadcrumbsHtml = isUnderRestaurants && cleanUrlPath !== '/restaurants'
-    ? `<nav aria-label="Breadcrumb" style="font-size: 13px; color: #6b7280; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-        <a href="/" style="color: #6b7280; text-decoration: none;">Home</a>
-        <span>/</span>
-        <a href="/restaurants" style="color: #6b7280; text-decoration: none;">Restaurants</a>
-        <span>/</span>
-        <span style="color: #111827; font-weight: 600;">${escapeHtmlText(formattedCategory)}</span>
-      </nav>`
-    : `<nav aria-label="Breadcrumb" style="font-size: 13px; color: #6b7280; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-        <a href="/" style="color: #6b7280; text-decoration: none;">Home</a>
-        <span>/</span>
-        <span style="color: #111827; font-weight: 600;">${escapeHtmlText(formattedCategory)}</span>
-      </nav>`;
-
-  return `
-    <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto" style="min-height: 100vh; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      ${breadcrumbsHtml}
-
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <div>
-          <h1 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.025em;">${escapeHtmlText(h1Text)}</h1>
-          <p style="font-size: 14px; color: #4b5563; margin-top: 6px; max-width: 800px; line-height: 1.5;">${escapeHtmlText(description)}</p>
-        </div>
-      </div>
-
-      <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-        <a href="/listings" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;">All</a>
-        ${categoryPillsHtml}
-      </div>
-
-      ${isUnderRestaurants ? `
-      <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap;">
-        ${locationPillsHtml}
-      </div>` : ''}
-
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-        ${listingsCardsHtml}
-      </div>
-    </div>
-  `;
-}
-
 async function prerender() {
   console.log("Starting Static Site Generation (SSG) / Prerendering...");
   
@@ -644,6 +526,15 @@ async function prerender() {
             timestamp: Date.now()
           };
         }
+      }
+
+      const listingsAllPage = pagesToPrerender.find(p => p.urlPath === '/listings');
+      if (listingsAllPage) {
+        listingsAllPage.routeType = 'category';
+        listingsAllPage.initialData = {
+          listings: allApprovedListings.sort((a: any, b: any) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)),
+          timestamp: Date.now()
+        };
       }
 
       const locationsSSG = ['orleans', 'kanata', 'barrhaven', 'downtown'];
@@ -1189,12 +1080,18 @@ async function prerender() {
         extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(page.routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(page.initialData).replace(/</g, '\\u003c')};</script>`;
       }
 
-      if ((page.routeType === 'category' || page.routeType === 'location') && page.initialData?.listings) {
+      let ssrBodyHtml = '';
+      if (page.routeType === 'home' && page.initialData) {
+        ssrBodyHtml = renderHomeSSRHtml(page.initialData);
+      } else if (page.routeType === 'listing' && page.initialData) {
+        ssrBodyHtml = renderListingDetailSSRHtml(page.initialData);
+      } else if ((page.routeType === 'category' || page.routeType === 'location') && page.initialData?.listings) {
         const h1 = page.title.split(' - ')[0] || page.title;
         const pathSegments = page.urlPath.split('/').filter(Boolean);
         let categoryName = 'Directory';
         if (pathSegments.length === 1) {
           const map: Record<string, string> = {
+            listings: 'All Listings',
             restaurants: 'Restaurants',
             mosques: 'Mosques',
             organizations: 'Organizations',
@@ -1208,7 +1105,7 @@ async function prerender() {
           categoryName = pathSegments[1].charAt(0).toUpperCase() + pathSegments[1].slice(1).replace(/-/g, ' ');
         }
 
-        const ssrBodyHtml = renderCategorySSRHtml({
+        ssrBodyHtml = renderCategorySSRHtml({
           title: page.title,
           h1Text: h1,
           description: page.description,
@@ -1216,6 +1113,15 @@ async function prerender() {
           urlPath: page.urlPath,
           listings: page.initialData.listings
         });
+      } else if (page.routeType === 'news' && page.initialData) {
+        ssrBodyHtml = renderNewsDetailSSRHtml(page.initialData);
+      } else if (page.routeType === 'event' && page.initialData) {
+        ssrBodyHtml = renderEventDetailSSRHtml(page.initialData);
+      } else if (page.routeType === 'job' && page.initialData) {
+        ssrBodyHtml = renderJobDetailSSRHtml(page.initialData);
+      }
+
+      if (ssrBodyHtml) {
         html = html.replace('<div id="root"></div>', `<div id="root">${ssrBodyHtml}</div>`);
       }
 

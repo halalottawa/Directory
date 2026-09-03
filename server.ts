@@ -11,6 +11,14 @@ import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import http from "http";
 import https from "https";
+import {
+  renderHomeSSRHtml,
+  renderCategorySSRHtml,
+  renderListingDetailSSRHtml,
+  renderNewsDetailSSRHtml,
+  renderEventDetailSSRHtml,
+  renderJobDetailSSRHtml
+} from "./src/utils/ssrTemplates";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
@@ -2725,6 +2733,165 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
+  // Server-side cached community events with background revalidation (stale-while-revalidate)
+  // Ensures user browser NEVER waits on a live LLM completion to load content.
+  const DEFAULT_PREGENERATED_EVENTS = [
+    {
+      id: "pregen-ottawa-halal-food-fest-2026",
+      slug: "ottawa-halal-food-fest-2026",
+      title: "Ottawa Halal Food & Heritage Festival",
+      description: "Experience the premier annual celebration of authentic halal cuisines from across the globe, featuring local Ottawa food trucks, family bazaar stalls, cultural exhibitions, and community presentations.",
+      organizer: "Ottawa Muslim Association & Community Partners",
+      location: "Lansdowne Park, 1525 Princess Patricia Way, Ottawa, ON",
+      dateTime: "2026-07-18T11:00:00.000Z",
+      coverImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1200",
+      isFeatured: true,
+      isApproved: true,
+      createdAt: "2026-01-15T12:00:00.000Z",
+      submittedBy: "system",
+      lat: 45.3995,
+      lng: -75.6836
+    },
+    {
+      id: "pregen-oma-open-house-2026",
+      slug: "ottawa-mosque-community-open-house",
+      title: "Ottawa Mosque Community Open House & Cultural Tour",
+      description: "A welcoming guided tour and interactive open house at the historic Ottawa Mosque on Northwestern Avenue. Discover Islamic art, architecture, library archives, and engage in open dialogue with local scholars.",
+      organizer: "Ottawa Mosque (OMA)",
+      location: "251 Northwestern Ave, Ottawa, ON K1Y 0M1",
+      dateTime: "2026-05-09T13:00:00.000Z",
+      coverImage: "https://images.unsplash.com/photo-1542810634-71277d95dcbb?q=80&w=1200",
+      isFeatured: true,
+      isApproved: true,
+      createdAt: "2026-01-20T14:30:00.000Z",
+      submittedBy: "system",
+      lat: 45.3976,
+      lng: -75.7381
+    },
+    {
+      id: "pregen-kma-youth-sports-2026",
+      slug: "kanata-youth-halaqa-sports-night",
+      title: "Kanata Muslim Association Youth Night & Sports",
+      description: "A fun and uplifting evening for youth in the west end, featuring basketball, indoor sports, team-building discussions, and a community dinner at the Kanata Muslim Association center.",
+      organizer: "Kanata Muslim Association (KMA)",
+      location: "351 Sandhill Rd, Kanata, ON K2K 2V2",
+      dateTime: "2026-04-25T18:00:00.000Z",
+      coverImage: "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?q=80&w=1200",
+      isFeatured: false,
+      isApproved: true,
+      createdAt: "2026-02-01T10:00:00.000Z",
+      submittedBy: "system",
+      lat: 45.3347,
+      lng: -75.9189
+    },
+    {
+      id: "pregen-snmc-family-bazaar-2026",
+      slug: "snmc-barrhaven-family-bazaar",
+      title: "SNMC Barrhaven Family BBQ & Community Bazaar",
+      description: "Annual outdoor community gathering hosted by the South Nepean Muslim Community in Barrhaven. Features local artisan vendors, halal barbecue, children's bouncy castles, and charity initiatives.",
+      organizer: "South Nepean Muslim Community (SNMC)",
+      location: "3020 Woodroffe Ave, Nepean, ON K2J 4G3",
+      dateTime: "2026-06-13T12:00:00.000Z",
+      coverImage: "https://images.unsplash.com/photo-1533105079780-92b9be482077?q=80&w=1200",
+      isFeatured: true,
+      isApproved: true,
+      createdAt: "2026-02-10T09:00:00.000Z",
+      submittedBy: "system",
+      lat: 45.2818,
+      lng: -75.7486
+    }
+  ];
+
+  let cachedEventsList = [...DEFAULT_PREGENERATED_EVENTS];
+  let cachedEventsTimestamp = Date.now();
+  let isRevalidatingEvents = false;
+  const EVENTS_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+  async function revalidateEventsInBackground() {
+    if (isRevalidatingEvents || !process.env.GEMINI_API_KEY) return;
+    isRevalidatingEvents = true;
+    try {
+      if (checkQuotaStatus()) {
+        return;
+      }
+      const { GoogleGenAI, Type } = await import('@google/genai');
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: "Find 4 active or upcoming Ottawa Muslim community events or Halal food events for 2026. Provide authentic details in Ottawa, ON, Canada.",
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.STRING },
+                title: { type: Type.STRING },
+                description: { type: Type.STRING },
+                organizer: { type: Type.STRING },
+                location: { type: Type.STRING },
+                dateTime: { type: Type.STRING, description: "ISO 8601 format" },
+                coverImage: { type: Type.STRING },
+                isFeatured: { type: Type.BOOLEAN },
+                isApproved: { type: Type.BOOLEAN },
+                createdAt: { type: Type.STRING },
+                submittedBy: { type: Type.STRING }
+              },
+              required: ["id", "title", "description", "organizer", "location", "dateTime", "coverImage"]
+            }
+          }
+        }
+      });
+
+      const text = response.text;
+      if (text) {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cachedEventsList = parsed.map(e => ({
+            ...e,
+            isApproved: true,
+            isFeatured: e.isFeatured ?? false,
+            createdAt: e.createdAt || new Date().toISOString(),
+            submittedBy: e.submittedBy || 'system',
+            lat: e.lat || 45.4215,
+            lng: e.lng || -75.6972
+          }));
+          cachedEventsTimestamp = Date.now();
+        }
+      }
+    } catch (err: any) {
+      console.warn("[Background Revalidation] Non-blocking event revalidation error:", err.message || err);
+    } finally {
+      isRevalidatingEvents = false;
+    }
+  }
+
+  app.get("/api/events/cached", (req, res) => {
+    // Deliver instantly from cache with browser & CDN caching headers
+    res.set({
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+      'X-Cache-Status': 'HIT'
+    });
+
+    const isStale = (Date.now() - cachedEventsTimestamp) > EVENTS_CACHE_TTL_MS;
+    if (isStale && !isRevalidatingEvents) {
+      // Trigger non-blocking revalidation in the background so the user's browser never waits
+      revalidateEventsInBackground().catch(() => {});
+    }
+
+    res.json({
+      events: cachedEventsList,
+      cachedAt: new Date(cachedEventsTimestamp).toISOString(),
+      isStale
+    });
+  });
+
   app.get("/go/:slug", async (req, res, next) => {
     try {
       const { slug } = req.params;
@@ -2999,133 +3166,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
 
     return null;
-  }
-
-  function renderCategorySSRHtml(options: {
-    title: string;
-    h1Text: string;
-    description: string;
-    formattedCategory: string;
-    urlPath: string;
-    listings: any[];
-  }): string {
-    const { h1Text, description, formattedCategory, urlPath, listings } = options;
-    const isUnderRestaurants = urlPath.startsWith('/restaurants') || urlPath.startsWith('/restaurants/');
-    const cleanUrlPath = urlPath.replace(/\/+$/, '');
-    const categories = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
-
-    const categoryPillsHtml = categories.map(cat => {
-      const slug = cat.toLowerCase();
-      const isActive = !isUnderRestaurants && formattedCategory.toLowerCase() === cat.toLowerCase();
-      const activeClass = isActive 
-        ? 'background-color: #e90b35; color: #ffffff; border: 1px solid #e90b35;' 
-        : 'background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;';
-      return `<a href="/${slug}" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; ${activeClass}">${escapeHtmlText(cat)}</a>`;
-    }).join('\n');
-
-    const locations = [
-      { name: 'All Ottawa', path: '/restaurants' },
-      { name: 'Orleans', path: '/restaurants/orleans' },
-      { name: 'Kanata', path: '/restaurants/kanata' },
-      { name: 'Barrhaven', path: '/restaurants/barrhaven' },
-      { name: 'Downtown', path: '/restaurants/downtown' }
-    ];
-
-    const locationPillsHtml = locations.map(loc => {
-      const isActive = cleanUrlPath === loc.path;
-      const activeClass = isActive 
-        ? 'background-color: #111827; color: #ffffff; border: 1px solid #111827;' 
-        : 'background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;';
-      return `<a href="${loc.path}" style="padding: 6px 14px; border-radius: 9999px; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; ${activeClass}">📍 ${escapeHtmlText(loc.name)}</a>`;
-    }).join('\n');
-
-    const listingsCardsHtml = listings.length > 0 ? listings.map(l => {
-      let catSlug = 'listings';
-      if (Array.isArray(l.category) && l.category.length > 0) {
-        catSlug = normalizeCategoryToSlug(l.category[0]);
-      } else if (typeof l.category === 'string') {
-        catSlug = normalizeCategoryToSlug(l.category);
-      }
-      const listingUrl = `/${catSlug}/${l.slug || l.id}`;
-      const photoUrl = (l.photos && l.photos.length > 0) ? l.photos[0] : (l.coverImage || '/ottawa-sunset.webp');
-      const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
-      const reviewCount = l.reviewCount || 0;
-      const address = l.address ? escapeHtmlText(l.address) : 'Ottawa, ON';
-
-      return `
-      <article style="background-color: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; text-decoration: none; color: inherit;">
-        <a href="${escapeHtmlAttr(listingUrl)}" style="display: flex; flex-direction: column; text-decoration: none; color: inherit; height: 100%;">
-          <div style="position: relative; width: 100%; height: 190px; background-color: #f3f4f6; overflow: hidden;">
-            <img src="${escapeHtmlAttr(photoUrl)}" alt="${escapeHtmlAttr(l.name)}" style="width: 100%; height: 100%; object-fit: cover;" loading="lazy" />
-            <div style="position: absolute; top: 12px; right: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #e90b35; background-color: rgba(254, 242, 242, 0.95); border: 1px solid #fee2e2; padding: 4px 8px; border-radius: 6px;">
-              ${escapeHtmlText(Array.isArray(l.category) ? l.category[0] : (l.category || formattedCategory))}
-            </div>
-          </div>
-          <div style="padding: 16px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-                <h2 style="font-size: 18px; font-weight: 700; line-height: 1.25; margin: 0; color: #111827;">${escapeHtmlText(l.name)}</h2>
-                <div style="display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; background-color: #fefce8; color: #a16207; padding: 4px 8px; border-radius: 8px; white-space: nowrap;">
-                  ★ ${rating}
-                </div>
-              </div>
-              <p style="color: #6b7280; font-size: 14px; margin: 6px 0 0 0;">📍 ${address}</p>
-              ${l.description ? `<p style="color: #4b5563; font-size: 13px; margin: 8px 0 0 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtmlText(l.description)}</p>` : ''}
-            </div>
-            <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #f9fafb; padding-top: 8px;">
-              <span>${reviewCount} reviews</span>
-              <span style="color: #e90b35; font-weight: 600;">View Details →</span>
-            </div>
-          </div>
-        </a>
-      </article>`;
-    }).join('\n') : `
-      <div style="text-align: center; padding: 48px 16px; grid-column: 1 / -1; background: #fafafa; border-radius: 16px; border: 1px dashed #e5e7eb;">
-        <p style="color: #111827; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">Verified ${escapeHtmlText(formattedCategory)} in Ottawa</p>
-        <p style="color: #6b7280; font-size: 14px; margin: 0 0 16px 0;">Explore local halal dining options, browse nearby neighborhoods, or submit a new community listing.</p>
-        <a href="/restaurants" style="display: inline-block; background-color: #e90b35; color: #ffffff; padding: 8px 18px; border-radius: 9999px; text-decoration: none; font-size: 14px; font-weight: 700;">View All Halal Restaurants</a>
-      </div>`;
-
-    const breadcrumbsHtml = isUnderRestaurants && cleanUrlPath !== '/restaurants'
-      ? `<nav aria-label="Breadcrumb" style="font-size: 13px; color: #6b7280; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-          <a href="/" style="color: #6b7280; text-decoration: none;">Home</a>
-          <span>/</span>
-          <a href="/restaurants" style="color: #6b7280; text-decoration: none;">Restaurants</a>
-          <span>/</span>
-          <span style="color: #111827; font-weight: 600;">${escapeHtmlText(formattedCategory)}</span>
-        </nav>`
-      : `<nav aria-label="Breadcrumb" style="font-size: 13px; color: #6b7280; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
-          <a href="/" style="color: #6b7280; text-decoration: none;">Home</a>
-          <span>/</span>
-          <span style="color: #111827; font-weight: 600;">${escapeHtmlText(formattedCategory)}</span>
-        </nav>`;
-
-    return `
-      <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto" style="min-height: 100vh; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-        ${breadcrumbsHtml}
-
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <div>
-            <h1 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.025em;">${escapeHtmlText(h1Text)}</h1>
-            <p style="font-size: 14px; color: #4b5563; margin-top: 6px; max-width: 800px; line-height: 1.5;">${escapeHtmlText(description)}</p>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-          <a href="/listings" style="padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; text-decoration: none; background-color: #ffffff; color: #4b5563; border: 1px solid #e5e7eb;">All</a>
-          ${categoryPillsHtml}
-        </div>
-
-        ${isUnderRestaurants ? `
-        <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap;">
-          ${locationPillsHtml}
-        </div>` : ''}
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-          ${listingsCardsHtml}
-        </div>
-      </div>
-    `;
   }
 
   async function getInjectedHTML(template: string, urlPath: string, req?: express.Request): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
@@ -3406,7 +3446,31 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
           description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
           ogImage = "https://www.halalottawa.ca/default-og.jpg";
-          routeType = 'listings';
+          routeType = 'category';
+          try {
+            const qListings = query(
+              collection(db, 'listings'),
+              where('isApproved', '==', true)
+            );
+            const listingsSnap = await getDocs(qListings);
+            const parseListingTime = (val: any): number => {
+              if (!val) return 0;
+              if (typeof val.toDate === 'function') return val.toDate().getTime();
+              if (typeof val.seconds === 'number') return val.seconds * 1000;
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+            const sortedListings = listingsSnap.docs
+              .map(doc => ({ id: doc.id, ...doc.data() }))
+              .sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+
+            initialData = {
+              listings: sortedListings,
+              timestamp: Date.now()
+            };
+          } catch (e) {
+            console.error("Error pre-fetching all listings for /listings", e);
+          }
         }
       }
       // Dynamic Route Data Pre-fetch and 404 enforcement
@@ -4076,11 +4140,17 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         extraTags += `\n    <script>window.__INITIAL_ROUTE_TYPE__ = ${JSON.stringify(routeType)}; window.__INITIAL_DATA__ = ${JSON.stringify(initialData).replace(/</g, '\\u003c')};</script>`;
       }
 
-      if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
+      let ssrBodyHtml = '';
+      if (routeType === 'home' && initialData) {
+        ssrBodyHtml = renderHomeSSRHtml(initialData);
+      } else if (routeType === 'listing' && initialData) {
+        ssrBodyHtml = renderListingDetailSSRHtml(initialData);
+      } else if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
         const h1 = title.split(' - ')[0] || title;
         let categoryName = 'Directory';
         if (pathParts.length === 1) {
           const map: Record<string, string> = {
+            listings: 'All Listings',
             restaurants: 'Restaurants',
             mosques: 'Mosques',
             organizations: 'Organizations',
@@ -4094,7 +4164,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           categoryName = pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace(/-/g, ' ');
         }
 
-        const ssrBodyHtml = renderCategorySSRHtml({
+        ssrBodyHtml = renderCategorySSRHtml({
           title,
           h1Text: h1,
           description,
@@ -4102,6 +4172,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           urlPath,
           listings: initialData.listings
         });
+      } else if (routeType === 'news' && initialData) {
+        ssrBodyHtml = renderNewsDetailSSRHtml(initialData);
+      } else if (routeType === 'event' && initialData) {
+        ssrBodyHtml = renderEventDetailSSRHtml(initialData);
+      } else if (routeType === 'job' && initialData) {
+        ssrBodyHtml = renderJobDetailSSRHtml(initialData);
+      }
+
+      if (ssrBodyHtml) {
         html = html.replace('<div id="root"></div>', `<div id="root">${ssrBodyHtml}</div>`);
       }
 

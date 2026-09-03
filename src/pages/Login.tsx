@@ -227,7 +227,14 @@ export const Login: React.FC = () => {
           disabled={loading}
           className="w-full py-3.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-50 active:scale-95 transition-all shadow-sm disabled:opacity-50"
         >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google" 
+            className="w-5 h-5 shrink-0" 
+            width="20" 
+            height="20" 
+            decoding="async" 
+          />
           {isRegister ? 'Register with Google' : 'Sign in with Google'}
         </button>
 

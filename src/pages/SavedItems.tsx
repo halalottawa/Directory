@@ -8,6 +8,7 @@ import { Bookmark, Heart, Clock, ChevronRight, ChevronLeft, MapPin, Calendar, Br
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 
 export const SavedItems: React.FC = () => {
@@ -105,11 +106,12 @@ export const SavedItems: React.FC = () => {
       return `/${type}/${item.slug || item.id}`;
     };
     const getImage = () => {
-      if (item.photos?.[0] && item.photos[0].trim() !== '') return item.photos[0];
-      if (item.coverImage && item.coverImage.trim() !== '') return item.coverImage;
-      if (item.companyLogo && item.companyLogo.trim() !== '') return item.companyLogo;
-      if (item.logo && item.logo.trim() !== '') return item.logo;
-      return `https://picsum.photos/seed/${item.id}/200/200`;
+      let rawUrl = `https://picsum.photos/seed/${item.id}/200/200`;
+      if (item.photos?.[0] && item.photos[0].trim() !== '') rawUrl = item.photos[0];
+      else if (item.coverImage && item.coverImage.trim() !== '') rawUrl = item.coverImage;
+      else if (item.companyLogo && item.companyLogo.trim() !== '') rawUrl = item.companyLogo;
+      else if (item.logo && item.logo.trim() !== '') rawUrl = item.logo;
+      return getOptimizedImageUrl(rawUrl, 80, 80);
     };
 
     return (
@@ -119,7 +121,7 @@ export const SavedItems: React.FC = () => {
         className={`w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors ${!isLast ? 'border-b border-gray-50' : ''}`}
       >
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center aspect-square">
             {type === 'jobs' && !item.companyLogo ? (
               <Briefcase className="w-5 h-5 text-gray-400" />
             ) : (
@@ -127,6 +129,10 @@ export const SavedItems: React.FC = () => {
                 src={(getImage()) || undefined} 
                 alt={getTitle()} 
                 className="w-full h-full object-cover"
+                width="40"
+                height="40"
+                loading="lazy"
+                decoding="async"
                 referrerPolicy="no-referrer"
               />
             )}

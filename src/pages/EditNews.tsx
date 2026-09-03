@@ -547,6 +547,9 @@ export const EditNews: React.FC = () => {
                   alt="Position Preview" 
                   className="w-full h-full object-cover pointer-events-none"
                   style={{ objectPosition: `${offset.x}% ${offset.y}%` }}
+                  width="384"
+                  height="192"
+                  decoding="async"
                 />
                 <div className="absolute inset-0 bg-black/10 pointer-events-none flex items-center justify-center">
                   <div className="bg-black/60 text-white text-[10px] px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5 backdrop-blur-sm shadow-sm animate-pulse">

@@ -58,6 +58,7 @@ export const Footer: React.FC = () => {
                 loading="lazy"
                 width="160"
                 height="40"
+                decoding="async"
               />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">

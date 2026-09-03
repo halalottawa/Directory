@@ -13,6 +13,7 @@ import { Pagination } from '../components/Pagination';
 import { uploadFile } from '../utils/storageUtils';
 import { getApiUrl } from '../utils/platform';
 import { getListingUrl } from '../utils/url';
+import { getOptimizedImageUrl } from '../utils/imageUtils';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -1639,9 +1640,18 @@ export const AdminDashboard: React.FC = () => {
               className="w-4 h-4 rounded border-gray-300 text-[#e90b35] focus:ring-[#e90b35] cursor-pointer"
             />
           )}
-          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400">
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 flex items-center justify-center text-gray-400 aspect-square">
             {getImage() ? (
-              <img src={(getImage()) || undefined} alt="Listing photo" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img 
+                src={getOptimizedImageUrl(getImage(), 80, 80) || undefined} 
+                alt="Listing photo" 
+                className="w-full h-full object-cover" 
+                width="40"
+                height="40"
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer" 
+              />
             ) : (
               <span className="font-bold text-sm uppercase">{(getTitle() as string).charAt(0)}</span>
             )}
@@ -2044,8 +2054,8 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-xs text-gray-500 mb-4">Upload a logo to display in the header and footer.</p>
                 <div className="flex items-center gap-4">
                   {siteLogoUrl ? (
-                    <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 p-2 flex items-center justify-center">
-                      <img src={siteLogoUrl} alt="Site Logo" className="max-w-full max-h-full object-contain" />
+                    <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 p-2 flex items-center justify-center aspect-square">
+                      <img src={siteLogoUrl} alt="Site Logo" className="max-w-full max-h-full object-contain" width="80" height="80" loading="lazy" decoding="async" />
                     </div>
                   ) : (
                     <div className="w-20 h-20 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
@@ -2072,8 +2082,8 @@ export const AdminDashboard: React.FC = () => {
                 <p className="text-xs text-gray-500 mb-4">Upload a favicon (ico/png/svg) to display in the browser tab.</p>
                 <div className="flex items-center gap-4">
                   {faviconUrl ? (
-                    <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-center">
-                      <img src={faviconUrl} alt="Site Favicon" className="max-w-full max-h-full object-contain" />
+                    <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 p-3 flex items-center justify-center aspect-square">
+                      <img src={faviconUrl} alt="Site Favicon" className="max-w-full max-h-full object-contain" width="64" height="64" loading="lazy" decoding="async" />
                     </div>
                   ) : (
                     <div className="w-16 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-400">
@@ -2101,12 +2111,12 @@ export const AdminDashboard: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     {heroImageUrlState ? (
-                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center">
-                        <img src={heroImageUrlState} alt="Home Hero" className="w-full h-full object-cover" />
+                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center aspect-[5/4]">
+                        <img src={heroImageUrlState} alt="Home Hero" className="w-full h-full object-cover" width="80" height="64" loading="lazy" decoding="async" />
                       </div>
                     ) : (
-                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-300 relative overflow-hidden">
-                        <img src="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp" alt="Default Hero" className="w-full h-full object-cover brightness-50" />
+                      <div className="w-20 h-16 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-center text-gray-300 relative overflow-hidden aspect-[5/4]">
+                        <img src="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp" alt="Default Hero" className="w-full h-full object-cover brightness-50" width="80" height="64" loading="lazy" decoding="async" />
                         <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white bg-black/40">Default</span>
                       </div>
                     )}
@@ -2448,9 +2458,13 @@ export const AdminDashboard: React.FC = () => {
                               <div className="flex items-center gap-3 min-w-0">
                                 {suggestion.image ? (
                                   <img 
-                                    src={suggestion.image} 
+                                    src={getOptimizedImageUrl(suggestion.image, 80, 80)} 
                                     alt={suggestion.title} 
-                                    className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-100 shrink-0"
+                                    className="w-10 h-10 rounded-lg object-cover bg-gray-100 border border-gray-100 shrink-0 aspect-square"
+                                    width="40"
+                                    height="40"
+                                    loading="lazy"
+                                    decoding="async"
                                     onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/40x40?text=Logo' }}
                                   />
                                 ) : (
@@ -2555,7 +2569,11 @@ export const AdminDashboard: React.FC = () => {
                   <img 
                     src={pushImage} 
                     alt="Notification Preview" 
-                    className="w-16 h-12 rounded-lg object-cover bg-gray-200 shrink-0"
+                    className="w-16 h-12 rounded-lg object-cover bg-gray-200 shrink-0 aspect-[4/3]"
+                    width="64"
+                    height="48"
+                    loading="lazy"
+                    decoding="async"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = 'https://placehold.co/120x95?text=Image+Not+Loaded';
                     }}
@@ -3243,9 +3261,17 @@ export const AdminDashboard: React.FC = () => {
               
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center aspect-square">
                     {item.userPhoto ? (
-                      <img src={(item.userPhoto) || undefined} alt={item.userName} className="w-full h-full object-cover" />
+                      <img 
+                        src={getOptimizedImageUrl(item.userPhoto, 80, 80) || undefined} 
+                        alt={item.userName} 
+                        className="w-full h-full object-cover" 
+                        width="40"
+                        height="40"
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
                       <Users className="w-5 h-5 text-gray-400" />
                     )}
