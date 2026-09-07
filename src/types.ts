@@ -33,6 +33,8 @@ export interface Listing {
   slug?: string;
   name: string;
   photos: string[];
+  photo?: string;
+  coverImage?: string;
   address: string;
   suburb?: string;
   lat: number;

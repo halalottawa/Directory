@@ -616,7 +616,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           src={
             listing.photos && listing.photos.length > 0 && listing.photos[0] && listing.photos[0].trim() !== ''
               ? getOptimizedImageUrl(listing.photos[0], 1920, 600)
-              : getOptimizedImageUrl(settingsCoverUrl || "/ottawa-sunset.webp", 1920, 600)
+              : getOptimizedImageUrl(listing.photo || settingsCoverUrl || "/ottawa-sunset.webp", 1920, 600)
           } 
           alt={listing.name}
           className="absolute inset-0 w-full h-full object-cover object-center"
@@ -625,6 +625,13 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           width="1920"
           height="600"
           decoding="async"
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (!target.dataset.fallback) {
+              target.dataset.fallback = 'true';
+              target.src = '/ottawa-sunset.webp';
+            }
+          }}
         />
         <div className="absolute inset-0 bg-black/70"></div>
 
@@ -1375,21 +1382,31 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col transition-all group"
             >
               <div className="relative h-48 w-full shrink-0 aspect-[25/12] bg-gray-100 overflow-hidden">
-                {related.photos && related.photos[0] && related.photos[0].trim() !== '' ? (
-                  <img 
-                    src={getOptimizedImageUrl(related.photos[0], 400, 192)} 
-                    alt={related.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                    loading="lazy"
-                    width="400"
-                    height="192"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                    <span className="text-gray-400 font-medium text-sm">No Image</span>
-                  </div>
-                )}
+                {(() => {
+                  const relPhoto = (related.photos && related.photos[0] && related.photos[0].trim() !== '') ? related.photos[0] : (related.photo || related.coverImage);
+                  return relPhoto ? (
+                    <img 
+                      src={getOptimizedImageUrl(relPhoto, 400, 192)} 
+                      alt={related.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                      loading="lazy"
+                      width="400"
+                      height="192"
+                      decoding="async"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        if (!target.dataset.fallback) {
+                          target.dataset.fallback = 'true';
+                          target.src = '/ottawa-sunset.webp';
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                      <span className="text-gray-400 font-medium text-sm">No Image</span>
+                    </div>
+                  );
+                })()}
                 {related.isFeatured && (
                   <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">
                     Featured

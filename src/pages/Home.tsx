@@ -457,16 +457,18 @@ export const Home: React.FC = () => {
               </div>
             ))
           ) : featuredListings.length > 0 ? (
-            featuredListings.map((listing, idx) => (
+            featuredListings.map((listing, idx) => {
+              const displayPhoto = (listing.photos && listing.photos.length > 0 && listing.photos[0]) ? listing.photos[0] : (listing.photo || listing.coverImage);
+              return (
               <Link
                 key={listing.id}
                 to={getListingUrl(listing)}
                 className="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
               >
                 <div className="relative aspect-[2/1] w-full bg-gray-100">
-                  {listing.photos?.[0] ? (
+                  {displayPhoto ? (
                     <img 
-                       src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
+                       src={getOptimizedImageUrl(displayPhoto, 480, 240)} 
                        alt={listing.name} 
                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                        loading={idx < 2 ? "eager" : "lazy"}
@@ -474,6 +476,13 @@ export const Home: React.FC = () => {
                        width="480"
                        height="240"
                        decoding="async"
+                       onError={(e) => {
+                         const target = e.currentTarget;
+                         if (!target.dataset.fallback) {
+                           target.dataset.fallback = 'true';
+                           target.src = '/ottawa-sunset.webp';
+                         }
+                       }}
                      />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -498,7 +507,8 @@ export const Home: React.FC = () => {
                   </div>
                 </div>
               </Link>
-            ))
+            );
+          })
           ) : (
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
               <Utensils className="w-8 h-8 text-gray-300 mb-2" />

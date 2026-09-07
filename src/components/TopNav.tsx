@@ -18,7 +18,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const [isRestaurantsMobileExpanded, setIsRestaurantsMobileExpanded] = useState(false);
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
+  const [siteLogoUrl, setSiteLogoUrl] = useState("/uploads/halal-ottawa-logo.webp");
   const { user, logout, loading, initAuth } = useAuth();
   const navigate = useNavigate();
   const [inApp, setInApp] = useState(false);
@@ -30,7 +30,8 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   useEffect(() => {
     getGeneralSettings().then((data) => {
       if (data && data.logoUrl) {
-        setSiteLogoUrl(data.logoUrl);
+        const uploadIdx = data.logoUrl.indexOf('/uploads/');
+        setSiteLogoUrl(uploadIdx !== -1 ? data.logoUrl.substring(uploadIdx) : data.logoUrl);
       }
     });
   }, []);
