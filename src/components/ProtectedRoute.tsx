@@ -3,8 +3,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode; requireAdmin?: boolean; message?: string }> = ({ children, requireAdmin, message }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, initAuth } = useAuth();
   const location = useLocation();
+
+  React.useEffect(() => {
+    if (!user) {
+      initAuth();
+    }
+  }, [user, initAuth]);
 
   if (loading) {
     return (

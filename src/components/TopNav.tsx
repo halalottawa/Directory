@@ -19,7 +19,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
-  const { user, logout, loading } = useAuth();
+  const { user, logout, loading, initAuth } = useAuth();
   const navigate = useNavigate();
   const [inApp, setInApp] = useState(false);
 
@@ -268,7 +268,12 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
               )}
             </div>
           ) : (
-            <Link to="/login" className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm">
+            <Link 
+              to="/login" 
+              onClick={() => initAuth()}
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm"
+              aria-label="Login or Account"
+            >
               <User className="w-4 h-4" />
             </Link>
           )}
@@ -512,7 +517,10 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                 <div className="mt-4">
                   <Link 
                     to="/login" 
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={() => {
+                      initAuth();
+                      setIsMenuOpen(false);
+                    }}
                     className="w-full flex items-center justify-center gap-2 py-4 bg-[#e90b35] text-white font-bold rounded-2xl shadow-lg shadow-red-100 active:scale-95 transition-all"
                   >
                     <LogIn className="w-4 h-4" />

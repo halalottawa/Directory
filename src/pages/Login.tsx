@@ -16,6 +16,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { SEO } from '../components/SEO';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -30,8 +31,12 @@ export const Login: React.FC = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, setGuest, loginWithGoogle } = useAuth();
+  const { user, setGuest, loginWithGoogle, initAuth } = useAuth();
   const isApp = isAppWrapper();
+
+  useEffect(() => {
+    initAuth();
+  }, [initAuth]);
 
   const handleGoogleLogin = async () => {
     if (isRegister) {
@@ -145,6 +150,7 @@ export const Login: React.FC = () => {
           await auth.signOut();
           throw new Error('Please verify your email address to log in. Check your inbox.');
         }
+        safeLocalStorage.setItem('has_auth_session', 'true');
         setSuccess('Logged in successfully! Redirecting...');
         setTimeout(() => navigate(from, { replace: true }), 1500);
       }

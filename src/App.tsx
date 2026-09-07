@@ -207,16 +207,16 @@ const AppContent: React.FC = () => {
     });
   }, []);
 
-  if (loading) {
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
+
+  if (loading && !isAuthPage) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
         <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
-
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-  const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
 
   if (isApp && !user && !isAuthPage && !isAllowedPublicPathInApp) {
     return <Navigate to="/login" replace state={{ from: location }} />;

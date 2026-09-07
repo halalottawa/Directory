@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   onAuthStateChanged, 
@@ -12,7 +13,7 @@ import {
   signInWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { auth, db, getMessagingPromise } from '../firebase';
+import { auth, db, getMessagingPromise, isAuthInitialized } from '../firebase';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getPreciseLocation } from '../utils/geo';
@@ -28,16 +29,46 @@ interface AuthContextType {
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   requestNotificationPermission: () => Promise<void>;
+  initAuth: () => void;
 }
+
+const hasStoredAuthSession = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (safeLocalStorage.getItem('has_auth_session') === 'true') return true;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('firebase:authUser:')) {
+        safeLocalStorage.setItem('has_auth_session', 'true');
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+};
+
+const isAuthRoute = (pathname?: string): boolean => {
+  if (typeof window === 'undefined') return false;
+  const p = pathname || window.location.pathname;
+  return p === '/login' || p === '/register';
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const location = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    // Only start in loading state if returning user has an active session or is directly on an auth page.
+    // Anonymous visitors browsing directory pages start with loading === false immediately.
+    return isAuthRoute() || hasStoredAuthSession();
+  });
   const [isGuest, setIsGuest] = useState(() => {
     return safeLocalStorage.getItem('isGuest') === 'true';
   });
+
+  const isAuthInitializedRef = React.useRef(false);
+  const unsubscribeAuthRef = React.useRef<(() => void) | null>(null);
 
   const [notificationPermission, setNotificationPermission] = useState<string>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
@@ -151,8 +182,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  useEffect(() => {
-    let unsubscribeDoc: (() => void) | null = null;
+  const initAuth = React.useCallback(() => {
+    if (isAuthInitializedRef.current) return;
+    isAuthInitializedRef.current = true;
 
     // Handle redirect result for Google login
     const handleRedirect = async () => {
@@ -164,12 +196,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     handleRedirect();
 
+    let unsubscribeDoc: (() => void) | null = null;
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        safeLocalStorage.setItem('has_auth_session', 'true');
+
         // Enforce email verification for email/password users
         const isPasswordProvider = firebaseUser.providerData.some(p => p.providerId === 'password');
         if (isPasswordProvider && !firebaseUser.emailVerified) {
           await signOut(auth);
+          safeLocalStorage.removeItem('has_auth_session');
           setUser(null);
           setLoading(false);
           return;
@@ -273,16 +310,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         if (unsubscribeDoc) unsubscribeDoc();
+        safeLocalStorage.removeItem('has_auth_session');
         setUser(null);
         setLoading(false);
       }
     });
 
-    return () => {
+    unsubscribeAuthRef.current = () => {
       unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
     };
   }, []);
+
+  // Initialize Auth when entering /login or /register, or when returning user has a stored session
+  useEffect(() => {
+    if (isAuthRoute(location.pathname) || hasStoredAuthSession()) {
+      initAuth();
+    }
+
+    return () => {
+      if (unsubscribeAuthRef.current) {
+        unsubscribeAuthRef.current();
+      }
+    };
+  }, [location.pathname, initAuth]);
 
   // Strategy B: Native JS-to-WebView hybrid push notification bridge
   useEffect(() => {
@@ -295,6 +346,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Strategy B: Received native Google idToken:', idToken);
       if (!idToken) return;
       try {
+        initAuth();
         setLoading(true);
         const { signInWithCredential, GoogleAuthProvider } = await import('firebase/auth');
         const credential = GoogleAuthProvider.credential(idToken);
@@ -459,6 +511,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user?.uid]);
 
   const loginWithGoogle = async () => {
+    initAuth();
     const provider = new GoogleAuthProvider();
     const isApp = isAppWrapper();
 
@@ -530,7 +583,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await signOut(auth);
+    safeLocalStorage.removeItem('has_auth_session');
+    if (isAuthInitialized()) {
+      await signOut(auth);
+    }
+    setUser(null);
     setGuest(false);
   };
 
@@ -540,6 +597,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         await deleteDoc(doc(db, 'users', uid));
         await deleteUser(auth.currentUser);
+        safeLocalStorage.removeItem('has_auth_session');
         setUser(null);
         setGuest(false);
       } catch (error) {
@@ -668,7 +726,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [notificationPermission, user?.uid]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isGuest, setGuest, loginWithGoogle, logout, deleteAccount, requestNotificationPermission }}>
+    <AuthContext.Provider value={{ user, loading, isGuest, setGuest, loginWithGoogle, logout, deleteAccount, requestNotificationPermission, initAuth }}>
       {children}
     </AuthContext.Provider>
   );
