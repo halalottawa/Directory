@@ -718,23 +718,7 @@ async function startServer() {
       const r2Url = process.env.R2_PUBLIC_URL;
       if (r2Url || (r2Account && r2Bucket)) {
         const baseUrl = r2Url ? r2Url.replace(/\/$/, "") : `https://${r2Bucket}.${r2Account}.r2.cloudflarestorage.com`;
-        const targetUrl = `${baseUrl}/uploads/${req.params.key}`;
-        try {
-          const fetchRes = await fetch(targetUrl);
-          if (fetchRes.ok) {
-            const buf = Buffer.from(await fetchRes.arrayBuffer());
-            try {
-              fs.writeFileSync(filePath, buf);
-            } catch (wErr) {}
-            const contentType = fetchRes.headers.get("content-type") || "image/webp";
-            res.setHeader("Content-Type", contentType);
-            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-            return res.send(buf);
-          }
-        } catch (fetchErr) {
-          console.error("Error proxying image from R2:", fetchErr);
-        }
-        return res.redirect(targetUrl);
+        return res.redirect(`${baseUrl}/uploads/${req.params.key}`);
       }
     } catch (e) {
       console.error("Error serving blob:", e);

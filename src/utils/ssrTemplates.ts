@@ -46,25 +46,20 @@ export function normalizeCategoryToSlug(cat: string): string {
 export function getOptimizedImageUrlSSR(url: string | null | undefined, width: number = 800, height?: number): string | undefined {
   if (!url) return undefined;
   const lowerUrl = url.toLowerCase();
-  if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
+  if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/') || lowerUrl.includes('r2.dev') || lowerUrl.includes('r2.cloudflarestorage.com')) {
     return url;
   }
-  let targetUrl = url;
-  const uploadIdx = url.indexOf('/uploads/');
-  if (uploadIdx !== -1) {
-    targetUrl = url.substring(uploadIdx);
-  }
-  if (targetUrl.includes('googleusercontent.com') || targetUrl.includes('ggpht.com')) {
-    const baseUrl = targetUrl.split('=')[0];
+  if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
+    const baseUrl = url.split('=')[0];
     const params = [];
     if (width) params.push(`w${width}`);
     if (height) params.push(`h${height}`);
     params.push('c');
     return `${baseUrl}=${params.join('-')}`;
   }
-  if (targetUrl.includes('images.unsplash.com')) {
+  if (url.includes('images.unsplash.com')) {
     try {
-      const urlObj = new URL(targetUrl);
+      const urlObj = new URL(url);
       urlObj.searchParams.set('w', width.toString());
       if (height) urlObj.searchParams.set('h', height.toString());
       urlObj.searchParams.set('q', '85');
@@ -72,17 +67,17 @@ export function getOptimizedImageUrlSSR(url: string | null | undefined, width: n
       urlObj.searchParams.set('auto', 'format');
       return urlObj.toString();
     } catch {
-      return targetUrl;
+      return url;
     }
   }
-  if (targetUrl.includes('res.cloudinary.com')) {
-    const parts = targetUrl.split('/upload/');
+  if (url.includes('res.cloudinary.com')) {
+    const parts = url.split('/upload/');
     if (parts.length === 2) {
       const transform = `w_${width}${height ? `,h_${height}` : ''},c_fill,q_85,f_auto`;
       return `${parts[0]}/upload/${transform}/${parts[1]}`;
     }
   }
-  const params: string[] = [`url=${encodeURIComponent(targetUrl)}`, `w=${width}`];
+  const params: string[] = [`url=${encodeURIComponent(url)}`, `w=${width}`];
   if (height) params.push(`h=${height}`);
   params.push('q=85');
   return `/api/optimize-image?${params.join('&')}`;

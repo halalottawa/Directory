@@ -34,13 +34,12 @@ const FaTiktok: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Footer: React.FC = () => {
-  const [siteLogoUrl, setSiteLogoUrl] = useState("/uploads/halal-ottawa-logo.webp");
+  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
 
   useEffect(() => {
     getGeneralSettings().then((data) => {
       if (data && data.logoUrl) {
-        const uploadIdx = data.logoUrl.indexOf('/uploads/');
-        setSiteLogoUrl(uploadIdx !== -1 ? data.logoUrl.substring(uploadIdx) : data.logoUrl);
+        setSiteLogoUrl(data.logoUrl);
       }
     });
   }, []);

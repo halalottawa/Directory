@@ -35,17 +35,8 @@ export const auth: Auth = new Proxy({} as Auth, {
     if (prop === 'app') {
       return app;
     }
-    if (prop === 'name') {
-      return app.name;
-    }
-    if (prop === 'tenantId') {
-      return null;
-    }
     if (prop === 'isInitialized' || prop === '__isInitialized') {
       return _authInstance !== null;
-    }
-    if (prop === Symbol.toStringTag || prop === 'toString') {
-      return () => '[Auth Proxy]';
     }
     const instance = getAuthInstance();
     const val = (instance as any)[prop];
@@ -64,22 +55,7 @@ export const auth: Auth = new Proxy({} as Auth, {
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
-
-let _storageInstance: any = null;
-export function getStorageInstance() {
-  if (!_storageInstance) {
-    _storageInstance = getStorage(app);
-  }
-  return _storageInstance;
-}
-export const storage = new Proxy({} as any, {
-  get(_target, prop) {
-    const instance = getStorageInstance();
-    const val = instance[prop];
-    if (typeof val === 'function') return val.bind(instance);
-    return val;
-  }
-});
+export const storage = getStorage(app);
 
 export interface GeneralSettings {
   logoUrl?: string;

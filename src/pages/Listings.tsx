@@ -373,33 +373,23 @@ export const Listings: React.FC = () => {
               className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md border border-gray-50 flex flex-col sm:flex-row transition-all group"
             >
               <div className="relative h-48 sm:w-48 sm:h-auto shrink-0 aspect-[16/9] sm:aspect-square bg-gray-100">
-                {(() => {
-                  const displayPhoto = (listing.photos && listing.photos.length > 0 && listing.photos[0]) ? listing.photos[0] : (listing.photo || listing.coverImage);
-                  return displayPhoto ? (
-                    <img 
-                      src={getOptimizedImageUrl(displayPhoto, 400, 400)} 
-                      alt={listing.name} 
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                      referrerPolicy="no-referrer" 
-                      loading={idx < 4 ? "eager" : "lazy"}
-                      fetchPriority={idx < 4 ? "high" : "auto"}
-                      width="400"
-                      height="400"
-                      decoding="async"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        if (!target.dataset.fallback) {
-                          target.dataset.fallback = 'true';
-                          target.src = '/ottawa-sunset.webp';
-                        }
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400 text-xs font-medium">No Image</span>
-                    </div>
-                  );
-                })()}
+                {listing.photos?.[0] ? (
+                  <img 
+                    src={getOptimizedImageUrl(listing.photos[0], 400, 400)} 
+                    alt={listing.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    referrerPolicy="no-referrer" 
+                    loading={idx < 4 ? "eager" : "lazy"}
+                    fetchPriority={idx < 4 ? "high" : "auto"}
+                    width="400"
+                    height="400"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs font-medium">No Image</span>
+                  </div>
+                )}
                 <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-1 rounded-md shadow-md backdrop-blur-md bg-opacity-95">
                   {getCleanCategoriesAndTags(listing).categories[0] || 'Listing'}
                 </div>

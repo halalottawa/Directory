@@ -16,7 +16,6 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { SEO } from '../components/SEO';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
-import { safeLocalStorage } from '../utils/safeStorage';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);

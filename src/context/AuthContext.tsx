@@ -32,6 +32,21 @@ interface AuthContextType {
   initAuth: () => void;
 }
 
+const hasStoredAuthSession = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (safeLocalStorage.getItem('has_auth_session') === 'true') return true;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('firebase:authUser:')) {
+        safeLocalStorage.setItem('has_auth_session', 'true');
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+};
+
 const isAuthRoute = (pathname?: string): boolean => {
   if (typeof window === 'undefined') return false;
   const p = pathname || window.location.pathname;
@@ -43,7 +58,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(() => isAuthRoute());
+  const [loading, setLoading] = useState(() => {
+    // Only start in loading state if returning user has an active session or is directly on an auth page.
+    // Anonymous visitors browsing directory pages start with loading === false immediately.
+    return isAuthRoute() || hasStoredAuthSession();
+  });
   const [isGuest, setIsGuest] = useState(() => {
     return safeLocalStorage.getItem('isGuest') === 'true';
   });
@@ -303,9 +322,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Initialize Auth ONLY when entering /login or /register (or when triggered by login click)
+  // Initialize Auth when entering /login or /register, or when returning user has a stored session
   useEffect(() => {
-    if (isAuthRoute(location.pathname)) {
+    if (isAuthRoute(location.pathname) || hasStoredAuthSession()) {
       initAuth();
     }
 

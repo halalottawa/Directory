@@ -5,27 +5,15 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
 
   try {
     const lowerUrl = url.toLowerCase();
-    // Do not optimize base64 images or SVGs
-    if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg')) {
+    // Do not optimize base64 images, SVGs, Google web UI icons, or Cloudflare R2 images
+    if (lowerUrl.startsWith('data:') || lowerUrl.endsWith('.svg') || lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/') || lowerUrl.includes('r2.dev') || lowerUrl.includes('r2.cloudflarestorage.com')) {
       return url;
-    }
-
-    // Google web UI icons
-    if (lowerUrl.includes('google.com/images/') || lowerUrl.includes('.gstatic.com/')) {
-      return url;
-    }
-
-    // Normalize Cloudflare R2 URLs to local /uploads/ so they are served same-origin
-    let targetUrl = url;
-    const uploadIdx = url.indexOf('/uploads/');
-    if (uploadIdx !== -1) {
-      targetUrl = url.substring(uploadIdx);
     }
 
     // Google User Content (Google My Business, Google Photos, etc.)
-    if (targetUrl.includes('googleusercontent.com') || targetUrl.includes('ggpht.com')) {
+    if (url.includes('googleusercontent.com') || url.includes('ggpht.com')) {
       // Remove any existing sizing parameters (e.g., =wxxx-hxxx, =sxxx)
-      let baseUrl = targetUrl.split('=')[0];
+      let baseUrl = url.split('=')[0];
       
       // Add new sizing parameters
       const params = [];
@@ -37,8 +25,8 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
     }
 
     // Unsplash
-    if (targetUrl.includes('images.unsplash.com')) {
-      const urlObj = new URL(targetUrl);
+    if (url.includes('images.unsplash.com')) {
+      const urlObj = new URL(url);
       urlObj.searchParams.set('w', width.toString());
       if (height) urlObj.searchParams.set('h', height.toString());
       urlObj.searchParams.set('q', quality.toString());
@@ -48,21 +36,33 @@ export const getOptimizedImageUrl = (url: string | null | undefined, width: numb
     }
 
     // Cloudinary
-    if (targetUrl.includes('res.cloudinary.com')) {
-      const parts = targetUrl.split('/upload/');
+    if (url.includes('res.cloudinary.com')) {
+      const parts = url.split('/upload/');
       if (parts.length === 2) {
         const transform = `w_${width}${height ? `,h_${height}` : ''},c_fill,q_${quality},f_auto`;
         return `${parts[0]}/upload/${transform}/${parts[1]}`;
       }
     }
 
-    // Route all local uploads and images through our server-side WebP optimization API
+    // Route all other images through our server-side WebP and resizing optimization API
+    // only if the backend is running (typically in AI Studio / Cloud Run preview `.run.app` or localhost).
+    // We always optimize local uploads or relative paths as they are hosted by our own Express server.
+    const isLocalOrUpload = url.startsWith('/') || lowerUrl.includes('uploads/');
+
+    if (!isLocalOrUpload && typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const isDevOrPreview = hostname.endsWith('.run.app') || hostname === 'localhost' || hostname === '127.0.0.1';
+      if (!isDevOrPreview) {
+        return url;
+      }
+    }
+
     const params: string[] = [];
     if (width) params.push(`w=${width}`);
     if (height) params.push(`h=${height}`);
     if (quality) params.push(`q=${quality}`);
     
-    return getApiUrl(`/api/optimize-image?url=${encodeURIComponent(targetUrl)}&${params.join('&')}`);
+    return getApiUrl(`/api/optimize-image?url=${encodeURIComponent(url)}&${params.join('&')}`);
   } catch (e) {
     console.error('Error optimizing image URL:', e);
   }
