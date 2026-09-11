@@ -188,50 +188,6 @@ export function renderHomeSSRHtml(data: {
     `;
   }).join('\n');
 
-  const eventsCardsHtml = events.slice(0, 4).map(item => {
-    const eventUrl = `/events/${item.slug || item.id}`;
-    const coverUrl = item.coverImage ? (getOptimizedImageUrlSSR(item.coverImage, 400, 225) || item.coverImage) : '/ottawa-sunset.webp';
-    const dateStr = item.dateTime || item.date ? new Date(item.dateTime || item.date).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-
-    return `
-      <article class="bg-white rounded-2xl overflow-hidden shadow-xs border border-gray-100 hover:shadow-md transition-all flex flex-col">
-        <a href="${escapeHtmlAttr(eventUrl)}" class="flex flex-col h-full text-decoration-none text-inherit">
-          <div class="aspect-[16/9] w-full bg-gray-100 overflow-hidden">
-            <img src="${escapeHtmlAttr(coverUrl)}" alt="${escapeHtmlAttr(item.title)}" class="w-full h-full object-cover" loading="lazy" width="400" height="225" decoding="async" />
-          </div>
-          <div class="p-4 flex-1 flex flex-col justify-between">
-            <h3 class="font-bold text-sm text-gray-900 line-clamp-2 m-0 leading-snug">${escapeHtmlText(item.title)}</h3>
-            <div class="mt-2 text-xs text-gray-500 flex items-center justify-between">
-              <span>📅 ${dateStr}</span>
-              ${item.location ? `<span class="truncate max-w-[120px]">📍 ${escapeHtmlText(item.location)}</span>` : ''}
-            </div>
-          </div>
-        </a>
-      </article>
-    `;
-  }).join('\n');
-
-  const jobsCardsHtml = jobs.slice(0, 4).map(item => {
-    const jobUrl = `/jobs/${item.slug || item.id}`;
-    return `
-      <article class="bg-white p-4 rounded-2xl shadow-xs border border-gray-100 hover:shadow-md transition-all flex flex-col justify-between">
-        <a href="${escapeHtmlAttr(jobUrl)}" class="text-decoration-none text-inherit">
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <span class="text-[10px] font-bold text-[#e90b35] uppercase tracking-wider bg-red-50 px-2 py-0.5 rounded-md">${escapeHtmlText(item.type || 'Full-time')}</span>
-              <h3 class="font-bold text-base text-gray-900 mt-2 m-0 line-clamp-1">${escapeHtmlText(item.title)}</h3>
-              <p class="text-sm text-gray-600 mt-1 m-0">${escapeHtmlText(item.company || 'Ottawa Business')}</p>
-            </div>
-          </div>
-          <div class="mt-3 pt-2 border-t border-gray-50 flex items-center justify-between text-xs text-gray-500">
-            <span>📍 ${escapeHtmlText(item.location || 'Ottawa, ON')}</span>
-            <span class="text-[#e90b35] font-semibold">Apply →</span>
-          </div>
-        </a>
-      </article>
-    `;
-  }).join('\n');
-
   return `
     <div class="w-full min-h-screen bg-gray-50" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <!-- Hero Section -->
@@ -243,7 +199,7 @@ export function renderHomeSSRHtml(data: {
             class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 
             fetchpriority="high"
             loading="eager"
-            width="1920"
+            width="1920" 
             height="600"
             decoding="async"
           />
@@ -255,7 +211,7 @@ export function renderHomeSSRHtml(data: {
             Halal Places in Ottawa
           </h1>
           <p class="text-white/90 text-sm sm:text-base md:text-lg max-w-xl mx-auto font-normal drop-shadow-xs m-0">
-            Discover verified halal restaurants, cafes, mosques, local events, news, and job opportunities across the Ottawa Muslim community.
+            Discover verified halal restaurants, cafes, mosques, and local community news across the Ottawa Muslim community.
           </p>
           <div class="w-full max-w-2xl mx-auto pt-2">
             <form action="/listings" method="GET" class="relative w-full bg-white rounded-2xl shadow-xl overflow-hidden flex items-center p-1">
@@ -263,7 +219,7 @@ export function renderHomeSSRHtml(data: {
               <input 
                 type="text" 
                 name="search" 
-                placeholder="Search restaurants, mosques, events, or jobs..." 
+                placeholder="Search restaurants, mosques, or places..." 
                 class="w-full pl-3 pr-4 py-3.5 sm:py-4 bg-white border-none text-gray-900 placeholder-gray-400 text-sm sm:text-base outline-none"
               />
               <button type="submit" class="bg-[#e90b35] text-white px-5 py-3 rounded-xl font-semibold text-sm hover:brightness-110 transition-all">Search</button>
@@ -315,40 +271,6 @@ export function renderHomeSSRHtml(data: {
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
             ${newsCardsHtml}
-          </div>
-        </section>` : ''}
-
-        ${events.length > 0 ? `
-        <!-- Upcoming Events Section -->
-        <section class="space-y-4">
-          <div class="flex justify-between items-end">
-            <div>
-              <h2 class="text-xl sm:text-2xl font-bold text-gray-900 leading-tight m-0">Upcoming Events</h2>
-              <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0">Local gatherings, lectures, fundraisers and festivals</p>
-            </div>
-            <a href="/events" class="text-[#e90b35] text-xs sm:text-sm font-semibold hover:underline text-decoration-none">
-              View all events →
-            </a>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            ${eventsCardsHtml}
-          </div>
-        </section>` : ''}
-
-        ${jobs.length > 0 ? `
-        <!-- Job Opportunities Section -->
-        <section class="space-y-4">
-          <div class="flex justify-between items-end">
-            <div>
-              <h2 class="text-xl sm:text-2xl font-bold text-gray-900 leading-tight m-0">Job Opportunities</h2>
-              <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0">Local openings with businesses and organizations</p>
-            </div>
-            <a href="/jobs" class="text-[#e90b35] text-xs sm:text-sm font-semibold hover:underline text-decoration-none">
-              View all jobs →
-            </a>
-          </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            ${jobsCardsHtml}
           </div>
         </section>` : ''}
       </div>

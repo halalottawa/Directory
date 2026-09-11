@@ -37,7 +37,7 @@ export const AdminDashboard: React.FC = () => {
   const [planRequests, setPlanRequests] = useState<any[]>([]);
 
   // Tab states
-  const [activeModerationTab, setActiveModerationTab] = useState<'listings' | 'events' | 'jobs' | 'news' | 'plan_requests'>('listings');
+  const [activeModerationTab, setActiveModerationTab] = useState<'listings' | 'news' | 'plan_requests'>('listings');
   const [activeFeedbackTab, setActiveFeedbackTab] = useState<'reviews' | 'comments'>('reviews');
 
   // Search states
@@ -1773,8 +1773,6 @@ export const AdminDashboard: React.FC = () => {
     let items: any[] = [];
     switch (activeModerationTab) {
       case 'listings': items = [...pendingListings, ...approvedListings]; break;
-      case 'events': items = [...pendingEvents, ...approvedEvents]; break;
-      case 'jobs': items = [...pendingJobs, ...approvedJobs]; break;
       case 'news': items = [...pendingNews, ...approvedNews]; break;
       case 'plan_requests': items = planRequests; break;
       default: items = [];
@@ -2175,7 +2173,7 @@ export const AdminDashboard: React.FC = () => {
           </h2>
           
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide ml-2">
-            {['listings', 'events', 'jobs', 'news', 'plan_requests'].map((tab) => (
+            {['listings', 'news', 'plan_requests'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => {
@@ -2438,7 +2436,7 @@ export const AdminDashboard: React.FC = () => {
                         // Delay slightly so onMouseDown of suggestion item triggers first
                         setTimeout(() => setIsPushSearchFocused(false), 200);
                       }}
-                      placeholder="Search across listings, news, events, or jobs to link landing destination..."
+                      placeholder="Search across listings or news to link landing destination..."
                       className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all placeholder:text-gray-400"
                     />
                     

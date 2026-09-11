@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Newspaper, Calendar, Briefcase, MapPin } from 'lucide-react';
+import { Home, Newspaper, MapPin, Bookmark } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -13,8 +13,7 @@ export const BottomNav: React.FC = () => {
     { to: '/', icon: Home, label: 'Home' },
     { to: '/listings', icon: MapPin, label: 'Listings' },
     { to: '/news', icon: Newspaper, label: 'News' },
-    { to: '/events', icon: Calendar, label: 'Events' },
-    { to: '/jobs', icon: Briefcase, label: 'Jobs' },
+    { to: '/saved', icon: Bookmark, label: 'Saved' },
   ];
 
   return (

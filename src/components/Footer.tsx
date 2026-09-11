@@ -62,7 +62,7 @@ export const Footer: React.FC = () => {
               />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">
-              Supporting the Ottawa Muslim community by connecting people with halal-certified businesses, community events, local news, and career opportunities. Your trusted hub for halal life in the capital.
+              Supporting the Ottawa Muslim community by connecting people with halal-certified businesses, organizations, and local community news. Your trusted hub for halal life in the capital.
             </p>
             <div className="flex items-center gap-4">
               <a href="https://www.facebook.com/halalottawa.ca/" target="_blank" rel="noopener noreferrer" className="p-2 bg-gray-800 text-gray-400 hover:text-white hover:bg-[#e90b35] rounded-lg transition-all" aria-label="Facebook">
@@ -86,8 +86,6 @@ export const Footer: React.FC = () => {
             <ul className="space-y-4">
               <li><Link to="/listings" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">All Listings</Link></li>
               <li><Link to="/news" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Community News</Link></li>
-              <li><Link to="/events" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Upcoming Events</Link></li>
-              <li><Link to="/jobs" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Job Board</Link></li>
             </ul>
           </div>
 

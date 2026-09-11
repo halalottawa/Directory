@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Listing, Event, Job, NewsArticle } from '../types';
-import { Bookmark, Heart, Clock, ChevronRight, ChevronLeft, MapPin, Calendar, Briefcase, Newspaper, Trash2, Star, ExternalLink, FileText, Search } from 'lucide-react';
-import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
+import { Listing, NewsArticle } from '../types';
+import { ChevronRight, Trash2 } from 'lucide-react';
+import { DEMO_LISTINGS, DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
@@ -15,8 +15,6 @@ export const SavedItems: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [savedListings, setSavedListings] = useState<Listing[]>([]);
-  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
-  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [savedNews, setSavedNews] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [unsavingId, setUnsavingId] = useState<string | null>(null);
@@ -55,16 +53,12 @@ export const SavedItems: React.FC = () => {
         return details;
       };
 
-      const [sListings, sEvents, sJobs, sNews] = await Promise.all([
+      const [sListings, sNews] = await Promise.all([
         fetchSavedDetails('listing', 'listings', DEMO_LISTINGS),
-        fetchSavedDetails('event', 'events', DEMO_EVENTS),
-        fetchSavedDetails('job', 'jobs', DEMO_JOBS),
         fetchSavedDetails('news', 'news', DEMO_NEWS)
       ]);
 
       setSavedListings(sListings as any[]);
-      setSavedEvents(sEvents as any[]);
-      setSavedJobs(sJobs as any[]);
       setSavedNews(sNews as any[]);
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'saved_items');
@@ -85,7 +79,6 @@ export const SavedItems: React.FC = () => {
     setUnsavingId(savedDocId);
     try {
       await deleteDoc(doc(db, 'saved_items', savedDocId));
-      // Refresh content
       await fetchSavedContent();
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `saved_items/${savedDocId}`);
@@ -100,8 +93,7 @@ export const SavedItems: React.FC = () => {
     const getTitle = () => item.name || item.title || 'Untitled';
     const getSubtitle = () => {
       if (type === 'listings') return Array.isArray(item.category as any) ? (item.category as any).join(', ') : item.category;
-      if (type === 'events') return item.location;
-      if (type === 'jobs') return item.company;
+      if (type === 'news') return item.author || 'Community News';
       return '';
     };
     const getLink = () => {
@@ -112,7 +104,6 @@ export const SavedItems: React.FC = () => {
       let rawUrl = `https://picsum.photos/seed/${item.id}/200/200`;
       if (item.photos?.[0] && item.photos[0].trim() !== '') rawUrl = item.photos[0];
       else if (item.coverImage && item.coverImage.trim() !== '') rawUrl = item.coverImage;
-      else if (item.companyLogo && item.companyLogo.trim() !== '') rawUrl = item.companyLogo;
       else if (item.logo && item.logo.trim() !== '') rawUrl = item.logo;
       return getOptimizedImageUrl(rawUrl, 80, 80);
     };
@@ -125,20 +116,16 @@ export const SavedItems: React.FC = () => {
       >
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0 flex items-center justify-center aspect-square">
-            {type === 'jobs' && !item.companyLogo ? (
-              <Briefcase className="w-5 h-5 text-gray-400" />
-            ) : (
-              <img 
-                src={(getImage()) || undefined} 
-                alt={getTitle()} 
-                className="w-full h-full object-cover"
-                width="40"
-                height="40"
-                loading="lazy"
-                decoding="async"
-                referrerPolicy="no-referrer"
-              />
-            )}
+            <img 
+              src={(getImage()) || undefined} 
+              alt={getTitle()} 
+              className="w-full h-full object-cover"
+              width="40"
+              height="40"
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div className="text-left min-w-0">
             <h3 className="font-medium text-gray-700 truncate max-w-[200px] sm:max-w-xs">{getTitle()}</h3>
@@ -170,7 +157,7 @@ export const SavedItems: React.FC = () => {
     <main className="min-h-screen bg-[#F9FAFB] pb-12 animate-in fade-in duration-500">
       <SEO 
         title="Saved Items" 
-        description="View your saved listings, events, jobs, and news on Halal Ottawa." 
+        description="View your saved listings and news on Halal Ottawa." 
         noindex={true}
       />
 
@@ -199,35 +186,17 @@ export const SavedItems: React.FC = () => {
               </div>
             </section>
 
-            {/* Saved Events */}
-            <section className="space-y-3">
-              <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
-                Saved Events
-              </h2>
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                {savedEvents.map((item, idx) => renderItemCard(item, 'events', idx === savedEvents.length - 1))}
-                {savedEvents.length === 0 && (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-400 text-sm font-medium italic">No saved events found.</p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Saved Jobs */}
-            <section className="space-y-3">
-              <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
-                Saved Jobs
-              </h2>
-              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-                {savedJobs.map((item, idx) => renderItemCard(item, 'jobs', idx === savedJobs.length - 1))}
-                {savedJobs.length === 0 && (
-                  <div className="p-8 text-center">
-                    <p className="text-gray-400 text-sm font-medium italic">No saved jobs found.</p>
-                  </div>
-                )}
-              </div>
-            </section>
+            {/* Saved News */}
+            {savedNews.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
+                  Saved News
+                </h2>
+                <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                  {savedNews.map((item, idx) => renderItemCard(item, 'news', idx === savedNews.length - 1))}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>

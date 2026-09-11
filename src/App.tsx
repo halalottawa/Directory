@@ -44,16 +44,8 @@ const ListingDetail = React.lazy(() => import('./pages/ListingDetail').then(modu
 const AddListing = React.lazy(() => import('./pages/AddListing').then(module => ({ default: module.AddListing })));
 const News = React.lazy(() => import('./pages/News').then(module => ({ default: module.News })));
 const NewsDetail = React.lazy(() => import('./pages/NewsDetail').then(module => ({ default: module.NewsDetail })));
-const Events = React.lazy(() => import('./pages/Events').then(module => ({ default: module.Events })));
-const EventDetail = React.lazy(() => import('./pages/EventDetail').then(module => ({ default: module.EventDetail })));
-const AddEvent = React.lazy(() => import('./pages/AddEvent').then(module => ({ default: module.AddEvent })));
-const Jobs = React.lazy(() => import('./pages/Jobs').then(module => ({ default: module.Jobs })));
-const JobDetail = React.lazy(() => import('./pages/JobDetail').then(module => ({ default: module.JobDetail })));
-const AddJob = React.lazy(() => import('./pages/AddJob').then(module => ({ default: module.AddJob })));
 const AddNews = React.lazy(() => import('./pages/AddNews').then(module => ({ default: module.AddNews })));
 const EditListing = React.lazy(() => import('./pages/EditListing').then(module => ({ default: module.EditListing })));
-const EditEvent = React.lazy(() => import('./pages/EditEvent').then(module => ({ default: module.EditEvent })));
-const EditJob = React.lazy(() => import('./pages/EditJob').then(module => ({ default: module.EditJob })));
 const EditNews = React.lazy(() => import('./pages/EditNews').then(module => ({ default: module.EditNews })));
 const Login = React.lazy(() => import('./pages/Login').then(module => ({ default: module.Login })));
 const Profile = React.lazy(() => import('./pages/Profile').then(module => ({ default: module.Profile })));
@@ -240,10 +232,10 @@ const AppContent: React.FC = () => {
           <Route path="/listings/:slug" element={<ListingDetail />} />
           <Route path="/news" element={<News />} />
           <Route path="/news/:slug" element={<NewsDetail />} />
-          <Route path="/events" element={<Events />} />
-          <Route path="/events/:slug" element={<EventDetail />} />
-          <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs/:slug" element={<JobDetail />} />
+          <Route path="/events" element={<Navigate to="/" replace />} />
+          <Route path="/events/*" element={<Navigate to="/" replace />} />
+          <Route path="/jobs" element={<Navigate to="/" replace />} />
+          <Route path="/jobs/*" element={<Navigate to="/" replace />} />
           <Route path="/:category/:slug" element={<ListingDetail />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfService />} />
@@ -253,14 +245,10 @@ const AppContent: React.FC = () => {
           {/* Protected Routes */}
           <Route path="/profile" element={<ProtectedRoute message="Sign in to view and manage your profile."><Profile /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute message="Sign in to edit your profile."><EditProfile /></ProtectedRoute>} />
-          <Route path="/saved" element={<ProtectedRoute message="Sign in to access your saved listings, events, and jobs."><SavedItems /></ProtectedRoute>} />
+          <Route path="/saved" element={<ProtectedRoute message="Sign in to access your saved listings and news."><SavedItems /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute message="Sign in to manage your account settings."><Settings /></ProtectedRoute>} />
           <Route path="/listings/add" element={<ProtectedRoute message="Sign in to add a new listing to the community."><AddListing /></ProtectedRoute>} />
           <Route path="/listings/edit/:id" element={<ProtectedRoute message="Sign in to edit your listing."><EditListing /></ProtectedRoute>} />
-          <Route path="/events/add" element={<ProtectedRoute message="Sign in to share a new community event."><AddEvent /></ProtectedRoute>} />
-          <Route path="/events/edit/:id" element={<ProtectedRoute message="Sign in to edit your event details."><EditEvent /></ProtectedRoute>} />
-          <Route path="/jobs/add" element={<ProtectedRoute message="Sign in to post a new job opportunity."><AddJob /></ProtectedRoute>} />
-          <Route path="/jobs/edit/:id" element={<ProtectedRoute message="Sign in to edit your job posting."><EditJob /></ProtectedRoute>} />
           <Route path="/news/add" element={<ProtectedRoute requireAdmin message="Admin access required to publish news articles."><AddNews /></ProtectedRoute>} />
           <Route path="/news/edit/:id" element={<ProtectedRoute requireAdmin message="Admin access required to edit news articles."><EditNews /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute requireAdmin message="Admin access required for the dashboard."><AdminDashboard /></ProtectedRoute>} />

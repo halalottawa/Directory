@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Newspaper, Briefcase, ChevronRight, ChevronLeft, Star, User, Clock, DollarSign, Building2, ChevronDown, Utensils } from 'lucide-react';
+import { Search, MapPin, Newspaper, ChevronRight, ChevronLeft, Star, User, Clock, ChevronDown, Utensils } from 'lucide-react';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db, getGeneralSettings } from '../firebase';
-import { Listing, NewsArticle, Job } from '../types';
+import { Listing, NewsArticle } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS, DEMO_JOBS } from '../constants';
+import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getListingUrl, getAbsoluteUrl } from '../utils/url';
 import { useAuth } from '../context/AuthContext';
@@ -26,11 +26,7 @@ const faqs = [
   },
   {
     question: "How are listings approved?",
-    answer: "Our community moderators review all submitted listings and events within 24-48 hours. They verify the information to ensure quality standards our community expects."
-  },
-  {
-    question: "Can I promote an event?",
-    answer: "Absolutely. Navigate to the Events section and click \"Add Event\" to share your upcoming activity with the local community. It will be visible after a quick review."
+    answer: "Our community moderators review all submitted listings within 24-48 hours. They verify the information to ensure quality standards our community expects."
   }
 ];
 
@@ -99,7 +95,6 @@ export const Home: React.FC = () => {
       : []
   );
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
-  const [featuredJobs, setFeaturedJobs] = useState<Job[]>(initData?.jobs || []);
   const [heroImageUrl, setHeroImageUrl] = useState<string>('');
   const navigate = useNavigate();
 
@@ -186,27 +181,10 @@ export const Home: React.FC = () => {
           }
         };
 
-        // Fetch Latest Jobs with fallback
-        const fetchJobs = async () => {
-          try {
-            const q = isAdmin
-              ? query(collection(db, 'jobs'), orderBy('createdAt', 'desc'), limit(6))
-              : query(collection(db, 'jobs'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(6));
-            return await getDocs(q);
-          } catch (error) {
-            console.warn("Index not found for ordered jobs. Falling back to unordered larger fetch.", error);
-            const qFallback = isAdmin
-              ? query(collection(db, 'jobs'), limit(50))
-              : query(collection(db, 'jobs'), where('isApproved', '==', true), limit(50));
-            return await getDocs(qFallback);
-          }
-        };
-
-        // Execute all queries in parallel
-        const [listingsResult, newsSnap, jobsSnap] = await Promise.all([
+        // Execute queries in parallel
+        const [listingsResult, newsSnap] = await Promise.all([
           fetchListings(),
-          fetchNews(),
-          fetchJobs()
+          fetchNews()
         ]);
 
         const parseTime = (val: any): number => {
@@ -270,24 +248,6 @@ export const Home: React.FC = () => {
           .slice(0, 6);
         setLatestNews(sortedNews);
 
-        const jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
-        
-        // Merge with DEMO_JOBS, deduplicating by ID or slug
-        const mergedJobsMap = new Map<string, Job>();
-        DEMO_JOBS.forEach(item => mergedJobsMap.set(item.id, item));
-        jobsData.forEach(item => {
-          mergedJobsMap.set(item.id, item);
-          if (item.slug) {
-            const demoItem = DEMO_JOBS.find(d => d.slug === item.slug);
-            if (demoItem) mergedJobsMap.delete(demoItem.id);
-          }
-        });
-
-        const sortedJobs = Array.from(mergedJobsMap.values())
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 4);
-        setFeaturedJobs(sortedJobs);
-
       } catch (error) {
         console.error("Error fetching home data:", error);
       } finally {
@@ -310,7 +270,7 @@ export const Home: React.FC = () => {
       </Helmet>
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
-        description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities."
+        description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local community news."
         canonicalUrl={getAbsoluteUrl("")}
         disableSuffix={true}
         ogImage={heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp"}
@@ -334,7 +294,7 @@ export const Home: React.FC = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
+              placeholder="Search halal restaurants, mosques, or places in Ottawa..."
               className="w-full pl-12 pr-4 py-4 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm outline-none"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -359,14 +319,14 @@ export const Home: React.FC = () => {
               Halal Places in Ottawa
             </h1>
             <p className="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md">
-              Discover verified halal restaurants, cafes, mosques, local events, news, and job opportunities
+              Discover verified halal restaurants, cafes, mosques, and local community news
             </p>
             <div className="w-full max-w-2xl mx-auto">
               <form onSubmit={handleSearch} className="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search halal restaurants, mosques, events, or jobs in Ottawa..."
+                  placeholder="Search halal restaurants, mosques, or places in Ottawa..."
                   className="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -578,86 +538,6 @@ export const Home: React.FC = () => {
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
               <Newspaper className="w-8 h-8 text-gray-300 mb-2" />
               <p className="text-gray-400 text-sm font-medium">No news articles published recently.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Latest Jobs */}
-      <section className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Jobs</h2>
-          <Link 
-            to="/jobs" 
-            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
-            aria-label="View all job listings"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-2 md:gap-4 md:space-y-0">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, idx) => (
-              <div key={idx} className="block bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-between">
-                <div className="flex gap-3 items-start">
-                  <div className="w-12 h-12 rounded-xl bg-gray-200 shrink-0 animate-pulse" />
-                  <div className="flex-1 space-y-2 mt-1">
-                    <div className="h-4 bg-gray-200 rounded-md w-3/4 animate-pulse" />
-                    <div className="h-3.5 bg-gray-200 rounded-md w-1/2 animate-pulse" />
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center gap-4">
-                  <div className="h-3 bg-gray-200 rounded-md w-1/4 animate-pulse" />
-                  <div className="h-3 bg-gray-200 rounded-md w-1/4 animate-pulse" />
-                </div>
-              </div>
-            ))
-          ) : featuredJobs.length > 0 ? (
-            featuredJobs.map((job) => (
-              <Link
-                key={job.id}
-                to={`/jobs/${job.slug || job.id}`}
-                className="block bg-white p-4 rounded-2xl border border-gray-50 shadow-sm hover:shadow-md transition-all outline-none focus:ring-2 focus:ring-[#e90b35]"
-              >
-                <div className="flex gap-3 items-start">
-                  <div className="w-12 h-12 rounded-xl bg-gray-55 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 aspect-square">
-                    {job.companyLogo && job.companyLogo.trim() !== '' ? (
-                      <img 
-                        src={getOptimizedImageUrl(job.companyLogo, 48, 48)} 
-                        alt={job.company} 
-                        className="w-full h-full object-cover" 
-                        loading="lazy"
-                        width="48"
-                        height="48"
-                      />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-gray-400" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-4">
-                      <h3 className="font-bold text-gray-900 leading-tight">{job.title}</h3>
-                      {job.isFeatured && <span className="bg-red-50 text-[#e90b35] text-[10px] font-bold px-2 py-1 rounded-full uppercase shrink-0">Featured</span>}
-                    </div>
-                    <p className="text-[#e90b35] font-bold text-sm flex items-center gap-1 mt-1">
-                      <Briefcase className="w-3 h-3 shrink-0" /> <span>{job.company}</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-3 flex items-center gap-4 text-xs text-gray-400 font-medium">
-                  {job.salary && <span className="flex items-center gap-1"><DollarSign className="w-3.5 h-3.5" /> {job.salary}</span>}
-                  {job.type && <span className="flex items-center gap-1"><Briefcase className="w-3.5 h-3.5" /> {job.type}</span>}
-                  {(!job.salary && !job.type) && job.location && (
-                    <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {job.location.split(',')[1]?.trim() || job.location.split(',')[0]}</span>
-                  )}
-                </div>
-              </Link>
-            ))
-          ) : (
-            <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
-              <Briefcase className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm font-medium">No active job listings posted.</p>
             </div>
           )}
         </div>
