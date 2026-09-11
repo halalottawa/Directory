@@ -3,91 +3,91 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.halalottawa.ca/</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/news</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/events</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/jobs</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/mosques</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/organizations</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/grocery</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/clothing</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/schools</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/butchers</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/faq</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/terms</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/privacy-policy</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/tools/qibla</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -497,7 +497,7 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://heartoforleans.ca/wp-content/uploads/2020/10/Garlic-King_11July-2020-scaled-1.jpg</image:loc>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/the-garlic-king.webp</image:loc>
       <image:title>The Garlic King</image:title>
     </image:image>
   </url>
@@ -677,7 +677,7 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://falafelonwheels.ca/wp-content/uploads/2020/05/Screen-Shot-2020-05-28-at-3.12.32-PM.png</image:loc>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/falafel-on-wheels.webp</image:loc>
       <image:title>Falafel on Wheels</image:title>
     </image:image>
   </url>
@@ -927,7 +927,7 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>
-      <image:loc>https://smartcdn.gprod.postmedia.digital/ottawacitizen/wp-content/uploads/2018/01/chahaya-malaysia-113-jpg.jpg</image:loc>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/chahaya-malaysia.webp</image:loc>
       <image:title>Chahaya Malaysia</image:title>
     </image:image>
   </url>
@@ -2429,6 +2429,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-breaks-world-record-for-longest-shawarma-sandwich-at-shawarma-fest-cover.webp</image:loc>
       <image:title>Ottawa breaks world record for longest shawarma sandwich at Shawarma Fest</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/news/ottawa-run-for-palestine-returns-in-support-of-children-in-gaza-this-september</loc>
+    <lastmod>2026-08-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-run-for-palestine-returns-in-support-of-children-in-gaza-this-september-cover.webp</image:loc>
+      <image:title>Ottawa Run for Palestine returns in support of children in Gaza this September</image:title>
     </image:image>
   </url>
   <url>

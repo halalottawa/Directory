@@ -13,19 +13,30 @@ import {
   signInWithCredential
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot, updateDoc } from 'firebase/firestore';
-import { auth, db, getMessagingPromise, isAuthInitialized } from '../firebase';
+import { auth, getAuthInstance, db, getMessagingPromise, isAuthInitialized } from '../firebase';
 import { UserProfile } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
 import { safeLocalStorage } from '../utils/safeStorage';
 
+export const checkIsAdminEmail = (email?: string | null): boolean => {
+  if (!email) return false;
+  const lower = email.toLowerCase().trim();
+  return (
+    lower === 'abesabil00@gmail.com' ||
+    lower === 'abersabil00@gmail.com' ||
+    lower === 'fibaliktn@gmail.com' ||
+    lower === 'fibalik.tn@gmail.com'
+  );
+};
+
 interface AuthContextType {
   user: UserProfile | null;
   loading: boolean;
   isGuest: boolean;
   setGuest: (val: boolean) => void;
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<UserProfile | null>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   requestNotificationPermission: () => Promise<void>;
@@ -69,6 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAuthInitializedRef = React.useRef(false);
   const unsubscribeAuthRef = React.useRef<(() => void) | null>(null);
+  const safetyTimeoutRef = React.useRef<any>(null);
 
   const [notificationPermission, setNotificationPermission] = useState<string>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
@@ -186,10 +198,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isAuthInitializedRef.current) return;
     isAuthInitializedRef.current = true;
 
+    // Safety timeout: ensure loading is NEVER stuck permanently
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+    }
+    safetyTimeoutRef.current = setTimeout(() => {
+      setLoading(false);
+    }, 1500);
+
+    const authInstance = getAuthInstance();
+
     // Handle redirect result for Google login
     const handleRedirect = async () => {
       try {
-        await getRedirectResult(auth);
+        const redirectRes = await getRedirectResult(authInstance);
+        if (redirectRes?.user) {
+          const fbUser = redirectRes.user;
+          safeLocalStorage.setItem('has_auth_session', 'true');
+          const isAdmin = checkIsAdminEmail(fbUser.email);
+          const initialProfile: UserProfile = {
+            uid: fbUser.uid,
+            name: (fbUser.displayName || fbUser.email?.split('@')[0] || 'Community Member').slice(0, 90),
+            email: fbUser.email || '',
+            role: isAdmin ? 'admin' : 'user',
+            createdAt: new Date().toISOString(),
+            consentToUpdates: true,
+            emailFrequency: 'weekly',
+            pushNotifications: true,
+            pushFrequency: 'daily',
+            location: 'Ottawa, ON',
+            photoURL: fbUser.photoURL || undefined,
+          };
+          setUser((prev) => prev || initialProfile);
+          setLoading(false);
+        }
       } catch (err: any) {
         console.error('Error handling redirect result:', err);
       }
@@ -198,114 +240,151 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     let unsubscribeDoc: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(authInstance, async (firebaseUser) => {
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+      }
       if (firebaseUser) {
         safeLocalStorage.setItem('has_auth_session', 'true');
 
         // Enforce email verification for email/password users
         const isPasswordProvider = firebaseUser.providerData.some(p => p.providerId === 'password');
         if (isPasswordProvider && !firebaseUser.emailVerified) {
-          await signOut(auth);
+          await signOut(authInstance);
           safeLocalStorage.removeItem('has_auth_session');
           setUser(null);
           setLoading(false);
           return;
         }
 
+        const isAdmin = checkIsAdminEmail(firebaseUser.email);
+        const fallbackProfile: UserProfile = {
+          uid: firebaseUser.uid,
+          name: (firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Community Member').slice(0, 90),
+          email: firebaseUser.email || '',
+          role: isAdmin ? 'admin' : 'user',
+          createdAt: new Date().toISOString(),
+          consentToUpdates: true,
+          emailFrequency: 'weekly',
+          pushNotifications: true,
+          pushFrequency: 'daily',
+          location: 'Ottawa, ON',
+          photoURL: firebaseUser.photoURL || undefined,
+        };
+
+        // Immediately unblock the UI with fallback profile if not already set
+        setUser((prev) => prev || fallbackProfile);
+        setLoading(false);
+
+        // Clean up previous doc subscription if user changed
+        if (unsubscribeDoc) {
+          unsubscribeDoc();
+          unsubscribeDoc = null;
+        }
+
         // Listen to user document changes
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         unsubscribeDoc = onSnapshot(userDocRef, async (snapshot) => {
-          if (snapshot.exists()) {
-            const userData = snapshot.data() as UserProfile;
-            const isAdminEmail = firebaseUser.email?.toLowerCase() === 'abesabil00@gmail.com' || 
-                                 firebaseUser.email?.toLowerCase() === 'abersabil00@gmail.com' || 
-                                 firebaseUser.email?.toLowerCase() === 'fibaliktn@gmail.com' ||
-                                 firebaseUser.email?.toLowerCase() === 'fibalik.tn@gmail.com';
-            
-            if (isAdminEmail && userData.role !== 'admin') {
-              await setDoc(userDocRef, { ...userData, role: 'admin' }, { merge: true });
+          try {
+            if (snapshot.exists()) {
+              const userData = snapshot.data() as UserProfile;
+              const effectiveRole = isAdmin ? 'admin' : (userData.role || 'user');
+              const resolvedUser: UserProfile = { ...userData, role: effectiveRole };
+              
+              setUser(resolvedUser);
+
+              if (isAdmin && userData.role !== 'admin') {
+                setDoc(userDocRef, { role: 'admin' }, { merge: true }).catch((err) => {
+                  console.warn('Could not sync admin role to Firestore:', err);
+                });
+              }
+
+              // Strategy B Token Sync: Check if there is a pending native token to assign
+              const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
+              if (pendingToken) {
+                try {
+                  await updateDoc(userDocRef, {
+                    fcmToken: pendingToken,
+                    fcmTokenUpdated: new Date().toISOString(),
+                    pushNotifications: true
+                  });
+                  await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
+                    token: pendingToken,
+                    platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
+                    lastUpdated: new Date().toISOString(),
+                    appVersion: '1.0.0'
+                  });
+                  safeLocalStorage.removeItem('pendingNativeFcmToken');
+                  console.log('Successfully bounded pending native FCM token to active user account.');
+                } catch (err) {
+                  console.warn('Error binding pending FCM token:', err);
+                }
+              }
             } else {
-              setUser(userData);
-            }
+              // Profile does not exist yet in Firestore
+              const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
 
+              const newProfile: UserProfile & { fcmToken?: string; fcmTokenUpdated?: string } = {
+                uid: firebaseUser.uid,
+                name: (firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Community Member').slice(0, 90),
+                email: firebaseUser.email || '',
+                role: isAdmin ? 'admin' : 'user',
+                createdAt: new Date().toISOString(),
+                consentToUpdates: true,
+                emailFrequency: 'weekly',
+                pushNotifications: true,
+                pushFrequency: 'daily',
+                location: 'Ottawa, ON',
+              };
 
-
-            // Strategy B Token Sync: Check if there is a pending native token to assign
-            const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
-            if (pendingToken) {
-              try {
-                await updateDoc(userDocRef, {
-                  fcmToken: pendingToken,
-                  fcmTokenUpdated: new Date().toISOString(),
-                  pushNotifications: true
-                });
-                // Write detailed device registration for multi-device push capabilities
-                await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
-                  token: pendingToken,
-                  platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
-                  lastUpdated: new Date().toISOString(),
-                  appVersion: '1.0.0'
-                });
-                safeLocalStorage.removeItem('pendingNativeFcmToken');
-                console.log('Successfully bounded pending native FCM token to active user account.');
-              } catch (err) {
-                console.warn('Error binding pending FCM token:', err);
+              if (pendingToken) {
+                newProfile.fcmToken = pendingToken;
+                newProfile.fcmTokenUpdated = new Date().toISOString();
+                newProfile.pushNotifications = true;
               }
-            }
-          } else {
-            // Create profile if it doesn't exist
-            let autoLocation = 'Ottawa, ON';
-            try {
-              autoLocation = await getPreciseLocation();
-            } catch (locationErr) {
-              console.warn('Could not auto-fetch location on profile bootstrap:', locationErr);
-            }
 
-            // Strategy B Check: Check if we have a pending native push token
-            const pendingToken = safeLocalStorage.getItem('pendingNativeFcmToken');
-
-            const newProfile: UserProfile & { fcmToken?: string; fcmTokenUpdated?: string } = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'Anonymous',
-              email: firebaseUser.email || '',
-              role: (firebaseUser.email?.toLowerCase() === 'abesabil00@gmail.com' || firebaseUser.email?.toLowerCase() === 'abersabil00@gmail.com' || firebaseUser.email?.toLowerCase() === 'fibaliktn@gmail.com' || firebaseUser.email?.toLowerCase() === 'fibalik.tn@gmail.com') ? 'admin' : 'user',
-              createdAt: new Date().toISOString(),
-              consentToUpdates: true,
-              emailFrequency: 'weekly',
-              pushNotifications: true,
-              pushFrequency: 'daily',
-              location: autoLocation,
-            };
-
-            if (pendingToken) {
-              newProfile.fcmToken = pendingToken;
-              newProfile.fcmTokenUpdated = new Date().toISOString();
-              newProfile.pushNotifications = true;
-            }
-
-            if (firebaseUser.photoURL) {
-              newProfile.photoURL = firebaseUser.photoURL;
-            }
-            await setDoc(userDocRef, newProfile);
-
-            if (pendingToken) {
-              try {
-                await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
-                  token: pendingToken,
-                  platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
-                  lastUpdated: new Date().toISOString(),
-                  appVersion: '1.0.0'
-                });
-                safeLocalStorage.removeItem('pendingNativeFcmToken');
-              } catch (deviceWriteErr) {
-                console.warn('Could not write device listing during new profile creation:', deviceWriteErr);
+              if (firebaseUser.photoURL) {
+                newProfile.photoURL = firebaseUser.photoURL;
               }
+
+              // Immediately set user profile in state
+              setUser(newProfile);
+
+              // Persist to Firestore asynchronously
+              setDoc(userDocRef, newProfile).then(async () => {
+                if (pendingToken) {
+                  try {
+                    await setDoc(doc(db, 'users', firebaseUser.uid, 'devices', pendingToken), {
+                      token: pendingToken,
+                      platform: /android/i.test(navigator.userAgent) ? 'android' : 'ios',
+                      lastUpdated: new Date().toISOString(),
+                      appVersion: '1.0.0'
+                    });
+                    safeLocalStorage.removeItem('pendingNativeFcmToken');
+                  } catch (deviceWriteErr) {
+                    console.warn('Could not write device listing during new profile creation:', deviceWriteErr);
+                  }
+                }
+              }).catch((writeErr) => {
+                console.error('Could not write initial profile to Firestore:', writeErr);
+              });
+
+              // Asynchronously resolve precise location without blocking login
+              getPreciseLocation().then((loc) => {
+                if (loc && loc !== 'Ottawa, ON') {
+                  updateDoc(userDocRef, { location: loc }).catch(() => {});
+                  setUser((prev) => (prev ? { ...prev, location: loc } : null));
+                }
+              }).catch(() => {});
             }
+          } catch (snapshotErr) {
+            console.error('Error handling user profile snapshot:', snapshotErr);
+          } finally {
+            setLoading(false);
           }
-          setLoading(false);
         }, (err) => {
-          handleFirestoreError(err, OperationType.GET, `users/${firebaseUser.uid}`);
+          console.warn('User doc onSnapshot subscription error:', err);
           setLoading(false);
         });
       } else {
@@ -317,23 +396,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     unsubscribeAuthRef.current = () => {
+      if (safetyTimeoutRef.current) {
+        clearTimeout(safetyTimeoutRef.current);
+      }
       unsubscribeAuth();
       if (unsubscribeDoc) unsubscribeDoc();
+      isAuthInitializedRef.current = false;
     };
   }, []);
 
-  // Initialize Auth when entering /login or /register, or when returning user has a stored session
+  // Initialize Auth on mount and keep persistent listener alive across route changes
   useEffect(() => {
-    if (isAuthRoute(location.pathname) || hasStoredAuthSession()) {
-      initAuth();
-    }
+    initAuth();
 
     return () => {
       if (unsubscribeAuthRef.current) {
         unsubscribeAuthRef.current();
+        unsubscribeAuthRef.current = null;
       }
     };
-  }, [location.pathname, initAuth]);
+  }, [initAuth]);
 
   // Strategy B: Native JS-to-WebView hybrid push notification bridge
   useEffect(() => {
@@ -510,72 +592,138 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user?.uid]);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = async (): Promise<UserProfile | null> => {
     initAuth();
+    const authInstance = getAuthInstance();
     const provider = new GoogleAuthProvider();
-    const isApp = isAppWrapper();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const win = typeof window !== 'undefined' ? (window as any) : {};
 
-    if (isApp) {
-      console.log('Detecting Native App environment. Dispatched GOOGLE_SIGN_IN signal to bridges.');
-      const win = window as any;
-      const payloadString = JSON.stringify({ event: 'GOOGLE_SIGN_IN', action: 'signin' });
+    // 1. Check if running inside a native mobile app wrapper with active bridges
+    const isCapacitorNative = !!(win.Capacitor && (
+      win.Capacitor.isNative === true || 
+      (typeof win.Capacitor.getPlatform === 'function' && win.Capacitor.getPlatform() !== 'web') ||
+      (win.Capacitor.platform && win.Capacitor.platform !== 'web')
+    ));
 
-      // 1. Capacitor Firebase Auth Plugin
-      if (win.Capacitor) {
-        try {
-          const capResult = await FirebaseAuthentication.signInWithGoogle();
-          if (capResult?.credential?.idToken) {
-            const credential = GoogleAuthProvider.credential(capResult.credential.idToken);
-            await signInWithCredential(auth, credential);
-            console.log('Successfully completed authentication via native Capacitor Firebase Auth plugin');
-            return;
+    if (isCapacitorNative) {
+      try {
+        const capResult = await FirebaseAuthentication.signInWithGoogle();
+        if (capResult?.credential?.idToken) {
+          const credential = GoogleAuthProvider.credential(capResult.credential.idToken);
+          const credResult = await signInWithCredential(authInstance, credential);
+          if (credResult?.user) {
+            const fbUser = credResult.user;
+            safeLocalStorage.setItem('has_auth_session', 'true');
+            const isAdmin = checkIsAdminEmail(fbUser.email);
+            const instantProfile: UserProfile = {
+              uid: fbUser.uid,
+              name: (fbUser.displayName || fbUser.email?.split('@')[0] || 'Community Member').slice(0, 90),
+              email: fbUser.email || '',
+              role: isAdmin ? 'admin' : 'user',
+              createdAt: new Date().toISOString(),
+              consentToUpdates: true,
+              emailFrequency: 'weekly',
+              pushNotifications: true,
+              pushFrequency: 'daily',
+              location: 'Ottawa, ON',
+              photoURL: fbUser.photoURL || undefined,
+            };
+            setUser(instantProfile);
+            setLoading(false);
+            return instantProfile;
           }
-        } catch (capError: any) {
-          console.error('Capacitor native Firebase Google sign-in effort returned error:', capError);
-          const errMsg = capError.message || String(capError);
-          if (capError.code === '10' || errMsg.includes('10') || errMsg.includes('Developer Error') || capError.statusCode === 10) {
-            throw new Error('Google Sign-In Developer Error (Code 10). Make sure the signing certificate SHA-1 fingerprint (of the APK you installed) is added to your Firebase project settings.');
-          }
-          throw new Error('Native Google sign-in failed: ' + (capError.message || JSON.stringify(capError)));
         }
+      } catch (capError: any) {
+        console.error('Capacitor native Firebase Google sign-in effort returned error:', capError);
+        const errMsg = capError.message || String(capError);
+        if (capError.code === '10' || errMsg.includes('10') || errMsg.includes('Developer Error') || capError.statusCode === 10) {
+          throw new Error('Google Sign-In Developer Error (Code 10). Make sure the signing certificate SHA-1 fingerprint (of the APK you installed) is added to your Firebase project settings.');
+        }
+        throw new Error('Native Google sign-in failed: ' + (capError.message || JSON.stringify(capError)));
       }
-
-      // 2. Custom React Native postMessage signal
-      if (win.ReactNativeWebView?.postMessage) {
-        try {
-          win.ReactNativeWebView.postMessage(payloadString);
-        } catch (e) {}
-      }
-
-      // 3. Custom iOS WebKit Handler signal
-      if (win.webkit?.messageHandlers?.googleSignInHandler?.postMessage) {
-        try {
-          win.webkit.messageHandlers.googleSignInHandler.postMessage({ action: 'signin' });
-        } catch (e) {}
-      }
-
-      // 4. Custom Android Bridge Interface trigger
-      if (win.AndroidBridge?.googleSignIn) {
-        try {
-          win.AndroidBridge.googleSignIn();
-        } catch (e) {}
-      }
-
-      console.log('Dispatched GOOGLE_SIGN_IN request to all available native webview channels.');
-      return;
     }
 
+    // 2. Custom native bridge triggers (React Native, iOS WebKit, Android JavascriptInterface)
+    let dispatchedBridge = false;
+    const payloadString = JSON.stringify({ event: 'GOOGLE_SIGN_IN', action: 'signin' });
+
+    if (win.ReactNativeWebView?.postMessage) {
+      try {
+        win.ReactNativeWebView.postMessage(payloadString);
+        dispatchedBridge = true;
+      } catch (e) {}
+    }
+
+    if (win.webkit?.messageHandlers?.googleSignInHandler?.postMessage) {
+      try {
+        win.webkit.messageHandlers.googleSignInHandler.postMessage({ action: 'signin' });
+        dispatchedBridge = true;
+      } catch (e) {}
+    }
+
+    if (win.AndroidBridge?.googleSignIn) {
+      try {
+        win.AndroidBridge.googleSignIn();
+        dispatchedBridge = true;
+      } catch (e) {}
+    }
+
+    if (dispatchedBridge) {
+      console.log('Dispatched GOOGLE_SIGN_IN request to custom native webview channel.');
+      return null;
+    }
+
+    // 3. Web & WebView Firebase Authentication Flow
+    const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
     try {
-      // Always use signInWithPopup to open a popup overlay inside the app Webview / app container itself.
-      // This avoids redirecting the app shell away to an external system browser link.
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(authInstance, provider);
+      if (result?.user) {
+        const fbUser = result.user;
+        safeLocalStorage.setItem('has_auth_session', 'true');
+        const isAdmin = checkIsAdminEmail(fbUser.email);
+        const instantProfile: UserProfile = {
+          uid: fbUser.uid,
+          name: (fbUser.displayName || fbUser.email?.split('@')[0] || 'Community Member').slice(0, 90),
+          email: fbUser.email || '',
+          role: isAdmin ? 'admin' : 'user',
+          createdAt: new Date().toISOString(),
+          consentToUpdates: true,
+          emailFrequency: 'weekly',
+          pushNotifications: true,
+          pushFrequency: 'daily',
+          location: 'Ottawa, ON',
+          photoURL: fbUser.photoURL || undefined,
+        };
+        setUser(instantProfile);
+        setLoading(false);
+        return instantProfile;
+      }
+      return null;
     } catch (error: any) {
-      // Fallback to redirect only for standard web clients if popup is blocked
-      if (error.code === 'auth/popup-blocked' || 
-          error.code === 'auth/cancelled-popup-request' || 
-          error.code === 'auth/popup-closed-by-user' ||
-          error.code === 'auth/internal-error') {
-        await signInWithRedirect(auth, provider);
+      console.warn('signInWithPopup returned error:', error?.code, error?.message);
+
+      // If user intentionally closed or canceled the popup, do not redirect
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return null;
+      }
+
+      // Inside an iframe (e.g. AI Studio preview), redirecting to accounts.google.com will be blocked by X-Frame-Options: DENY
+      if (isInIframe) {
+        if (error.code === 'auth/popup-blocked') {
+          throw new Error('Pop-up was blocked by your browser. Please allow pop-ups for this site, or open Halal Ottawa in a new browser tab to sign in with Google.');
+        }
+        if (error.code === 'auth/unauthorized-domain') {
+          throw new Error('This preview domain is not authorized for Google Sign-In in Firebase Console. Please access via https://www.halalottawa.ca or add this domain in Firebase Console.');
+        }
+        throw error;
+      }
+
+      // On top-level pages, fallback to redirect if popup was blocked or failed internally
+      if (error.code === 'auth/popup-blocked' || error.code === 'auth/internal-error') {
+        await signInWithRedirect(authInstance, provider);
+        return null;
       } else {
         throw error;
       }
@@ -584,19 +732,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     safeLocalStorage.removeItem('has_auth_session');
-    if (isAuthInitialized()) {
-      await signOut(auth);
-    }
+    const authInstance = getAuthInstance();
+    await signOut(authInstance);
     setUser(null);
     setGuest(false);
   };
 
   const deleteAccount = async () => {
-    if (auth.currentUser) {
-      const uid = auth.currentUser.uid;
+    const authInstance = getAuthInstance();
+    if (authInstance.currentUser) {
+      const uid = authInstance.currentUser.uid;
       try {
         await deleteDoc(doc(db, 'users', uid));
-        await deleteUser(auth.currentUser);
+        await deleteUser(authInstance.currentUser);
         safeLocalStorage.removeItem('has_auth_session');
         setUser(null);
         setGuest(false);

@@ -313,6 +313,7 @@ export const Home: React.FC = () => {
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities."
         canonicalUrl={getAbsoluteUrl("")}
         disableSuffix={true}
+        ogImage={heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp"}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",

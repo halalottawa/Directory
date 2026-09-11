@@ -1,5 +1,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { getGeneralSettings } from '../firebase';
+
+export const DEFAULT_HERO_OG_IMAGE = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp';
 
 interface SEOProps {
   title: string;
@@ -17,13 +20,49 @@ export const SEO: React.FC<SEOProps> = ({
   title,
   description,
   canonicalUrl,
-  ogImage = 'https://www.halalottawa.ca/default-og.jpg', // Placeholder default image
+  ogImage,
   ogType = 'website',
   twitterCard = 'summary_large_image',
   structuredData,
   disableSuffix = false,
   noindex = false,
 }) => {
+  const [resolvedOgImage, setResolvedOgImage] = React.useState<string>(() => {
+    if (ogImage && ogImage.trim() !== '' && !ogImage.includes('default-og.jpg')) {
+      return ogImage;
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('halal_ottawa_general_settings');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed?.heroImageUrl && typeof parsed.heroImageUrl === 'string' && parsed.heroImageUrl.trim() !== '') {
+            return parsed.heroImageUrl.trim();
+          }
+        }
+      } catch (e) {
+        // Fallback
+      }
+    }
+    return DEFAULT_HERO_OG_IMAGE;
+  });
+
+  React.useEffect(() => {
+    if (ogImage && ogImage.trim() !== '' && !ogImage.includes('default-og.jpg')) {
+      setResolvedOgImage(ogImage);
+      return;
+    }
+    getGeneralSettings().then((settings) => {
+      if (settings?.heroImageUrl && typeof settings.heroImageUrl === 'string' && settings.heroImageUrl.trim() !== '') {
+        setResolvedOgImage(settings.heroImageUrl.trim());
+      } else {
+        setResolvedOgImage(DEFAULT_HERO_OG_IMAGE);
+      }
+    }).catch(() => {
+      setResolvedOgImage(DEFAULT_HERO_OG_IMAGE);
+    });
+  }, [ogImage]);
+
   const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa') || disableSuffix
     ? title 
     : `${title} | Halal Ottawa`;
@@ -100,9 +139,9 @@ export const SEO: React.FC<SEOProps> = ({
       <meta property="og:type" content={ogType} />
       <meta property="og:title" content={siteTitle} />
       {!noindex && <meta property="og:description" content={description} />}
-      {ogImage && !noindex && (
+      {resolvedOgImage && !noindex && (
         <>
-          <meta property="og:image" content={ogImage} />
+          <meta property="og:image" content={resolvedOgImage} />
           <meta property="og:image:width" content="1200" />
           <meta property="og:image:height" content="630" />
         </>
@@ -113,7 +152,7 @@ export const SEO: React.FC<SEOProps> = ({
       <meta name="twitter:card" content={twitterCard} />
       <meta name="twitter:title" content={siteTitle} />
       {!noindex && <meta name="twitter:description" content={description} />}
-      {ogImage && !noindex && <meta name="twitter:image" content={ogImage} />}
+      {resolvedOgImage && !noindex && <meta name="twitter:image" content={resolvedOgImage} />}
 
       {/* Structured Data (JSON-LD) */}
       {structuredData && (

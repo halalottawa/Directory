@@ -38,6 +38,9 @@ export const auth: Auth = new Proxy({} as Auth, {
     if (prop === 'isInitialized' || prop === '__isInitialized') {
       return _authInstance !== null;
     }
+    if (prop === '_delegate') {
+      return getAuthInstance();
+    }
     const instance = getAuthInstance();
     const val = (instance as any)[prop];
     if (typeof val === 'function') {

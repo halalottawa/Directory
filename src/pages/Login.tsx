@@ -16,6 +16,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { SEO } from '../components/SEO';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -51,13 +52,23 @@ export const Login: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      await loginWithGoogle();
+      const loggedUser = await loginWithGoogle();
+      if (loggedUser) {
+        navigate(from, { replace: true });
+        return;
+      }
     } catch (err: any) {
       console.error('Google Auth Error:', err);
-      if (err.code === 'auth/operation-not-allowed') {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        setError('');
+      } else if (err.code === 'auth/operation-not-allowed') {
         setError('Google Sign-In is not enabled in your Firebase Console. Please enable it in the Authentication > Sign-in method tab.');
+      } else if (err.code === 'auth/unauthorized-domain' || err.message?.includes('auth/unauthorized-domain')) {
+        setError('This domain is not authorized for Google Sign-In. Please sign in via https://www.halalottawa.ca or add this domain in Firebase Console > Authentication > Settings > Authorized domains.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Pop-up was blocked by your browser. Please allow pop-ups for this site, or open Halal Ottawa in a new browser window/tab to sign in with Google.');
       } else if (err.code === '10' || err.message?.includes('10')) {
-        setError('Developer Error (Code 10). This usually means the domain is not authorized in the Firebase/Google console.');
+        setError('Developer Error (Code 10). This usually means the domain or SHA-1 fingerprint is not authorized in the Firebase/Google console.');
       } else {
         setError(err.message || 'Failed to sign in with Google');
       }

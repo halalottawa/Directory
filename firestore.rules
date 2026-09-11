@@ -40,7 +40,7 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        ((('email' in request.auth.token && (request.auth.token.email == "fibaliktn@gmail.com" || request.auth.token.email == "FibalikTN@gmail.com" || request.auth.token.email == "fibalik.tn@gmail.com" || request.auth.token.email == "abesabil00@gmail.com" || request.auth.token.email == "abesabil00@gmail.com" || request.auth.token.email == "abersabil00@gmail.com"))) ||
+        ((('email' in request.auth.token && (request.auth.token.email.matches("(?i)^(fibaliktn@gmail\\.com|fibalik\\.tn@gmail\\.com|abesabil00@gmail\\.com|abersabil00@gmail\\.com)$") || request.auth.token.email == "fibaliktn@gmail.com" || request.auth.token.email == "FibalikTN@gmail.com" || request.auth.token.email == "fibalik.tn@gmail.com" || request.auth.token.email == "abesabil00@gmail.com" || request.auth.token.email == "abersabil00@gmail.com"))) ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
@@ -62,14 +62,14 @@ service cloud.firestore {
 
     function isValidUser(data) {
       return data.uid is string &&
-             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 150 &&
              isValidEmail(data.email) &&
-             (!('photoURL' in data) || data.photoURL is string) &&
-             (!('phoneNumber' in data) || data.phoneNumber is string) &&
+             (!('photoURL' in data) || data.photoURL is string || data.photoURL == null) &&
+             (!('phoneNumber' in data) || data.phoneNumber is string || data.phoneNumber == null) &&
              data.role in ['user', 'admin'] &&
              isValidDateString(data.createdAt) &&
-             data.consentToUpdates is bool &&
-             data.pushNotifications is bool;
+             (!('consentToUpdates' in data) || data.consentToUpdates is bool) &&
+             (!('pushNotifications' in data) || data.pushNotifications is bool);
     }
 
     function isValidListing(data) {
@@ -152,7 +152,7 @@ function isValidPlanRequest(data) {
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'user' || isAdmin());
-      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin())) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -210,6 +210,17 @@ function isValidPlanRequest(data) {
       allow create: if isAuthenticated() && isValidPlanRequest(request.resource.data);
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    match /claim_requests/{claimRequestId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    match /subscribers/{subscriberId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if true;
     }
 
     match /ads/{adId} {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -20,7 +20,7 @@ export const SaveButton: React.FC<SaveButtonProps> = ({ id, type, variant = 'def
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !auth.currentUser || auth.currentUser.uid !== user.uid) {
       setSavedDocId(null);
       return;
     }

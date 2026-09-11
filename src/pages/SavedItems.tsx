@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { Listing, Event, Job, NewsArticle } from '../types';
 import { Bookmark, Heart, Clock, ChevronRight, ChevronLeft, MapPin, Calendar, Briefcase, Newspaper, Trash2, Star, ExternalLink, FileText, Search } from 'lucide-react';
 import { DEMO_LISTINGS, DEMO_EVENTS, DEMO_JOBS, DEMO_NEWS } from '../constants';
@@ -22,7 +22,10 @@ export const SavedItems: React.FC = () => {
   const [unsavingId, setUnsavingId] = useState<string | null>(null);
 
   const fetchSavedContent = async () => {
-    if (!user) return;
+    if (!user || !auth.currentUser || auth.currentUser.uid !== user.uid) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const savedItemsQ = query(collection(db, 'saved_items'), where('userId', '==', user.uid));

@@ -34,8 +34,10 @@ const CookieCheckRedirect: React.FC = () => {
   );
 };
 
-// Lazy load pages
-const Home = React.lazy(() => import('./pages/Home').then(module => ({ default: module.Home })));
+// Direct load for main landing page to eliminate render delay
+import { Home } from './pages/Home';
+
+// Lazy load secondary pages
 const Listings = React.lazy(() => import('./pages/Listings').then(module => ({ default: module.Listings })));
 const CategoryListings = React.lazy(() => import('./pages/CategoryListings').then(module => ({ default: module.CategoryListings })));
 const ListingDetail = React.lazy(() => import('./pages/ListingDetail').then(module => ({ default: module.ListingDetail })));
@@ -210,15 +212,8 @@ const AppContent: React.FC = () => {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
 
-  if (loading && !isAuthPage) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-        <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
-
-  if (isApp && !user && !isAuthPage && !isAllowedPublicPathInApp) {
+  // In native mobile app wrappers, redirect to login only once auth check has resolved and user is not a guest
+  if (isApp && !loading && !user && !isGuest && !isAuthPage && !isAllowedPublicPathInApp) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

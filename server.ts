@@ -113,6 +113,38 @@ async function getSettingsFaviconUrl(): Promise<string | null> {
   return "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
 }
 
+const DEFAULT_HERO_IMAGE_URL = "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp";
+
+let cachedHeroImageUrl: string | null = null;
+let cachedHeroImageExpiry = 0;
+
+async function getHeroImageUrl(): Promise<string> {
+  const now = Date.now();
+  if (cachedHeroImageUrl && now < cachedHeroImageExpiry) {
+    return cachedHeroImageUrl;
+  }
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.heroImageUrl && typeof data.heroImageUrl === 'string' && data.heroImageUrl.trim() !== '') {
+          cachedHeroImageUrl = data.heroImageUrl.trim();
+          cachedHeroImageExpiry = now + 600000; // 10 min cache
+          return cachedHeroImageUrl;
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error retrieving settings heroImageUrl:", err);
+  }
+  cachedHeroImageUrl = DEFAULT_HERO_IMAGE_URL;
+  cachedHeroImageExpiry = now + 60000;
+  return DEFAULT_HERO_IMAGE_URL;
+}
+
 function isBufferHtml(buf: Buffer): boolean {
   if (!buf || buf.length < 4) return false;
   const str = buf.toString("utf8", 0, Math.min(buf.length, 500)).trim().toLowerCase();
@@ -363,12 +395,17 @@ async function startServer() {
   const app = express();
   app.use(compression());
 
-  // Global 301 Redirect for canonical hostname: redirect direct .run.app traffic to www.halalottawa.ca
+  // Global 301 Redirect for canonical hostname: redirect direct .run.app traffic and apex domain traffic to www.halalottawa.ca
   // unless Vercel or similar is proxying it (detected via x-forwarded-host header)
   app.use((req, res, next) => {
     const host = String(req.headers.host || "").toLowerCase();
     const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
     
+    // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
+    if (host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca') {
+      return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
+    }
+
     const isStagingSandbox = host.includes('ais-dev-') || host.includes('ais-pre-') || host.includes('google-') || host.includes('localhost') || host.includes('127.0.0.1');
     
     if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa') && !isStagingSandbox) {
@@ -3031,8 +3068,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       .replace(/>/g, '&gt;');
   }
 
-  function getAbsoluteUrl(urlStr: string): string {
-    if (!urlStr) return "https://www.halalottawa.ca/default-og.jpg";
+  function getAbsoluteUrl(urlStr: string, fallbackUrl: string = DEFAULT_HERO_IMAGE_URL): string {
+    if (!urlStr) return fallbackUrl;
     let url = urlStr;
     
     if (url.includes('.run.app') && !url.startsWith('http')) {
@@ -3202,9 +3239,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
 
     // Basic SEO injection for specific routes
+    const defaultHeroImage = await getHeroImageUrl();
     let title = "Halal Ottawa - Halal Places in Ottawa";
     let description = "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.";
-    let ogImage = "https://www.halalottawa.ca/default-og.jpg";
+    let ogImage = defaultHeroImage;
     let ogType = "website";
     
     let initialData: any = null;
@@ -3369,17 +3407,17 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         if (p0 === 'news') {
           title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
           description = "Keep up to date with the latest local news, announcements, ads, updates and community updates from Ottawa's Muslim community.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          ogImage = defaultHeroImage;
           routeType = 'news';
         } else if (p0 === 'events') {
           title = "Upcoming Halal Events in Ottawa - Muslim Community Calendar";
           description = "Discover upcoming halal events, conferences, school programs, community gatherings, and fundraising events in Ottawa.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          ogImage = defaultHeroImage;
           routeType = 'events';
         } else if (p0 === 'jobs') {
           title = "Halal Job Opportunities in Ottawa - Browse Local Job Openings";
           description = "Find and apply for halal-friendly jobs and employment opportunities in Ottawa with local businesses and organizations.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          ogImage = defaultHeroImage;
           routeType = 'jobs';
         } else if (categoryMap[p0]) {
           routeType = 'category';
@@ -3445,7 +3483,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         } else if (p0 === 'listings') {
           title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
           description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
-          ogImage = "https://www.halalottawa.ca/default-og.jpg";
+          ogImage = defaultHeroImage;
           routeType = 'category';
           try {
             const qListings = query(
@@ -3585,7 +3623,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               if (data.coverImage && data.coverImage.trim() !== '') {
                 ogImage = getAbsoluteUrl(data.coverImage.trim());
               } else {
-                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+                ogImage = defaultHeroImage;
               }
               ogType = 'article';
               initialData = data;
@@ -3628,7 +3666,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               if (data.coverImage && data.coverImage.trim() !== '') {
                 ogImage = getAbsoluteUrl(data.coverImage.trim());
               } else {
-                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+                ogImage = defaultHeroImage;
               }
               ogType = 'article';
               initialData = data;
@@ -3668,7 +3706,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             } else {
               title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
               description = data.description?.substring(0, 160) || description;
-              if (data.companyLogo) ogImage = getAbsoluteUrl(data.companyLogo);
+              if (data.companyLogo && data.companyLogo.trim() !== '') {
+                ogImage = getAbsoluteUrl(data.companyLogo.trim());
+              } else {
+                ogImage = defaultHeroImage;
+              }
               initialData = data;
               routeType = 'job';
             }
@@ -3733,7 +3775,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               if (photoCandidate) {
                 ogImage = getAbsoluteUrl(photoCandidate);
               } else {
-                ogImage = "https://www.halalottawa.ca/default-og.jpg";
+                ogImage = defaultHeroImage;
               }
               initialData = data;
               routeType = 'listing';
