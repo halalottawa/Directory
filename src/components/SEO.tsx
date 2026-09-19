@@ -4,41 +4,6 @@ import { getGeneralSettings } from '../firebase';
 
 export const DEFAULT_HERO_OG_IMAGE = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp';
 
-// Detect SSR hydration data injected by server.ts / prerender.ts at module load time
-// before component-level useState initializers consume and delete them
-const initialSSRRouteType: string | undefined = typeof window !== 'undefined' ? (window as any).__INITIAL_ROUTE_TYPE__ : undefined;
-const initialSSRData: any = typeof window !== 'undefined' ? (window as any).__INITIAL_DATA__ : undefined;
-
-let isInitialHydrationRender = true;
-
-function shouldSkipSSRJsonLd(pathname: string): boolean {
-  if (!isInitialHydrationRender) return false;
-  if (!initialSSRRouteType) return false;
-
-  const cleanPath = pathname.toLowerCase().replace(/\/+$/, '') || '/';
-
-  if (initialSSRRouteType === 'home') {
-    return cleanPath === '/';
-  }
-
-  if (initialSSRRouteType === 'listing' && initialSSRData) {
-    const slug = (initialSSRData.slug || initialSSRData.id || '').toString().toLowerCase();
-    return Boolean(slug && (cleanPath.endsWith(`/${slug}`) || cleanPath.includes(`/${slug}`)));
-  }
-
-  if ((initialSSRRouteType === 'category' || initialSSRRouteType === 'location') && initialSSRData) {
-    const target = (initialSSRData.category || initialSSRData.location || '').toString().toLowerCase();
-    return Boolean(target && cleanPath.includes(target));
-  }
-
-  if (initialSSRRouteType === 'news' && initialSSRData) {
-    const slug = (initialSSRData.slug || initialSSRData.id || '').toString().toLowerCase();
-    return Boolean(slug && (cleanPath.endsWith(`/${slug}`) || cleanPath.includes(`/${slug}`)));
-  }
-
-  return false;
-}
-
 interface SEOProps {
   title: string;
   description: string;
@@ -159,12 +124,6 @@ export const SEO: React.FC<SEOProps> = ({
     }
   }
 
-  const skipJsonLd = shouldSkipSSRJsonLd(currentPath);
-
-  React.useEffect(() => {
-    isInitialHydrationRender = false;
-  }, []);
-
   return (
     <Helmet>
       {/* Standard SEO */}
@@ -196,7 +155,7 @@ export const SEO: React.FC<SEOProps> = ({
       {resolvedOgImage && !noindex && <meta name="twitter:image" content={resolvedOgImage} />}
 
       {/* Structured Data (JSON-LD) */}
-      {!skipJsonLd && structuredData && (
+      {structuredData && (
         Array.isArray(structuredData)
           ? (structuredData as Array<any>).map((schema, i) => (
               <script 
