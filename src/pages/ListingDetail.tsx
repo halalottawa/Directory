@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Send } from 'lucide-react';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, limit } from 'firebase/firestore';
@@ -120,11 +120,16 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'listing') {
       const initData = (window as any).__INITIAL_DATA__ as Listing;
       if (initData && (initData.slug === slug || initData.id === slug)) {
+        delete (window as any).__INITIAL_DATA__;
+        delete (window as any).__INITIAL_ROUTE_TYPE__;
         return initData;
       }
     }
     return null;
   });
+  const initialSSRListingRef = useRef<boolean>(
+    Boolean(listing && (listing.slug === slug || listing.id === slug))
+  );
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(listing === null);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
@@ -181,17 +186,24 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
 
       // Fetch from Firestore
       try {
-        let docSnap = await getDoc(doc(db, 'listings', slug));
         let listingData: Listing | null = null;
         
-        if (docSnap.exists()) {
-          listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
+        if (initialSSRListingRef.current && listing && (listing.slug === slug || listing.id === slug)) {
+          initialSSRListingRef.current = false;
+          listingData = listing;
         } else {
-          const q = query(collection(db, 'listings'), where('slug', '==', slug));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            docSnap = querySnapshot.docs[0];
+          initialSSRListingRef.current = false;
+          let docSnap = await getDoc(doc(db, 'listings', slug));
+          
+          if (docSnap.exists()) {
             listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
+          } else {
+            const q = query(collection(db, 'listings'), where('slug', '==', slug));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              docSnap = querySnapshot.docs[0];
+              listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
+            }
           }
         }
         

@@ -13,8 +13,6 @@ const escapeXml = (str: string): string => {
 const staticUrls = [
   "/",
   "/news",
-  "/events",
-  "/jobs",
   "/restaurants",
   "/mosques",
   "/organizations",
@@ -49,7 +47,7 @@ async function generateSitemap() {
   for (const url of staticUrls) {
     let priority = "0.8";
     if (url === "/") priority = "1.0";
-    else if (["/news", "/events", "/jobs"].includes(url)) priority = "0.9";
+    else if (url === "/news") priority = "0.9";
     else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
 
     urls.push({
@@ -115,39 +113,6 @@ async function generateSitemap() {
         });
       });
 
-      // 3. Events
-      const eventsQuery = query(collection(db, 'events'), where('isApproved', '==', true));
-      const eventsSnap = await getDocs(eventsQuery);
-      eventsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const imageUrl = data.photos?.[0] || data.coverImage || null;
-        urls.push({
-          loc: `${BASE_URL}/events/${idPath}`,
-          lastmod: getDocLastmod(data),
-          changefreq: "weekly",
-          priority: "0.7",
-          imageUrl,
-          name: data.name || data.title || null
-         });
-      });
-
-      // 4. Jobs
-      const jobsQuery = query(collection(db, 'jobs'), where('isApproved', '==', true));
-      const jobsSnap = await getDocs(jobsQuery);
-      jobsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const imageUrl = data.photos?.[0] || data.coverImage || null;
-        urls.push({
-          loc: `${BASE_URL}/jobs/${idPath}`,
-          lastmod: getDocLastmod(data),
-          changefreq: "weekly",
-          priority: "0.7",
-          imageUrl,
-          name: data.name || data.title || null
-        });
-      });
       console.log(`Added dynamic URLs from Firestore. Total URLs: ${urls.length}`);
     } catch (e) {
       console.error("Error fetching dynamic URLs from Firestore:", e);

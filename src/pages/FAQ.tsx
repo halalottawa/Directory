@@ -20,8 +20,8 @@ const FAQ_ITEMS = [
     answer: "We rely on a combination of community reporting, official certification agency data (like HMA or HMS), and direct verification with business owners. If you notice an error, please report it to us immediately."
   },
   {
-    question: "Can I post jobs or events?",
-    answer: "Yes! Registered users can post community events and job openings through the 'Add Event' and 'Add Job' buttons. All posts are moderated to ensure they align with our community standards."
+    question: "How can I suggest community news or updates?",
+    answer: "You can submit community news, mosque announcements, or local stories by reaching out to our editorial team at info@halalottawa.ca. All submissions are reviewed to ensure they benefit the Ottawa Muslim community."
   },
   {
     question: "How do I report a listing?",

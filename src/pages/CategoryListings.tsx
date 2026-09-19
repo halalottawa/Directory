@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp, Utensils } from 'lucide-react';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
@@ -187,12 +187,18 @@ export const CategoryListings: React.FC = () => {
     seoDescription = `Discover top-rated, certified halal ${formattedCategory} options in Ottawa for ${monthYearStr}. Find verified business locations, operating hours, phone info, and user reviews.`;
   }
 
-  const [rawListings, setRawListings] = useState<Listing[]>(() => {
-    if (
+  const [hasValidSSRData] = useState(() => {
+    return (
       typeof window !== 'undefined' &&
       ((window as any).__INITIAL_ROUTE_TYPE__ === 'category' || (window as any).__INITIAL_ROUTE_TYPE__ === 'location') &&
       Array.isArray((window as any).__INITIAL_DATA__?.listings)
-    ) {
+    );
+  });
+
+  const initialSSRGuardRef = useRef<boolean>(hasValidSSRData);
+
+  const [rawListings, setRawListings] = useState<Listing[]>(() => {
+    if (hasValidSSRData) {
       const initListings = (window as any).__INITIAL_DATA__.listings;
       delete (window as any).__INITIAL_DATA__;
       delete (window as any).__INITIAL_ROUTE_TYPE__;
@@ -234,19 +240,92 @@ export const CategoryListings: React.FC = () => {
   useEffect(() => {
     if (!isValidCategory) return;
 
+    // Guard: skip redundant Firestore fetch if valid SSR-provided data exists for this route and user is not logged in
+    if (initialSSRGuardRef.current && !user) {
+      initialSSRGuardRef.current = false;
+      return;
+    }
+    initialSSRGuardRef.current = false;
+
     let isMounted = true;
 
     const fetchListings = async () => {
       try {
-        const q = query(collection(db, 'listings'));
-        const snapshot = await getDocs(q);
+        const isApprovedOnly = !user || user.role !== 'admin';
+        const targetCatTitle = formattedCategory.charAt(0).toUpperCase() + formattedCategory.slice(1);
+        const targetCatLower = formattedCategory.toLowerCase();
+
+        let firestoreListings: Listing[] = [];
+
+        try {
+          const queries: any[] = [];
+          const baseConditions = isApprovedOnly ? [where('isApproved', '==', true)] : [];
+
+          if (isLocationCategory) {
+            // Location pages are restaurants in a specific neighborhood
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', 'Restaurants')));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', 'Restaurants')));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', 'restaurants')));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', 'restaurants')));
+          } else if (isMainCategory) {
+            // Main category pages (both array and string shapes, both casing)
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', targetCatTitle)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', targetCatTitle)));
+            if (targetCatTitle !== targetCatLower) {
+              queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', targetCatLower)));
+              queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', targetCatLower)));
+            }
+          } else {
+            // Cuisine or type pages
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', 'array-contains', targetCatTitle)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', 'array-contains', targetCatTitle)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', 'array-contains', targetCatLower)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', 'array-contains', targetCatLower)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', '==', targetCatTitle)));
+            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', '==', targetCatTitle)));
+          }
+
+          // If a logged-in non-admin user is present, also fetch their own submitted listings
+          if (user && user.role !== 'admin') {
+            queries.push(query(collection(db, 'listings'), where('submittedBy', '==', user.uid)));
+          }
+
+          const snapshots = await Promise.all(queries.map(qItem => getDocs(qItem).catch(err => {
+            console.warn("Targeted query error, will use collected docs or fallback", err);
+            return null;
+          })));
+
+          const docsMap = new Map<string, any>();
+          for (const snap of snapshots) {
+            if (snap && snap.docs) {
+              for (const doc of snap.docs) {
+                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+              }
+            }
+          }
+
+          // If no docs found from targeted queries, fallback to query with isApproved filter
+          if (docsMap.size === 0) {
+            const fallbackQ = isApprovedOnly
+              ? query(collection(db, 'listings'), where('isApproved', '==', true))
+              : query(collection(db, 'listings'));
+            const fallbackSnap = await getDocs(fallbackQ);
+            for (const doc of fallbackSnap.docs) {
+              docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+            }
+          }
+
+          firestoreListings = Array.from(docsMap.values()) as Listing[];
+        } catch (fetchErr) {
+          console.warn("Error running filtered listing queries, falling back", fetchErr);
+          const fallbackQ = isApprovedOnly
+            ? query(collection(db, 'listings'), where('isApproved', '==', true))
+            : query(collection(db, 'listings'));
+          const fallbackSnap = await getDocs(fallbackQ);
+          firestoreListings = fallbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
+        }
 
         if (!isMounted) return;
-
-        const firestoreListings = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Listing[];
         
         // Filter client-side for better robustness (handles string vs array and pending vs approved)
         const filtered = firestoreListings.filter(l => {
@@ -342,6 +421,55 @@ export const CategoryListings: React.FC = () => {
     }
     return filtered;
   }, [rawListings, searchQuery, formattedCategory, isLocationCategory]);
+
+  const filterCounts = useMemo(() => {
+    const combined = [...rawListings, ...DEMO_LISTINGS];
+    const nCounts: Record<string, number> = {
+      'orleans': 0,
+      'kanata': 0,
+      'barrhaven': 0,
+      'downtown': 0
+    };
+    const tCounts: Record<string, number> = {};
+    for (const item of LISTING_TYPES) {
+      tCounts[item] = 0;
+    }
+    const cCounts: Record<string, number> = {};
+    for (const item of CUISINES) {
+      cCounts[item] = 0;
+    }
+
+    for (const l of combined) {
+      const cats = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
+      const isRestaurant = cats.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
+      if (isRestaurant) {
+        const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
+        if (computedNeighborhood && nCounts[computedNeighborhood] !== undefined) {
+          nCounts[computedNeighborhood]++;
+        }
+      }
+
+      const types = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
+      for (const item of LISTING_TYPES) {
+        if (types.includes(item as any) || cats.includes(item as any)) {
+          tCounts[item] = (tCounts[item] || 0) + 1;
+        }
+      }
+
+      const cuisines = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
+      for (const item of CUISINES) {
+        if (cuisines.includes(item as any) || cats.includes(item as any)) {
+          cCounts[item] = (cCounts[item] || 0) + 1;
+        }
+      }
+    }
+
+    return {
+      neighborhoods: nCounts,
+      types: tCounts,
+      cuisines: cCounts
+    };
+  }, [rawListings]);
 
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isApp, setIsApp] = useState(false);
@@ -860,15 +988,7 @@ export const CategoryListings: React.FC = () => {
                 { name: 'Barrhaven', desc: 'South End Eats' },
                 { name: 'Downtown', desc: 'Urban Flavors' }
               ].map((item) => {
-                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => {
-                  const cats = Array.isArray(l.category) ? l.category : [l.category];
-                  const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
-                  const matchesLocation = computedNeighborhood === item.name.toLowerCase();
-                  const matchesCategory = cats.some(cat => cat.toLowerCase() === 'restaurants');
-                  return matchesLocation && matchesCategory;
-                }).length;
-                
-                const displayCount = count;
+                const displayCount = filterCounts.neighborhoods[item.name.toLowerCase()] || 0;
                 const isCurrent = formattedCategory.toLowerCase() === item.name.toLowerCase();
                 
                 return (
@@ -902,8 +1022,7 @@ export const CategoryListings: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {LISTING_TYPES.map((item) => {
-                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.types?.includes(item as any) || l.category?.includes(item as any))).length;
-                const displayCount = count;
+                const displayCount = filterCounts.types[item] || 0;
                 
                 return (
                   <Link
@@ -932,8 +1051,7 @@ export const CategoryListings: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {CUISINES.map((item) => {
-                const count = [...rawListings, ...DEMO_LISTINGS].filter(l => (l.cuisine?.includes(item as any) || l.category?.includes(item as any))).length;
-                const displayCount = count;
+                const displayCount = filterCounts.cuisines[item] || 0;
                 
                 return (
                   <Link

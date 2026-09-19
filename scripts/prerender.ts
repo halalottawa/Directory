@@ -7,8 +7,15 @@ import {
   renderCategorySSRHtml,
   renderListingDetailSSRHtml,
   renderNewsDetailSSRHtml,
-  renderEventDetailSSRHtml,
-  renderJobDetailSSRHtml
+  renderNewsListSSRHtml,
+  renderFAQSSRHtml,
+  renderPrivacyPolicySSRHtml,
+  renderTermsSSRHtml,
+  renderQiblaSSRHtml,
+  renderSavedItemsSSRHtml,
+  renderLoginSSRHtml,
+  renderAddListingSSRHtml,
+  renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 
 const BASE_URL = 'https://www.halalottawa.ca';
@@ -17,8 +24,6 @@ const staticUrls = [
   "/",
   "/listings",
   "/news",
-  "/events",
-  "/jobs",
   "/restaurants",
   "/restaurants/orleans",
   "/restaurants/kanata",
@@ -323,18 +328,12 @@ async function prerender() {
 
   for (const url of staticUrls) {
     let title = "Halal Ottawa - Halal Places in Ottawa";
-    let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local events, news, and job career opportunities.";
+    let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with community updates and local news.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
     if (url === "/news") {
-      title = "Ottawa News - Halal Ottawa";
-      description = "Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region.";
-    } else if (url === "/events") {
-      title = "Halal Events in Ottawa - Halal Ottawa";
-      description = "Discover upcoming Islamic lectures, halaqas, local seminars, fundraisers, festivals, and social networking meetups in the Ottawa Muslim community.";
-    } else if (url === "/jobs") {
-      title = "Jobs in Ottawa - Halal Ottawa";
-      description = "Find local Halal employment and career listings in the Ottawa area. Browse open roles at respectful, modern workplaces or post a new job vacancy.";
+      title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
+      description = "Stay up to date with the latest stories, local community announcements, mosque updates, and community news from Ottawa's Muslim community.";
     } else if (url === "/restaurants") {
       title = `Halal Restaurants in Ottawa - ${monthYearStr}`;
       description = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
@@ -400,7 +399,7 @@ async function prerender() {
     });
   }
 
-  // 2. Fetch and Prepare Dynamic Pages (Listings, News, Events, Jobs)
+  // 2. Fetch and Prepare Dynamic Pages (Listings, News)
   if (db) {
     try {
       console.log("Fetching dynamic contents from Firestore...");
@@ -409,11 +408,9 @@ async function prerender() {
       try {
         const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
         const qNewsHome = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
-        const qEventsHome = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
-        const qJobsHome = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(10));
 
-        const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
-          getDocs(qListingsHome), getDocs(qNewsHome), getDocs(qEventsHome), getDocs(qJobsHome)
+        const [listingsSnap, newsSnap] = await Promise.all([
+          getDocs(qListingsHome), getDocs(qNewsHome)
         ]);
 
         let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
@@ -427,18 +424,12 @@ async function prerender() {
         listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 8);
         let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
-        let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        eventsData = eventsData.sort((a, b) => new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime()).slice(0, 8);
-        let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        jobsData = jobsData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 4);
 
         const homePage = pagesToPrerender.find(p => p.urlPath === "/");
         if (homePage) {
           homePage.initialData = {
             listings: listingsData,
             news: newsData,
-            events: eventsData,
-            jobs: jobsData,
             timestamp: Date.now()
           };
         }
@@ -615,50 +606,6 @@ async function prerender() {
         });
       });
 
-      // Events SSG
-      const eventsQuery = query(collection(db, 'events'), where('isApproved', '==', true));
-      const eventsSnap = await getDocs(eventsQuery);
-      eventsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const url = `/events/${idPath}`;
-        const title = `${data.title} | Halal Ottawa Events`;
-        const description = data.description ? truncateDescription(data.description) : "Join community events, classes, and lectures happening across Ottawa.";
-        const ogImage = getAbsoluteUrl(data.coverImage || "");
-
-        pagesToPrerender.push({
-          urlPath: url,
-          filePath: path.join(distPath, "events", idPath, "index.html"),
-          routeType: "event",
-          initialData: { id: doc.id, ...data },
-          title,
-          description,
-          ogImage
-        });
-      });
-
-      // Jobs SSG
-      const jobsQuery = query(collection(db, 'jobs'), where('isApproved', '==', true));
-      const jobsSnap = await getDocs(jobsQuery);
-      jobsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const url = `/jobs/${idPath}`;
-        const title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
-        const description = data.description ? truncateDescription(data.description) : "Hiring now: verify salary packages, full-time/part-time perks, and location details.";
-        const ogImage = getAbsoluteUrl(data.companyLogo || "");
-
-        pagesToPrerender.push({
-          urlPath: url,
-          filePath: path.join(distPath, "jobs", idPath, "index.html"),
-          routeType: "job",
-          initialData: { id: doc.id, ...data },
-          title,
-          description,
-          ogImage
-        });
-      });
-
       console.log(`Successfully fetched and prepared ${pagesToPrerender.length} pages for Static Site Generation.`);
     } catch (e) {
       console.error("Error details while preparing dynamic pages:", e);
@@ -680,7 +627,7 @@ async function prerender() {
       html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(page.title)}</title>`);
       html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(page.description)}" />`);
       
-      const ogType = (page.routeType === 'news' || page.routeType === 'event') ? 'article' : 'website';
+      const ogType = page.routeType === 'news' ? 'article' : 'website';
 
       let resolvedCanonicalPath = page.urlPath;
       if (page.initialData) {
@@ -692,10 +639,6 @@ async function prerender() {
           resolvedCanonicalPath = `/${formattedCategory}/${page.initialData.slug || page.initialData.id}`;
         } else if (page.routeType === 'news') {
           resolvedCanonicalPath = `/news/${page.initialData.slug || page.initialData.id}`;
-        } else if (page.routeType === 'event') {
-          resolvedCanonicalPath = `/events/${page.initialData.slug || page.initialData.id}`;
-        } else if (page.routeType === 'job') {
-          resolvedCanonicalPath = `/jobs/${page.initialData.slug || page.initialData.id}`;
         }
       }
 
@@ -734,11 +677,6 @@ async function prerender() {
           extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
         }
       } else if (page.routeType === "news" && page.initialData?.coverImage) {
-        const coverPreloadUrl = getPrerenderOptimizedImageUrl(page.initialData.coverImage, 800, 256);
-        if (coverPreloadUrl) {
-          extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
-        }
-      } else if (page.routeType === "event" && page.initialData?.coverImage) {
         const coverPreloadUrl = getPrerenderOptimizedImageUrl(page.initialData.coverImage, 800, 256);
         if (coverPreloadUrl) {
           extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(coverPreloadUrl)}" fetchpriority="high" />`;
@@ -864,77 +802,6 @@ async function prerender() {
             },
             "description": page.description
           };
-        } else if (page.routeType === 'event') {
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "Event",
-            "name": page.initialData.title,
-            "startDate": page.initialData.dateTime || new Date().toISOString(),
-            "endDate": page.initialData.endDateTime || page.initialData.dateTime || new Date().toISOString(),
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "location": {
-              "@type": "Place",
-              "name": page.initialData.venue || page.initialData.location || "Ottawa Community Venue",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": page.initialData.location || "Ottawa",
-                "addressLocality": "Ottawa",
-                "addressRegion": "ON",
-                "addressCountry": "CA"
-              }
-            },
-            "image": page.ogImage ? [page.ogImage] : undefined,
-            "description": page.description,
-            "offers": {
-              "@type": "Offer",
-              "url": fullUrl,
-              "price": cleanPriceStr(page.initialData.price),
-              "priceCurrency": "CAD",
-              "availability": "https://schema.org/InStock",
-              "validFrom": page.initialData.createdAt || new Date().toISOString()
-            },
-            "organizer": {
-              "@type": "Organization",
-              "name": page.initialData.organizer || "Halal Ottawa Community Partner",
-              "url": "https://www.halalottawa.ca"
-            }
-          };
-        } else if (page.routeType === 'job') {
-          let empType = ["FULL_TIME"];
-          const t = (page.initialData.type || '').toUpperCase();
-          if (t.includes('PART')) {
-            empType = ["PART_TIME"];
-          } else if (t.includes('CONTRACT')) {
-            empType = ["CONTRACTOR"];
-          } else if (t.includes('INTERN')) {
-            empType = ["INTERN"];
-          }
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "JobPosting",
-            "title": page.initialData.title,
-            "description": page.initialData.description || page.description,
-            "datePosted": page.initialData.createdAt || new Date().toISOString(),
-            "validThrough": new Date((page.initialData.createdAt ? new Date(page.initialData.createdAt) : new Date()).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-            "employmentType": empType,
-            "hiringOrganization": {
-              "@type": "Organization",
-              "name": page.initialData.company || "Halal Ottawa Partner",
-              "logo": page.initialData.companyLogo ? getAbsoluteUrl(page.initialData.companyLogo) : undefined
-            },
-            "jobLocation": {
-              "@type": "Place",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": page.initialData.location && page.initialData.location !== 'Ottawa' ? page.initialData.location : undefined,
-                "addressLocality": "Ottawa",
-                "addressRegion": "ON",
-                "addressCountry": "CA"
-              }
-            }
-          };
         } else if ((page.routeType === 'category' || page.routeType === 'location') && page.initialData?.listings) {
           const categoryDisplayName = (page.title.split(' - ')[0] || 'Halal Directory').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
           schemaData = {
@@ -1034,34 +901,6 @@ async function prerender() {
             "name": page.initialData.title,
             "item": fullUrl
           });
-        } else if (page.routeType === 'event') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Events",
-            "item": "https://www.halalottawa.ca/events"
-          });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": page.initialData.title,
-            "item": fullUrl
-          });
-        } else if (page.routeType === 'job') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Jobs",
-            "item": "https://www.halalottawa.ca/jobs"
-          });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": page.initialData.title,
-            "item": fullUrl
-          });
         }
 
         const breadcrumbSchema = {
@@ -1115,10 +954,16 @@ async function prerender() {
         });
       } else if (page.routeType === 'news' && page.initialData) {
         ssrBodyHtml = renderNewsDetailSSRHtml(page.initialData);
-      } else if (page.routeType === 'event' && page.initialData) {
-        ssrBodyHtml = renderEventDetailSSRHtml(page.initialData);
-      } else if (page.routeType === 'job' && page.initialData) {
-        ssrBodyHtml = renderJobDetailSSRHtml(page.initialData);
+      } else if (page.urlPath === '/news') {
+        ssrBodyHtml = renderNewsListSSRHtml();
+      } else if (page.urlPath === '/faq') {
+        ssrBodyHtml = renderFAQSSRHtml();
+      } else if (page.urlPath === '/privacy-policy') {
+        ssrBodyHtml = renderPrivacyPolicySSRHtml();
+      } else if (page.urlPath === '/terms') {
+        ssrBodyHtml = renderTermsSSRHtml();
+      } else if (page.urlPath === '/tools/qibla') {
+        ssrBodyHtml = renderQiblaSSRHtml();
       }
 
       if (ssrBodyHtml) {

@@ -16,8 +16,15 @@ import {
   renderCategorySSRHtml,
   renderListingDetailSSRHtml,
   renderNewsDetailSSRHtml,
-  renderEventDetailSSRHtml,
-  renderJobDetailSSRHtml
+  renderNewsListSSRHtml,
+  renderFAQSSRHtml,
+  renderPrivacyPolicySSRHtml,
+  renderTermsSSRHtml,
+  renderQiblaSSRHtml,
+  renderSavedItemsSSRHtml,
+  renderLoginSSRHtml,
+  renderAddListingSSRHtml,
+  renderNotFoundSSRHtml
 } from "./src/utils/ssrTemplates";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
@@ -411,6 +418,13 @@ async function startServer() {
     if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa') && !isStagingSandbox) {
       return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
     }
+
+    // 301 redirect removed /events and /jobs paths directly to homepage
+    const requestPath = (req.path || '').toLowerCase();
+    if (requestPath === '/events' || requestPath.startsWith('/events/') || requestPath === '/jobs' || requestPath.startsWith('/jobs/')) {
+      return res.redirect(301, '/');
+    }
+
     next();
   });
 
@@ -1756,7 +1770,7 @@ async function startServer() {
 
       const BASE_URL = 'https://www.halalottawa.ca';
       const staticUrls = [
-        "/", "/news", "/events", "/jobs", "/restaurants", "/mosques", 
+        "/", "/news", "/restaurants", "/mosques", 
         "/organizations", "/grocery", "/clothing", "/schools", "/butchers",
         "/faq", "/terms", "/privacy-policy", "/tools/qibla"
       ];
@@ -1772,7 +1786,7 @@ async function startServer() {
       for (const url of staticUrls) {
         let priority = "0.8";
         if (url === "/") priority = "1.0";
-        else if (["/news", "/events", "/jobs"].includes(url)) priority = "0.9";
+        else if (url === "/news") priority = "0.9";
         else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
 
         urls.push({
@@ -1835,9 +1849,7 @@ async function startServer() {
 
         await Promise.all([
           fetchUrls('listings', null),
-          fetchUrls('news', 'news'),
-          fetchUrls('events', 'events'),
-          fetchUrls('jobs', 'jobs')
+          fetchUrls('news', 'news')
         ]);
       }
 
@@ -3250,10 +3262,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const pathParts = cleanUrlPath.split('/').filter(Boolean);
     let isNotFound = false;
 
+    // Redirect legacy events and jobs routes to homepage since they have been removed
+    if (pathParts.length > 0 && (pathParts[0].toLowerCase() === 'events' || pathParts[0].toLowerCase() === 'jobs')) {
+      return { html: '', isNotFound: false, redirectUrl: '/' };
+    }
+
     const isSingleSegmentValid = (segment: string): boolean => {
       const s = segment.toLowerCase();
       const knownStatic = new Set([
-        "listings", "news", "events", "jobs", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register"
+        "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register", "qibla"
       ]);
       if (knownStatic.has(s)) return true;
       
@@ -3286,8 +3303,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       const p2 = part2.toLowerCase();
       if (p1 === "profile" && p2 === "edit") return true;
       if (p1 === "listings" && p2 === "add") return true;
-      if (p1 === "events" && p2 === "add") return true;
-      if (p1 === "jobs" && p2 === "add") return true;
       if (p1 === "news" && p2 === "add") return true;
       if (p1 === "tools" && p2 === "qibla") return true;
       if (p1 === "restaurants" && (["orleans", "kanata", "barrhaven", "downtown"].includes(p2) || isRestaurantSubcategory(p2))) return true;
@@ -3315,11 +3330,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             where('isApproved', '==', true)
           );
           const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
-          const qEvents = query(collection(db, 'events'), where('isApproved', '==', true), limit(20));
-          const qJobs = query(collection(db, 'jobs'), where('isApproved', '==', true), limit(20));
           
-          const [listingsSnap, newsSnap, eventsSnap, jobsSnap] = await Promise.all([
-            getDocs(qListings), getDocs(qNews), getDocs(qEvents), getDocs(qJobs)
+          const [listingsSnap, newsSnap] = await Promise.all([
+            getDocs(qListings), getDocs(qNews)
           ]);
           
           const parseListingTime = (val: any): number => {
@@ -3337,17 +3350,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
           newsData = newsData.sort((a, b) => parseListingTime(b.publishDate || b.createdAt) - parseListingTime(a.publishDate || a.createdAt)).slice(0, 6);
           
-          let eventsData = eventsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          eventsData = eventsData.sort((a, b) => parseListingTime(b.dateTime || b.createdAt) - parseListingTime(a.dateTime || a.createdAt)).slice(0, 8);
-          
-          let jobsData = jobsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-          jobsData = jobsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 4);
-          
           initialData = {
             listings: listingsData,
             news: newsData,
-            events: eventsData,
-            jobs: jobsData,
             timestamp: Date.now()
           };
         } catch(e) {
@@ -3406,19 +3411,73 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         
         if (p0 === 'news') {
           title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
-          description = "Keep up to date with the latest local news, announcements, ads, updates and community updates from Ottawa's Muslim community.";
+          description = "Keep up to date with the latest local news, announcements, ads, updates and community stories from Ottawa's Muslim community.";
           ogImage = defaultHeroImage;
-          routeType = 'news';
-        } else if (p0 === 'events') {
-          title = "Upcoming Halal Events in Ottawa - Muslim Community Calendar";
-          description = "Discover upcoming halal events, conferences, school programs, community gatherings, and fundraising events in Ottawa.";
+          routeType = 'news_list';
+          try {
+            const qNews = query(
+              collection(db, 'news'),
+              where('isApproved', '==', true),
+              limit(30)
+            );
+            const newsSnap = await getDocs(qNews);
+            const parseNewsTime = (val: any): number => {
+              if (!val) return 0;
+              if (typeof val === 'number') return val;
+              if (typeof val.toDate === 'function') return val.toDate().getTime();
+              if (typeof val.seconds === 'number') return val.seconds * 1000;
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+            let newsList = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+            newsList.sort((a, b) => {
+              if (a.isFeatured && !b.isFeatured) return -1;
+              if (!a.isFeatured && b.isFeatured) return 1;
+              return parseNewsTime(b.publishDate || b.createdAt) - parseNewsTime(a.publishDate || a.createdAt);
+            });
+            initialData = {
+              news: newsList,
+              timestamp: Date.now()
+            };
+          } catch (e) {
+            console.error("Error pre-fetching news list for SSR", e);
+          }
+        } else if (p0 === 'faq') {
+          title = "Frequently Asked Questions (FAQ) | Halal Ottawa";
+          description = "Find answers to common questions about Halal Ottawa, how we verify halal restaurants and mosques, submit listings, and community guidelines.";
           ogImage = defaultHeroImage;
-          routeType = 'events';
-        } else if (p0 === 'jobs') {
-          title = "Halal Job Opportunities in Ottawa - Browse Local Job Openings";
-          description = "Find and apply for halal-friendly jobs and employment opportunities in Ottawa with local businesses and organizations.";
+          routeType = 'faq';
+          initialData = { page: 'faq' };
+        } else if (p0 === 'privacy-policy') {
+          title = "Privacy Policy | Halal Ottawa";
+          description = "Read the Privacy Policy for Halal Ottawa to find out how we collect, use, and safeguard your personal details and account data.";
           ogImage = defaultHeroImage;
-          routeType = 'jobs';
+          routeType = 'privacy-policy';
+          initialData = { page: 'privacy-policy' };
+        } else if (p0 === 'terms') {
+          title = "Terms of Service | Halal Ottawa";
+          description = "Read the Terms of Service for Halal Ottawa to understand the guidelines, user responsibilities, and terms for accessing our directory.";
+          ogImage = defaultHeroImage;
+          routeType = 'terms';
+          initialData = { page: 'terms' };
+        } else if (p0 === 'qibla') {
+          title = "Ottawa Qibla Direction - Compass & Kaaba Bearing | Halal Ottawa";
+          description = "Find the accurate Qibla direction from Ottawa, Ontario towards the Kaaba in Makkah (approx 55.8° North-East). Accurate online compass and guidance.";
+          ogImage = defaultHeroImage;
+          routeType = 'qibla';
+          initialData = { page: 'qibla' };
+        } else if (p0 === 'saved') {
+          title = "Saved Places & Articles | Halal Ottawa";
+          description = "View your bookmarked halal restaurants, mosques, groceries, and articles on Halal Ottawa.";
+          ogImage = defaultHeroImage;
+          routeType = 'saved';
+          initialData = { page: 'saved' };
+        } else if (p0 === 'login') {
+          title = "Sign In | Halal Ottawa";
+          description = "Sign in to Halal Ottawa to bookmark your favorite halal restaurants, write reviews, and submit local listings.";
+          ogImage = defaultHeroImage;
+          routeType = 'login';
+          initialData = { page: 'login' };
         } else if (categoryMap[p0]) {
           routeType = 'category';
           const currentMonth = new Date().toLocaleString('default', { month: 'long' });
@@ -3449,13 +3508,35 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
           try {
             const targetCat = categoryMap[p0];
-            const qListings = query(
-              collection(db, 'listings'),
-              where('isApproved', '==', true)
-            );
-            const listingsSnap = await getDocs(qListings);
-            let filteredListings = listingsSnap.docs
-              .map(doc => ({ id: doc.id, ...doc.data() }))
+            const targetCatTitle = targetCat.charAt(0).toUpperCase() + targetCat.slice(1);
+            const targetCatLower = targetCat.toLowerCase();
+            const queries = [
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', targetCatTitle)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', targetCatTitle))
+            ];
+            if (targetCatTitle !== targetCatLower) {
+              queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', targetCatLower)));
+              queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', targetCatLower)));
+            }
+
+            const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
+            const docsMap = new Map<string, any>();
+            for (const snap of snaps) {
+              if (snap && snap.docs) {
+                for (const doc of snap.docs) {
+                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+                }
+              }
+            }
+
+            if (docsMap.size === 0) {
+              const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
+              for (const doc of fallbackSnap.docs) {
+                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+              }
+            }
+
+            let filteredListings = Array.from(docsMap.values())
               .filter((data: any) => {
                 if (!data.category) return false;
                 const catArray = Array.isArray(data.category) ? data.category : [data.category];
@@ -3479,6 +3560,72 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             };
           } catch (e) {
             console.error(`Error pre-fetching category listings for ${p0}`, e);
+          }
+        } else if (cuisineMap[p0] || typeMap[p0]) {
+          routeType = 'category';
+          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+          const currentYear = new Date().getFullYear();
+          const formattedName = cuisineMap[p0] || typeMap[p0];
+          title = `Halal ${formattedName} in Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
+          description = `Discover verified halal ${formattedName.toLowerCase()} restaurants and food spots in Ottawa. Search, read verified reviews, and get directions.`;
+
+          try {
+            const targetSub = (cuisineMap[p0] || typeMap[p0]).toLowerCase();
+            const targetSubTitle = (cuisineMap[p0] || typeMap[p0]);
+            const queries = [
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSubTitle)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSubTitle)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSub)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSub)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', '==', targetSubTitle)),
+              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', '==', targetSubTitle))
+            ];
+
+            const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
+            const docsMap = new Map<string, any>();
+            for (const snap of snaps) {
+              if (snap && snap.docs) {
+                for (const doc of snap.docs) {
+                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+                }
+              }
+            }
+
+            if (docsMap.size === 0) {
+              const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
+              for (const doc of fallbackSnap.docs) {
+                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+              }
+            }
+
+            let filteredListings = Array.from(docsMap.values())
+              .filter((data: any) => {
+                const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+                const isRestaurant = listingCategories.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
+                if (!isRestaurant) return false;
+
+                const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
+                const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
+                const matchesType = listingTypes.some((t: any) => String(t).toLowerCase() === targetSub);
+                const matchesCuisine = listingCuisines.some((c: any) => String(c).toLowerCase() === targetSub);
+                return matchesType || matchesCuisine;
+              });
+
+            const parseListingTime = (val: any): number => {
+              if (!val) return 0;
+              if (typeof val.toDate === 'function') return val.toDate().getTime();
+              if (typeof val.seconds === 'number') return val.seconds * 1000;
+              const d = new Date(val);
+              return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+            filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+
+            initialData = {
+              listings: filteredListings,
+              timestamp: Date.now()
+            };
+          } catch (e) {
+            console.error(`Error pre-fetching cuisine/type listings for ${p0}`, e);
           }
         } else if (p0 === 'listings') {
           title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
@@ -3535,15 +3682,42 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             try {
-              const qListings = query(
-                collection(db, 'listings'),
-                where('isApproved', '==', true)
-              );
-              const listingsSnap = await getDocs(qListings);
               const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase());
-              
-              let filteredListings = listingsSnap.docs
-                .map(doc => ({ id: doc.id, ...doc.data() }))
+              const queries: any[] = [];
+              if (isLoc) {
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'Restaurants')));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', 'Restaurants')));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'restaurants')));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', 'restaurants')));
+              } else {
+                const targetSub = p1.toLowerCase().replace(/-/g, ' ');
+                const targetSubTitle = formattedSub;
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSubTitle)));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSubTitle)));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSub)));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSub)));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', '==', targetSubTitle)));
+                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', '==', targetSubTitle)));
+              }
+
+              const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
+              const docsMap = new Map<string, any>();
+              for (const snap of snaps) {
+                if (snap && snap.docs) {
+                  for (const doc of snap.docs) {
+                    docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+                  }
+                }
+              }
+
+              if (docsMap.size === 0) {
+                const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
+                for (const doc of fallbackSnap.docs) {
+                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
+                }
+              }
+
+              let filteredListings = Array.from(docsMap.values())
                 .filter((data: any) => {
                   const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
                   const isRestaurant = listingCategories.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
@@ -3578,6 +3752,18 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             } catch (e) {
               console.error(`Error pre-fetching location/subcategory listings for ${p0}/${p1}`, e);
             }
+          } else if (p0 === 'tools' && p1.toLowerCase() === 'qibla') {
+            title = "Ottawa Qibla Direction - Compass & Kaaba Bearing | Halal Ottawa";
+            description = "Find the accurate Qibla direction from Ottawa, Ontario towards the Kaaba in Makkah (approx 55.8° North-East). Accurate online compass and guidance.";
+            ogImage = defaultHeroImage;
+            routeType = 'qibla';
+            initialData = { page: 'qibla' };
+          } else if (p0 === 'listings' && p1.toLowerCase() === 'add') {
+            title = "Submit a Place to Halal Ottawa | Halal Ottawa";
+            description = "Submit a new halal restaurant, mosque, grocery store, or Islamic organization to the Halal Ottawa community directory.";
+            ogImage = defaultHeroImage;
+            routeType = 'add_listing';
+            initialData = { page: 'add_listing' };
           }
         } else if (p0 === 'go') {
           try {
@@ -3631,91 +3817,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
           } catch (e) {
             console.error("Error fetching news details", e);
-          }
-        } else if (p0 === 'events') {
-          try {
-            // Try fetching by Firestore Document ID first
-            const eventDocRef = doc(db, 'events', p1);
-            const eventDocSnap = await getDoc(eventDocRef);
-            let data: any = null;
-            
-            if (eventDocSnap.exists()) {
-              data = { id: eventDocSnap.id, ...eventDocSnap.data() };
-            } else {
-              // Fallback to querying by slug field
-              const q = query(collection(db, 'events'), where('slug', '==', p1), limit(1));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
-              }
-            }
-
-            if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `events_${p1}`);
-              const redirectSnap = await getDoc(redirectRef);
-              if (redirectSnap.exists()) {
-                const redirectData = redirectSnap.data();
-                if (redirectData && redirectData.newSlug) {
-                  return { html: '', isNotFound: false, redirectUrl: `/events/${redirectData.newSlug}` };
-                }
-              }
-              isNotFound = true;
-            } else {
-              title = `${data.title} | Halal Ottawa Events`;
-              description = data.description?.substring(0, 160) || description;
-              if (data.coverImage && data.coverImage.trim() !== '') {
-                ogImage = getAbsoluteUrl(data.coverImage.trim());
-              } else {
-                ogImage = defaultHeroImage;
-              }
-              ogType = 'article';
-              initialData = data;
-              routeType = 'event';
-            }
-          } catch (e) {
-            console.error("Error fetching event details", e);
-          }
-        } else if (p0 === 'jobs') {
-          try {
-            // Try fetching by Firestore Document ID first
-            const jobDocRef = doc(db, 'jobs', p1);
-            const jobDocSnap = await getDoc(jobDocRef);
-            let data: any = null;
-            
-            if (jobDocSnap.exists()) {
-              data = { id: jobDocSnap.id, ...jobDocSnap.data() };
-            } else {
-              // Fallback to querying by slug field
-              const q = query(collection(db, 'jobs'), where('slug', '==', p1), limit(1));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
-              }
-            }
-
-            if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `jobs_${p1}`);
-              const redirectSnap = await getDoc(redirectRef);
-              if (redirectSnap.exists()) {
-                const redirectData = redirectSnap.data();
-                if (redirectData && redirectData.newSlug) {
-                  return { html: '', isNotFound: false, redirectUrl: `/jobs/${redirectData.newSlug}` };
-                }
-              }
-              isNotFound = true;
-            } else {
-              title = `${data.title} at ${data.company} | Halal Ottawa Jobs`;
-              description = data.description?.substring(0, 160) || description;
-              if (data.companyLogo && data.companyLogo.trim() !== '') {
-                ogImage = getAbsoluteUrl(data.companyLogo.trim());
-              } else {
-                ogImage = defaultHeroImage;
-              }
-              initialData = data;
-              routeType = 'job';
-            }
-          } catch (e) {
-            console.error("Error fetching job details", e);
           }
         } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
           try {
@@ -3967,77 +4068,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             },
             "description": description
           };
-        } else if (routeType === 'event') {
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "Event",
-            "name": initialData.title,
-            "startDate": initialData.dateTime || new Date().toISOString(),
-            "endDate": initialData.endDateTime || initialData.dateTime || new Date().toISOString(),
-            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
-            "eventStatus": "https://schema.org/EventScheduled",
-            "location": {
-              "@type": "Place",
-              "name": initialData.venue || initialData.location || "Ottawa Community Venue",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": initialData.location || "Ottawa",
-                "addressLocality": "Ottawa",
-                "addressRegion": "ON",
-                "addressCountry": "CA"
-              }
-            },
-            "image": ogImage ? [ogImage] : undefined,
-            "description": description,
-            "offers": {
-              "@type": "Offer",
-              "url": fullUrl,
-              "price": cleanPriceStr(initialData.price),
-              "priceCurrency": "CAD",
-              "availability": "https://schema.org/InStock",
-              "validFrom": initialData.createdAt || new Date().toISOString()
-            },
-            "organizer": {
-              "@type": "Organization",
-              "name": initialData.organizer || "Halal Ottawa Community Partner",
-              "url": "https://www.halalottawa.ca"
-            }
-          };
-        } else if (routeType === 'job') {
-          let empType = ["FULL_TIME"];
-          const t = (initialData.type || '').toUpperCase();
-          if (t.includes('PART')) {
-            empType = ["PART_TIME"];
-          } else if (t.includes('CONTRACT')) {
-            empType = ["CONTRACTOR"];
-          } else if (t.includes('INTERN')) {
-            empType = ["INTERN"];
-          }
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "JobPosting",
-            "title": initialData.title,
-            "description": initialData.description || description,
-            "datePosted": initialData.createdAt || new Date().toISOString(),
-            "validThrough": new Date((initialData.createdAt ? new Date(initialData.createdAt) : new Date()).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-            "employmentType": empType,
-            "hiringOrganization": {
-              "@type": "Organization",
-              "name": initialData.company || "Halal Ottawa Partner",
-              "logo": initialData.companyLogo ? getAbsoluteUrl(initialData.companyLogo) : undefined
-            },
-            "jobLocation": {
-              "@type": "Place",
-              "address": {
-                "@type": "PostalAddress",
-                "streetAddress": initialData.location && initialData.location !== 'Ottawa' ? initialData.location : undefined,
-                "addressLocality": "Ottawa",
-                "addressRegion": "ON",
-                "addressCountry": "CA"
-              }
-            }
-          };
         } else if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
           const categoryDisplayName = (title.split(' - ')[0] || 'Halal Directory').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
           schemaData = {
@@ -4136,34 +4166,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "name": initialData.title,
             "item": fullUrl
           });
-        } else if (routeType === 'event') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Events",
-            "item": "https://www.halalottawa.ca/events"
-          });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": initialData.title,
-            "item": fullUrl
-          });
-        } else if (routeType === 'job') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Jobs",
-            "item": "https://www.halalottawa.ca/jobs"
-          });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": initialData.title,
-            "item": fullUrl
-          });
         }
 
         const breadcrumbSchema = {
@@ -4183,7 +4185,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       }
 
       let ssrBodyHtml = '';
-      if (routeType === 'home' && initialData) {
+      if (isNotFound) {
+        title = "Page Not Found (404) | Halal Ottawa";
+        description = "Sorry, we couldn't find the page you're looking for on Halal Ottawa.";
+        ssrBodyHtml = renderNotFoundSSRHtml();
+      } else if (routeType === 'home' && initialData) {
         ssrBodyHtml = renderHomeSSRHtml(initialData);
       } else if (routeType === 'listing' && initialData) {
         ssrBodyHtml = renderListingDetailSSRHtml(initialData);
@@ -4201,7 +4207,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             schools: 'Schools',
             butchers: 'Butchers'
           };
-          categoryName = map[pathParts[0].toLowerCase()] || pathParts[0];
+          categoryName = map[pathParts[0].toLowerCase()] || (pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1).replace(/-/g, ' '));
         } else if (pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants') {
           categoryName = pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace(/-/g, ' ');
         }
@@ -4214,12 +4220,24 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           urlPath,
           listings: initialData.listings
         });
+      } else if (routeType === 'news_list' && initialData) {
+        ssrBodyHtml = renderNewsListSSRHtml(initialData.news);
       } else if (routeType === 'news' && initialData) {
         ssrBodyHtml = renderNewsDetailSSRHtml(initialData);
-      } else if (routeType === 'event' && initialData) {
-        ssrBodyHtml = renderEventDetailSSRHtml(initialData);
-      } else if (routeType === 'job' && initialData) {
-        ssrBodyHtml = renderJobDetailSSRHtml(initialData);
+      } else if (routeType === 'faq') {
+        ssrBodyHtml = renderFAQSSRHtml();
+      } else if (routeType === 'privacy-policy') {
+        ssrBodyHtml = renderPrivacyPolicySSRHtml();
+      } else if (routeType === 'terms') {
+        ssrBodyHtml = renderTermsSSRHtml();
+      } else if (routeType === 'qibla') {
+        ssrBodyHtml = renderQiblaSSRHtml();
+      } else if (routeType === 'saved') {
+        ssrBodyHtml = renderSavedItemsSSRHtml();
+      } else if (routeType === 'login') {
+        ssrBodyHtml = renderLoginSSRHtml();
+      } else if (routeType === 'add_listing') {
+        ssrBodyHtml = renderAddListingSSRHtml();
       }
 
       if (ssrBodyHtml) {
@@ -4249,6 +4267,32 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return { html, isNotFound };
   }
 
+  function getHtmlCacheControl(reqPath: string, isNotFound?: boolean): string {
+    if (isNotFound) {
+      return "no-cache, no-store, must-revalidate";
+    }
+
+    const cleanPath = reqPath.toLowerCase().replace(/\/+$/, '') || '/';
+
+    // User-specific, authenticated, or mutating routes
+    if (
+      cleanPath.startsWith('/admin') ||
+      cleanPath.startsWith('/account') ||
+      cleanPath.startsWith('/saved') ||
+      cleanPath.startsWith('/login') ||
+      cleanPath.startsWith('/signup') ||
+      cleanPath.startsWith('/auth') ||
+      cleanPath.startsWith('/forgot-password') ||
+      cleanPath.startsWith('/listings/add') ||
+      cleanPath.includes('__cookie_check')
+    ) {
+      return "private, no-cache, no-store, must-revalidate";
+    }
+
+    // Public content routes (listings, categories, news, home, info pages)
+    return "public, max-age=60, stale-while-revalidate=3600";
+  }
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
@@ -4274,6 +4318,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
+        res.setHeader("Cache-Control", getHtmlCacheControl(req.path, result.isNotFound));
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(result.html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
@@ -4307,7 +4352,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
-        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Cache-Control", getHtmlCacheControl(req.path, result.isNotFound));
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);

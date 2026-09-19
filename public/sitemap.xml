@@ -3,91 +3,79 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.halalottawa.ca/</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/news</loc>
-    <lastmod>2026-09-11</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events</loc>
-    <lastmod>2026-09-11</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/jobs</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/mosques</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/organizations</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/grocery</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/clothing</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/schools</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/butchers</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/faq</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/terms</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/privacy-policy</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/tools/qibla</loc>
-    <lastmod>2026-09-11</lastmod>
+    <lastmod>2026-09-19</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -2490,129 +2478,5 @@
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/where-to-celebrate-canada-day-in-ottawa-this-year.webp</image:loc>
       <image:title>Where to celebrate Canada Day in Ottawa this year</image:title>
     </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/ottawa-kitab-book-fair-2026</loc>
-    <lastmod>2026-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-kitab-book-fair-2026.webp</image:loc>
-      <image:title>Ottawa Kitab Book Fair 2026</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/arafah-street-iftar</loc>
-    <lastmod>2026-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/arafah-street-iftar.webp</image:loc>
-      <image:title>Arafah Street Iftar</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/eid-night-market</loc>
-    <lastmod>2026-05-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/eid-night-market.webp</image:loc>
-      <image:title>Eid Night Market</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/family-fun-festival</loc>
-    <lastmod>2026-06-02</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/family-fun-festival-cover.webp</image:loc>
-      <image:title>Family Fun Festival</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/hulk-challenge</loc>
-    <lastmod>2026-06-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/hulk-challenge-cover.webp</image:loc>
-      <image:title>Hulk Challenge</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/lifes-legacy</loc>
-    <lastmod>2026-06-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/lifes-legacy-cover.webp</image:loc>
-      <image:title>Life's Legacy</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/new-year-registration-2026-2027</loc>
-    <lastmod>2026-06-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/al-furqan-part-time-school-.webp</image:loc>
-      <image:title>2026-2027 Registration</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/ottawa-charity-world-cup</loc>
-    <lastmod>2026-06-04</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-charity-world-cup-cover.webp</image:loc>
-      <image:title>Ottawa Charity World Cup</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/outdoor-social-gathering-and-bbq-lunch</loc>
-    <lastmod>2026-06-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/outdoor-social-gathering-and-bbq-lunch.webp</image:loc>
-      <image:title>Outdoor gathering and BBQ</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/events/sunday-pilates-classes</loc>
-    <lastmod>2026-06-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/sunday-pilates-classes-cover.webp</image:loc>
-      <image:title>Sunday Pilates Classes</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/jobs/camp-counselor</loc>
-    <lastmod>2026-06-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/jobs/classroom-female-teacher</loc>
-    <lastmod>2026-06-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/jobs/house-manager</loc>
-    <lastmod>2026-06-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/jobs/kindergarten-elementary-teacher</loc>
-    <lastmod>2026-06-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
   </url>
 </urlset>

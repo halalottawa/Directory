@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { 
   onAuthStateChanged, 
   User as FirebaseUser,
@@ -608,6 +607,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isCapacitorNative) {
       try {
+        const { FirebaseAuthentication } = await import('@capacitor-firebase/authentication');
         const capResult = await FirebaseAuthentication.signInWithGoogle();
         if (capResult?.credential?.idToken) {
           const credential = GoogleAuthProvider.credential(capResult.credential.idToken);

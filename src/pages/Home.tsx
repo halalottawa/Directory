@@ -77,11 +77,18 @@ export const Home: React.FC = () => {
     }
   };
 
-  const initData = typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home' 
-    ? (window as any).__INITIAL_DATA__ 
-    : null;
+  const [initData] = useState(() => {
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home') {
+      const data = (window as any).__INITIAL_DATA__;
+      delete (window as any).__INITIAL_DATA__;
+      delete (window as any).__INITIAL_ROUTE_TYPE__;
+      return data;
+    }
+    return null;
+  });
 
   const [loading, setLoading] = useState(!initData);
+  const initialSSRGuardRef = useRef(Boolean(initData && (initData.listings || initData.news)));
   const parseInitTime = (val: any): number => {
     if (!val) return 0;
     if (typeof val.toDate === 'function') return val.toDate().getTime();
@@ -100,6 +107,19 @@ export const Home: React.FC = () => {
 
   useEffect(() => {
     setIsApp(isAppWrapper());
+
+    // Guard: skip redundant Firestore fetch when valid SSR data exists and user is not logged in
+    if (initialSSRGuardRef.current && !user) {
+      initialSSRGuardRef.current = false;
+      getGeneralSettings(true).then(settings => {
+        if (settings?.heroImageUrl) setHeroImageUrl(settings.heroImageUrl);
+      }).catch(err => {
+        console.warn("Failed to load general settings:", err);
+      });
+      return;
+    }
+    initialSSRGuardRef.current = false;
+
     const fetchHomeData = async () => {
       try {
         if (!initData) {
