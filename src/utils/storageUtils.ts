@@ -45,6 +45,7 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
   try {
     const response = await fetch(getApiUrl("/api/upload-url"), {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -91,6 +92,7 @@ export async function uploadFile(file: File, path: string, fileName?: string): P
   try {
     const response = await fetch(getApiUrl(`/api/upload?filename=${safeName}`), {
       method: "POST",
+      credentials: "include",
       body: file,
     });
 

@@ -10,6 +10,16 @@ const CookieCheckRedirect: React.FC = () => {
   const navigate = useNavigate();
   useEffect(() => {
     try {
+      const isHttps = window.location.protocol === 'https:';
+      const flags = '; path=/; SameSite=None' + (isHttps ? '; Secure; Partitioned' : '');
+      const maxAge = '; max-age=2592000';
+      document.cookie = '__session=true' + flags + maxAge;
+      document.cookie = 'cookie_check=passed' + flags + maxAge;
+      if (isHttps) {
+        document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+        document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+      }
+
       const params = new URLSearchParams(window.location.search);
       const returnUrl = params.get('return_url');
       if (returnUrl) {
@@ -20,6 +30,7 @@ const CookieCheckRedirect: React.FC = () => {
         }
         target = target.replace(/https?:\/\/[^\/]+/i, '');
         if (!target.startsWith('/')) target = '/' + target;
+        if (target.includes('__cookie_check')) target = '/';
         navigate(target, { replace: true });
         return;
       }

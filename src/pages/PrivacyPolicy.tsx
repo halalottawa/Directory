@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, Shield, Lock, Eye, FileText, Mail, MapPin, Globe } from 'lucide-react';
+import { ChevronLeft, Shield, Lock, Eye, FileText, Mail, MapPin, Globe, Cookie } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SEO } from '../components/SEO';
 
@@ -82,6 +82,20 @@ export const PrivacyPolicy: React.FC = () => {
               <li>Moderating community content to ensure a safe and respectful environment.</li>
               <li>Displaying your name and profile picture alongside content you publish (reviews, comments, listings).</li>
               <li>Communicating with you about your submissions or account status.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center gap-3 text-gray-900">
+              <Cookie className="w-5 h-5 text-[#e90b35]" />
+              <h3 className="text-xl font-bold m-0">Cookies &amp; Local Storage</h3>
+            </div>
+            <p>
+              Halal Ottawa uses essential cookies and local storage to preserve your login sessions, maintain preferences, protect security, and deliver seamless halal discovery in Ottawa.
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+              <li><strong>Essential Session Cookies:</strong> Maintain your active session and prevent security redirects across cloud environments.</li>
+              <li><strong>Preference Storage:</strong> Saves your bookmarked listings and client settings on your device without transmitting unnecessary data.</li>
             </ul>
           </section>
 

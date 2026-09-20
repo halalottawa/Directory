@@ -464,6 +464,41 @@ async function startServer() {
     }
     next();
   });
+
+  // Global Session and Cookie Management Middleware
+  // Ensures proxy session (__session) and cookie-check requirements are satisfied across all routes,
+  // especially within cross-site iframe preview environments (SameSite=None; Secure; Partitioned)
+  app.use((req, res, next) => {
+    try {
+      const p = req.path || "";
+      const isStaticAsset = /\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js|map)$/i.test(p);
+      if (!isStaticAsset) {
+        const cookieHeader = req.headers.cookie || "";
+        const hasSession = cookieHeader.includes("__session=");
+        const hasCheck = cookieHeader.includes("cookie_check=");
+
+        if (!hasSession || !hasCheck) {
+          res.cookie("__session", "true", {
+            path: "/",
+            httpOnly: false,
+            sameSite: "none",
+            secure: true,
+            partitioned: true,
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          });
+          res.cookie("cookie_check", "passed", {
+            path: "/",
+            httpOnly: false,
+            sameSite: "none",
+            secure: true,
+            partitioned: true,
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          });
+        }
+      }
+    } catch (e) {}
+    next();
+  });
   
   // Custom router to handle automatic favicon.ico and favicon.svg lookup from search bots and browsers
   app.get(["/favicon.ico", "/favicon.svg"], async (req, res) => {
@@ -3040,13 +3075,21 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       const result = await getInjectedHTML(template, cleanPathOnly, req);
 
       // Always set session cookies so subsequent requests from browsers are authenticated
-      res.cookie("__session", "true", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
-      res.cookie("cookie_check", "passed", { path: "/", httpOnly: false, sameSite: "lax", secure: true });
+      res.cookie("__session", "true", { path: "/", httpOnly: false, sameSite: "none", secure: true, partitioned: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
+      res.cookie("cookie_check", "passed", { path: "/", httpOnly: false, sameSite: "none", secure: true, partitioned: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
 
       let htmlToSend = result.html;
 
-      // Inject history replaceState script so browser address bar updates to clean URL without page reload
-      const scriptInjection = `<script>try{if(window.location.pathname.includes("__cookie_check")){window.history.replaceState(null,"",${JSON.stringify(targetPath)});}}catch(e){}</script>`;
+      // Inject history replaceState script and client-side cookie write so browser address bar updates to clean URL without page reload
+      const scriptInjection = `<script>try{
+        document.cookie = "__session=true; path=/; SameSite=None; Secure; Partitioned; max-age=2592000";
+        document.cookie = "cookie_check=passed; path=/; SameSite=None; Secure; Partitioned; max-age=2592000";
+        document.cookie = "__session=true; path=/; SameSite=None; Secure; max-age=2592000";
+        document.cookie = "cookie_check=passed; path=/; SameSite=None; Secure; max-age=2592000";
+        if(window.location.pathname.includes("__cookie_check")){
+          window.history.replaceState(null,"",${JSON.stringify(targetPath)});
+        }
+      }catch(e){}</script>`;
       if (htmlToSend.includes("</head>")) {
         htmlToSend = htmlToSend.replace("</head>", `${scriptInjection}\n</head>`);
       } else {
