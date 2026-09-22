@@ -11,15 +11,22 @@ if (typeof window !== 'undefined' && window.location.hostname === 'halalottawa.c
 if (typeof document !== 'undefined') {
   try {
     const isHttps = window.location.protocol === 'https:';
-    const flags = '; path=/; SameSite=None' + (isHttps ? '; Secure; Partitioned' : '');
     const maxAge = '; max-age=2592000';
     if (!document.cookie.includes('__session=')) {
-      document.cookie = '__session=true' + flags + maxAge;
-      if (isHttps) document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+      if (isHttps) {
+        document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+        document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+      } else {
+        document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+      }
     }
     if (!document.cookie.includes('cookie_check=')) {
-      document.cookie = 'cookie_check=passed' + flags + maxAge;
-      if (isHttps) document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+      if (isHttps) {
+        document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+        document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+      } else {
+        document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
+      }
     }
   } catch (e) {}
 }

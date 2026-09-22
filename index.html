@@ -6,15 +6,22 @@
         try {
           var cookies = document.cookie || "";
           var isHttps = location.protocol === 'https:';
-          var flags = '; path=/; SameSite=None' + (isHttps ? '; Secure; Partitioned' : '');
           var maxAge = '; max-age=2592000'; // 30 days
           if (!cookies.includes('__session=')) {
-            document.cookie = '__session=true' + flags + maxAge;
-            if (isHttps) document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+            if (isHttps) {
+              document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+              document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+            } else {
+              document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+            }
           }
           if (!cookies.includes('cookie_check=')) {
-            document.cookie = 'cookie_check=passed' + flags + maxAge;
-            if (isHttps) document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+            if (isHttps) {
+              document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+              document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+            } else {
+              document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
+            }
           }
         } catch (e) {}
       })();

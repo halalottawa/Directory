@@ -402,20 +402,13 @@ async function startServer() {
   const app = express();
   app.use(compression());
 
-  // Global 301 Redirect for canonical hostname: redirect direct .run.app traffic and apex domain traffic to www.halalottawa.ca
-  // unless Vercel or similar is proxying it (detected via x-forwarded-host header)
+  // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
   app.use((req, res, next) => {
     const host = String(req.headers.host || "").toLowerCase();
     const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
     
     // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
     if (host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca') {
-      return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
-    }
-
-    const isStagingSandbox = host.includes('ais-dev-') || host.includes('ais-pre-') || host.includes('google-') || host.includes('localhost') || host.includes('127.0.0.1');
-    
-    if (host.endsWith('.run.app') && !xForwardedHost.includes('halalottawa') && !isStagingSandbox) {
       return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
     }
 
@@ -3032,9 +3025,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   });
 
   // Dedicated handler for __cookie_check.html to resolve Cloud Run / AI Studio preview proxy redirects & bots
-  app.get("/__cookie_check.html", async (req, res) => {
+  app.get("/__cookie_check.html", (req, res) => {
     try {
-      const returnUrl = req.query.return_url as string | undefined;
+      const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
       let targetPath = "/";
 
       if (returnUrl) {
@@ -3042,7 +3035,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           const decoded = decodeURIComponent(returnUrl);
           if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
             const parsed = new URL(decoded);
-            targetPath = parsed.pathname + (parsed.search || "");
+            targetPath = parsed.pathname + (parsed.search || "") + (parsed.hash || "");
           } else {
             targetPath = decoded;
           }
@@ -3051,56 +3044,87 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         }
       }
 
-      // Strip any upstream domain or run.app prefix
+      // Strip any upstream domain or run.app prefix to ensure relative root navigation
       targetPath = targetPath.replace(/https?:\/\/[^\/]+/i, "");
       if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
       if (targetPath.includes("__cookie_check")) targetPath = "/";
 
-      const distPath = path.join(process.cwd(), "dist");
-      const spaPath = path.join(distPath, "template.spa.html");
-      let templatePath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
-      if (!fs.existsSync(templatePath)) {
-        templatePath = path.resolve(process.cwd(), "index.html");
-      }
-      let template = fs.readFileSync(templatePath, "utf-8");
+      const isSecure = req.secure || String(req.headers["x-forwarded-proto"] || "").toLowerCase().includes("https");
 
-      if (process.env.NODE_ENV !== "production") {
-        try {
-          const rawTemplate = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
-          template = rawTemplate;
-        } catch (e) {}
-      }
-
-      const cleanPathOnly = targetPath.split("?")[0] || "/";
-      const result = await getInjectedHTML(template, cleanPathOnly, req);
-
-      // Always set session cookies so subsequent requests from browsers are authenticated
-      res.cookie("__session", "true", { path: "/", httpOnly: false, sameSite: "none", secure: true, partitioned: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
-      res.cookie("cookie_check", "passed", { path: "/", httpOnly: false, sameSite: "none", secure: true, partitioned: true, maxAge: 30 * 24 * 60 * 60 * 1000 });
-
-      let htmlToSend = result.html;
-
-      // Inject history replaceState script and client-side cookie write so browser address bar updates to clean URL without page reload
-      const scriptInjection = `<script>try{
-        document.cookie = "__session=true; path=/; SameSite=None; Secure; Partitioned; max-age=2592000";
-        document.cookie = "cookie_check=passed; path=/; SameSite=None; Secure; Partitioned; max-age=2592000";
-        document.cookie = "__session=true; path=/; SameSite=None; Secure; max-age=2592000";
-        document.cookie = "cookie_check=passed; path=/; SameSite=None; Secure; max-age=2592000";
-        if(window.location.pathname.includes("__cookie_check")){
-          window.history.replaceState(null,"",${JSON.stringify(targetPath)});
-        }
-      }catch(e){}</script>`;
-      if (htmlToSend.includes("</head>")) {
-        htmlToSend = htmlToSend.replace("</head>", `${scriptInjection}\n</head>`);
-      } else {
-        htmlToSend += scriptInjection;
-      }
+      res.cookie("__session", "true", {
+        path: "/",
+        httpOnly: false,
+        sameSite: isSecure ? "none" : "lax",
+        secure: isSecure,
+        partitioned: isSecure,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+      res.cookie("cookie_check", "passed", {
+        path: "/",
+        httpOnly: false,
+        sameSite: isSecure ? "none" : "lax",
+        secure: isSecure,
+        partitioned: isSecure,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
 
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      return res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(htmlToSend);
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+
+      const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifying Session - Halal Ottawa</title>
+  <meta http-equiv="refresh" content="0; url=${targetPath}">
+  <script>
+    (function() {
+      try {
+        var isHttps = location.protocol === 'https:';
+        var maxAge = '; max-age=2592000';
+        if (isHttps) {
+          document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+          document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+        } else {
+          document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+          document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
+        }
+      } catch (e) {}
+      var target = ${JSON.stringify(targetPath)};
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var r = params.get('return_url') || params.get('returnUrl');
+        if (r) {
+          if (r.indexOf('http://') === 0 || r.indexOf('https://') === 0) {
+            var u = new URL(r);
+            r = u.pathname + (u.search || '') + (u.hash || '');
+          }
+          r = r.replace(/^https?:\\/\\/[^\\/]+/i, '');
+          if (r.indexOf('/') !== 0) r = '/' + r;
+          if (r.indexOf('__cookie_check') === -1) target = r;
+        }
+      } catch (e) {}
+      window.location.replace(target);
+    })();
+  </script>
+</head>
+<body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #fafafa;">
+  <div style="text-align: center; padding: 24px;">
+    <div style="width: 44px; height: 44px; border: 4px solid #fecaca; border-top-color: #e90b35; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
+    <div style="color: #111827; font-weight: 600; font-size: 15px;">Loading Halal Ottawa...</div>
+    <div style="color: #6b7280; font-size: 13px; margin-top: 6px;">Verifying session cookies</div>
+  </div>
+  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html>`;
+
+      return res.status(200).send(html);
     } catch (err) {
       console.error("Error handling __cookie_check.html:", err);
-      return res.redirect(302, "https://www.halalottawa.ca/");
+      return res.redirect(302, "/");
     }
   });
 

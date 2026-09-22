@@ -7,7 +7,6 @@ import { isAppWrapper } from './utils/platform';
 import { getGeneralSettings } from './firebase';
 
 const CookieCheckRedirect: React.FC = () => {
-  const navigate = useNavigate();
   useEffect(() => {
     try {
       const isHttps = window.location.protocol === 'https:';
@@ -18,25 +17,33 @@ const CookieCheckRedirect: React.FC = () => {
       if (isHttps) {
         document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
         document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+      } else {
+        document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+        document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
       }
 
       const params = new URLSearchParams(window.location.search);
-      const returnUrl = params.get('return_url');
+      const returnUrl = params.get('return_url') || params.get('returnUrl');
+      let target = '/';
       if (returnUrl) {
-        let target = returnUrl;
+        target = returnUrl;
         if (returnUrl.startsWith('http://') || returnUrl.startsWith('https://')) {
-          const parsed = new URL(returnUrl);
-          target = parsed.pathname + parsed.search + parsed.hash;
+          try {
+            const parsed = new URL(returnUrl);
+            target = parsed.pathname + (parsed.search || '') + (parsed.hash || '');
+          } catch (e) {
+            target = '/';
+          }
         }
         target = target.replace(/https?:\/\/[^\/]+/i, '');
         if (!target.startsWith('/')) target = '/' + target;
         if (target.includes('__cookie_check')) target = '/';
-        navigate(target, { replace: true });
-        return;
       }
-    } catch (e) {}
-    navigate('/', { replace: true });
-  }, [navigate]);
+      window.location.replace(target);
+    } catch (e) {
+      window.location.replace('/');
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
