@@ -838,22 +838,22 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
         {listing.plan === 'premium' && ((listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) || (listing.socialMediaLinks && listing.socialMediaLinks.length > 0)) && (
           <div className="flex lg:hidden justify-center gap-4 mt-6">
             {listing.socialMedia?.instagram && (
-              <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+              <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                 <FaInstagram className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.facebook && (
-              <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+              <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                 <FaFacebook className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.twitter && (
-              <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+              <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                 <FaTwitter className="w-5 h-5" />
               </a>
             )}
             {listing.socialMedia?.tiktok && (
-              <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+              <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                 <FaTiktok className="w-5 h-5" />
               </a>
             )}
@@ -868,7 +868,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               const Icon = isInstagram ? FaInstagram : isFacebook ? FaFacebook : isTwitter ? FaTwitter : isTikTok ? FaTiktok : Globe;
 
               return (
-                <a key={idx} href={formattedLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
+                <a key={idx} href={formattedLink} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
                   <Icon className="w-5 h-5" />
                 </a>
               );
@@ -1046,7 +1046,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                     <a 
                       href={listing.menuPdfUrl || listing.menuUrl}
                       target="_blank"
-                      rel="noopener noreferrer" 
+                      rel="nofollow noopener noreferrer" 
                       className="text-[#e90b35] text-sm font-bold flex items-center gap-1 hover:underline"
                     >
                       View Full Menu
@@ -1278,7 +1278,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
                     <Globe className="w-4 h-4" />
                   </div>
-                  <a href={listing.website.startsWith('http') ? listing.website : `https://${listing.website}`} target="_blank" rel="noopener noreferrer" className="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors line-clamp-1">
+                  <a href={listing.website.startsWith('http') ? listing.website : `https://${listing.website}`} target="_blank" rel="nofollow noopener noreferrer" className="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors line-clamp-1">
                     {listing.website.replace(/^https?:\/\//, '')}
                   </a>
                 </div>
@@ -1289,7 +1289,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
                     <FileText className="w-4 h-4" />
                   </div>
-                  <a href={(listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`} target="_blank" rel="noopener noreferrer" className="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors">
+                  <a href={(listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`} target="_blank" rel="nofollow noopener noreferrer" className="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors">
                     View Menu
                   </a>
                 </div>
@@ -1324,22 +1324,22 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 <h2 className="text-xl font-bold mb-4">Social Media</h2>
                 <div className="flex flex-wrap gap-4">
                   {listing.socialMedia?.instagram && (
-                    <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                    <a href={listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                       <FaInstagram className="w-5 h-5" />
                     </a>
                   )}
                   {listing.socialMedia?.facebook && (
-                    <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                    <a href={listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                       <FaFacebook className="w-5 h-5" />
                     </a>
                   )}
                   {listing.socialMedia?.twitter && (
-                    <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                    <a href={listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                       <FaTwitter className="w-5 h-5" />
                     </a>
                   )}
                   {listing.socialMedia?.tiktok && (
-                    <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
+                    <a href={listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors">
                       <FaTiktok className="w-5 h-5" />
                     </a>
                   )}
@@ -1354,7 +1354,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                     const Icon = isInstagram ? FaInstagram : isFacebook ? FaFacebook : isTwitter ? FaTwitter : isTikTok ? FaTiktok : Globe;
 
                     return (
-                      <a key={idx} href={formattedLink} target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
+                      <a key={idx} href={formattedLink} target="_blank" rel="nofollow noopener noreferrer" className="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors flex items-center justify-center">
                         <Icon className="w-5 h-5" />
                       </a>
                     );

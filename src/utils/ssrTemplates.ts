@@ -437,7 +437,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
 
   const typesArray = Array.isArray(listing.types) ? listing.types : (listing.types ? [listing.types] : []);
   const cuisinesArray = Array.isArray(listing.cuisine) ? listing.cuisine : (listing.cuisine ? [listing.cuisine] : []);
-  const tags = Array.from(new Set([...typesArray, ...cuisinesArray])).filter(Boolean).slice(0, 3);
+  const tags = Array.from(new Set([...typesArray, ...cuisinesArray])).filter(Boolean).slice(0, 2);
 
   const tagsHtml = tags.map(tag => `
     <span class="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
@@ -459,10 +459,10 @@ export function renderListingDetailSSRHtml(listing: any): string {
   ` : '';
 
   return `
-    <div class="min-h-screen bg-gray-50 pb-16" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div class="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-xs md:overflow-hidden md:border md:border-gray-100">
-        <!-- Hero Banner with LCP Image -->
-        <div class="relative h-72 sm:h-80 md:h-96 bg-slate-900 overflow-hidden">
+    <div class="min-h-screen bg-gray-50 pb-20" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div class="w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto pt-6 space-y-6">
+        <!-- Hero Banner -->
+        <div class="relative h-72 sm:h-80 md:h-[420px] rounded-3xl overflow-hidden shadow-sm bg-slate-900">
           <img 
             src="${escapeHtmlAttr(optimizedPhoto)}" 
             alt="${escapeHtmlAttr(listing.name)}" 
@@ -470,24 +470,26 @@ export function renderListingDetailSSRHtml(listing: any): string {
             fetchpriority="high" 
             loading="eager" 
             width="1920" 
-            height="600"
-            decoding="async"
+            height="600" 
+            decoding="async" 
           />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent"></div>
-          ${listing.isFeatured ? '<div class="absolute top-4 left-4 bg-[#e90b35] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-md">Featured</div>' : ''}
+          <div class="absolute inset-0 bg-black/70"></div>
+          ${listing.isFeatured ? '<div class="absolute top-4 left-4 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest shadow-md">Featured</div>' : ''}
           
-          <div class="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white">
+          <div class="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
             <div class="flex-1">
-              <div class="flex items-center gap-2 mb-2.5 flex-wrap text-white">
-                <a href="/${catSlug}" class="bg-[#e90b35] text-white border border-[#e90b35] px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase text-decoration-none shadow-xs">
+              <div class="flex items-center gap-2 mb-2 flex-wrap text-white">
+                <a href="/${catSlug}" class="bg-[#e90b35] text-white border border-[#e90b35] px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase text-decoration-none shadow-sm">
                   ${escapeHtmlText(mainCategory)}
                 </a>
                 ${tagsHtml}
               </div>
-              <h1 class="text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight text-white m-0 drop-shadow-md">${escapeHtmlText(listing.name)}</h1>
-              <div class="flex items-center gap-3 mt-2 text-sm text-white/90">
-                <div class="flex items-center gap-1.5 bg-black/40 backdrop-blur-xs px-2.5 py-1 rounded-lg">
-                  <span class="text-amber-400">★</span>
+              <div class="flex items-center gap-3 flex-wrap">
+                <h1 class="text-2xl font-bold leading-tight m-0 text-white">${escapeHtmlText(listing.name)}</h1>
+              </div>
+              <div class="flex items-center gap-4 mt-2 text-sm">
+                <div class="flex items-center gap-1">
+                  <span class="text-yellow-400">★</span>
                   <span class="font-bold">${rating}</span>
                   <span class="text-white/70 text-xs">(${reviewCount} reviews)</span>
                 </div>
@@ -496,65 +498,216 @@ export function renderListingDetailSSRHtml(listing: any): string {
           </div>
         </div>
 
-        <!-- Main Body -->
-        <div class="p-6 md:p-8 space-y-6">
+        <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
           <!-- Breadcrumbs -->
-          <nav aria-label="Breadcrumb" class="flex gap-2 text-xs text-gray-500 items-center">
-            <a href="/" class="text-gray-500 hover:text-gray-900 text-decoration-none">Home</a>
-            <span>/</span>
-            <a href="/${catSlug}" class="text-gray-500 hover:text-gray-900 text-decoration-none">${escapeHtmlText(mainCategory)}</a>
-            <span>/</span>
-            <span class="text-gray-900 font-semibold truncate">${escapeHtmlText(listing.name)}</span>
-          </nav>
-
-          <!-- Quick Info Strip -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-gray-100 bg-gray-50/50 rounded-2xl p-4">
-            <div class="flex items-start gap-3">
-              <span class="text-xl">📍</span>
-              <div>
-                <span class="text-[11px] font-bold uppercase text-gray-400 block">Address</span>
-                <span class="text-sm font-semibold text-gray-800">${escapeHtmlText(address)}</span>
-              </div>
-            </div>
-            ${phone ? `
-            <div class="flex items-start gap-3">
-              <span class="text-xl">📞</span>
-              <div>
-                <span class="text-[11px] font-bold uppercase text-gray-400 block">Phone</span>
-                <a href="tel:${escapeHtmlAttr(phone)}" class="text-sm font-semibold text-[#e90b35] text-decoration-none">${escapeHtmlText(phone)}</a>
-              </div>
-            </div>` : ''}
-            ${website ? `
-            <div class="flex items-start gap-3">
-              <span class="text-xl">🌐</span>
-              <div>
-                <span class="text-[11px] font-bold uppercase text-gray-400 block">Website</span>
-                <a href="${escapeHtmlAttr(website.startsWith('http') ? website : `https://${website}`)}" target="_blank" rel="noopener noreferrer" class="text-sm font-semibold text-[#e90b35] text-decoration-none truncate block max-w-[180px]">Visit Website</a>
-              </div>
-            </div>` : ''}
-            <div class="flex items-start gap-3">
-              <span class="text-xl">✅</span>
-              <div>
-                <span class="text-[11px] font-bold uppercase text-gray-400 block">Halal Verification</span>
-                <span class="text-sm font-semibold text-green-700">Community Verified</span>
-              </div>
-            </div>
+          <div class="hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+            <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+            <span class="text-gray-300">›</span>
+            <a href="/${catSlug}" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">${escapeHtmlText(mainCategory)}</a>
+            <span class="text-gray-300">›</span>
+            <span class="text-gray-900 truncate max-w-[200px] font-semibold">${escapeHtmlText(listing.name)}</span>
           </div>
 
-          <!-- Description Section -->
-          ${description ? `
-          <div class="space-y-2">
-            <h2 class="text-xl font-bold text-gray-900 m-0">About ${escapeHtmlText(listing.name)}</h2>
-            <p class="text-gray-600 text-sm md:text-base leading-relaxed whitespace-pre-line m-0">${escapeHtmlText(description)}</p>
-          </div>` : ''}
+          <!-- 10-Column Layout matching ListingDetail.tsx -->
+          <div class="grid grid-cols-1 lg:grid-cols-10 gap-8 mt-6">
+            <!-- Left Column (col-span-7) -->
+            <div class="lg:col-span-7 flex flex-col h-full gap-8">
+              
+              <!-- Info Buttons (Mobile: flex lg:hidden) -->
+              <div class="flex lg:hidden flex-wrap justify-center gap-6 py-2">
+                ${address ? `
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.name + ' ' + address)}" target="_blank" rel="nofollow noopener noreferrer" class="flex flex-col items-center gap-2 text-decoration-none group">
+                  <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
+                    <span class="text-lg">📍</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">Directions</span>
+                </a>` : ''}
 
-          ${galleryHtml}
+                ${phone ? `
+                <a href="tel:${escapeHtmlAttr(phone)}" class="flex flex-col items-center gap-2 text-decoration-none group">
+                  <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
+                    <span class="text-lg">📞</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">Phone</span>
+                </a>` : ''}
 
-          <!-- Operating Hours / Location -->
-          <div class="space-y-2 pt-4 border-t border-gray-100">
-            <h2 class="text-xl font-bold text-gray-900 m-0">Location & Details</h2>
-            <p class="text-gray-600 text-sm m-0">📍 ${escapeHtmlText(address)}</p>
-            ${listing.openingHours ? `<p class="text-gray-500 text-xs mt-1">🕒 Hours: ${escapeHtmlText(typeof listing.openingHours === 'string' ? listing.openingHours : JSON.stringify(listing.openingHours))}</p>` : ''}
+                ${listing.email ? `
+                <a href="mailto:${escapeHtmlAttr(listing.email)}" class="flex flex-col items-center gap-2 text-decoration-none group">
+                  <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
+                    <span class="text-lg">✉️</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">Email</span>
+                </a>` : ''}
+
+                ${website ? `
+                <a href="${escapeHtmlAttr(website.startsWith('http') ? website : `https://${website}`)}" target="_blank" rel="nofollow noopener noreferrer" class="flex flex-col items-center gap-2 text-decoration-none group">
+                  <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
+                    <span class="text-lg">🌐</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">Website</span>
+                </a>` : ''}
+
+                ${(listing.menuUrl || listing.menuPdfUrl) ? `
+                <a href="${escapeHtmlAttr((listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`)}" target="_blank" rel="nofollow noopener noreferrer" class="flex flex-col items-center gap-2 text-decoration-none group">
+                  <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
+                    <span class="text-lg">📄</span>
+                  </div>
+                  <span class="text-[10px] font-bold text-gray-500 uppercase">Menu</span>
+                </a>` : ''}
+              </div>
+
+              <!-- Navigation Tabs -->
+              <div class="border-b border-gray-100">
+                <div class="flex gap-8">
+                  <span class="pb-4 font-bold text-sm text-[#e90b35] border-b-2 border-[#e90b35]">Overview</span>
+                  <span class="pb-4 font-bold text-sm text-gray-400">Reviews (${reviewCount})</span>
+                  ${(listing.photos && listing.photos.length > 1) ? `<span class="pb-4 font-bold text-sm text-gray-400">Photos (${listing.photos.length})</span>` : ''}
+                  ${(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) ? `<span class="pb-4 font-bold text-sm text-gray-400">Menu</span>` : ''}
+                </div>
+              </div>
+
+              <!-- About Section -->
+              ${description ? `
+              <section class="space-y-4">
+                <h2 class="text-xl font-bold m-0 text-gray-900">About</h2>
+                <div class="text-gray-600 leading-relaxed whitespace-pre-line text-sm md:text-base">
+                  ${escapeHtmlText(description)}
+                </div>
+              </section>` : ''}
+
+              <!-- Menu Section (if present) -->
+              ${(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) ? `
+              <div class="space-y-4 pt-4 border-t border-gray-50">
+                <div class="flex justify-between items-center">
+                  <h2 class="text-xl font-bold flex items-center gap-2 m-0 text-gray-900">
+                    <span class="w-8 h-8 rounded-full bg-[#e90b35]/10 text-[#e90b35] flex items-center justify-center font-bold text-sm">★</span>
+                    Menu
+                  </h2>
+                  ${(listing.menuPdfUrl || listing.menuUrl) ? `
+                  <a href="${escapeHtmlAttr((listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`)}" target="_blank" rel="nofollow noopener noreferrer" class="text-[#e90b35] text-sm font-bold flex items-center gap-1 hover:underline text-decoration-none">
+                    View Full Menu ↗
+                  </a>` : ''}
+                </div>
+              </div>` : ''}
+
+              <!-- Photos Gallery -->
+              ${galleryHtml}
+
+              <!-- Reviews Section -->
+              <section class="space-y-6 pt-6 border-t border-gray-100">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <h2 class="text-xl font-bold m-0 text-gray-900">Reviews</h2>
+                    <div class="flex items-center gap-2 mt-1">
+                      <span class="text-yellow-400 font-bold text-lg">★</span>
+                      <span class="font-bold text-gray-900 text-lg">${rating}</span>
+                      <span class="text-gray-400 text-sm">(${reviewCount} reviews)</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <!-- Right Column (Sidebar) matching ListingDetail.tsx -->
+            <div class="flex flex-col lg:col-span-3 gap-6 h-full">
+              <!-- Location Card -->
+              ${address ? `
+              <div class="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+                <h2 class="text-xl font-bold m-0 text-gray-900">Location</h2>
+                <div class="flex items-start gap-3 text-sm text-gray-600">
+                  <span class="text-base text-[#e90b35] shrink-0 mt-0.5">📍</span>
+                  <span>${escapeHtmlText(address)}</span>
+                </div>
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.name + ' ' + address)}" target="_blank" rel="nofollow noopener noreferrer" class="w-full py-3 bg-red-50 text-[#e90b35] font-bold rounded-xl hover:bg-red-100 transition-colors text-sm block text-center text-decoration-none">
+                  Get Directions
+                </a>
+              </div>` : ''}
+
+              <!-- Contact Card -->
+              <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+                <h2 class="text-xl font-bold mb-4 m-0 text-gray-900">Contact</h2>
+                
+                ${phone ? `
+                <div class="flex items-center gap-4 text-sm text-gray-600">
+                  <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
+                    <span class="text-sm">📞</span>
+                  </div>
+                  <a href="tel:${escapeHtmlAttr(phone)}" class="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors text-decoration-none">${escapeHtmlText(phone)}</a>
+                </div>` : ''}
+
+                ${listing.email ? `
+                <div class="flex items-center gap-4 text-sm text-gray-600 break-all">
+                  <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
+                    <span class="text-sm">✉️</span>
+                  </div>
+                  <a href="mailto:${escapeHtmlAttr(listing.email)}" class="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors line-clamp-1 text-decoration-none">${escapeHtmlText(listing.email)}</a>
+                </div>` : ''}
+
+                ${website ? `
+                <div class="flex items-center gap-4 text-sm text-gray-600 break-all">
+                  <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
+                    <span class="text-sm">🌐</span>
+                  </div>
+                  <a href="${escapeHtmlAttr(website.startsWith('http') ? website : `https://${website}`)}" target="_blank" rel="nofollow noopener noreferrer" class="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors line-clamp-1 text-decoration-none">
+                    ${escapeHtmlText(website.replace(/^https?:\/\//, ''))}
+                  </a>
+                </div>` : ''}
+
+                ${(listing.menuUrl || listing.menuPdfUrl) ? `
+                <div class="flex items-center gap-4 text-sm text-gray-600 break-all pt-2">
+                  <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
+                    <span class="text-sm">📄</span>
+                  </div>
+                  <a href="${escapeHtmlAttr((listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`)}" target="_blank" rel="nofollow noopener noreferrer" class="text-[13px] font-semibold text-gray-900 hover:text-[#e90b35] transition-colors text-decoration-none">
+                    View Menu
+                  </a>
+                </div>` : ''}
+              </div>
+
+              <!-- Hours Card -->
+              ${listing.openingHours ? `
+              <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+                <h2 class="text-xl font-bold m-0 text-gray-900">Hours</h2>
+                <div class="space-y-3">
+                  ${(typeof listing.openingHours === 'string' ? listing.openingHours.split(', ') : []).map((hour: string) => {
+                    const parts = hour.split(': ');
+                    if (parts.length < 2) return `<div class="text-sm text-gray-700">${escapeHtmlText(hour)}</div>`;
+                    const [day, time] = parts;
+                    const isClosed = time.toLowerCase().includes('closed');
+                    return `
+                      <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
+                        <span class="text-[13px] font-semibold text-gray-900">${escapeHtmlText(day)}</span>
+                        <span class="text-[13px] font-semibold ${isClosed ? 'text-red-500' : 'text-gray-900'}">${escapeHtmlText(time)}</span>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>` : ''}
+
+              <!-- Social Media Card -->
+              ${(listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) ? `
+              <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
+                <h2 class="text-xl font-bold mb-4 m-0 text-gray-900">Social Media</h2>
+                <div class="flex flex-wrap gap-4">
+                  ${listing.socialMedia?.instagram ? `
+                  <a href="${escapeHtmlAttr(listing.socialMedia.instagram.startsWith('http') ? listing.socialMedia.instagram : `https://${listing.socialMedia.instagram}`)}" target="_blank" rel="nofollow noopener noreferrer" class="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors text-decoration-none">
+                    Instagram
+                  </a>` : ''}
+                  ${listing.socialMedia?.facebook ? `
+                  <a href="${escapeHtmlAttr(listing.socialMedia.facebook.startsWith('http') ? listing.socialMedia.facebook : `https://${listing.socialMedia.facebook}`)}" target="_blank" rel="nofollow noopener noreferrer" class="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors text-decoration-none">
+                    Facebook
+                  </a>` : ''}
+                  ${listing.socialMedia?.twitter ? `
+                  <a href="${escapeHtmlAttr(listing.socialMedia.twitter.startsWith('http') ? listing.socialMedia.twitter : `https://${listing.socialMedia.twitter}`)}" target="_blank" rel="nofollow noopener noreferrer" class="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors text-decoration-none">
+                    Twitter
+                  </a>` : ''}
+                  ${listing.socialMedia?.tiktok ? `
+                  <a href="${escapeHtmlAttr(listing.socialMedia.tiktok.startsWith('http') ? listing.socialMedia.tiktok : `https://${listing.socialMedia.tiktok}`)}" target="_blank" rel="nofollow noopener noreferrer" class="p-3 bg-gray-50 hover:bg-red-50 text-gray-600 hover:text-[#e90b35] rounded-full transition-colors text-decoration-none">
+                    TikTok
+                  </a>` : ''}
+                </div>
+              </div>` : ''}
+            </div>
           </div>
         </div>
       </div>
