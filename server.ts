@@ -3539,8 +3539,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           ogImage = defaultHeroImage;
           routeType = 'saved';
           initialData = { page: 'saved' };
-        } else if (p0 === 'login') {
-          title = "Sign In | Halal Ottawa";
+        } else if (p0 === 'login' || p0 === 'signup' || p0 === 'register') {
+          title = "Sign In / Register | Halal Ottawa";
           description = "Sign in to Halal Ottawa to bookmark your favorite halal restaurants, write reviews, and submit local listings.";
           ogImage = defaultHeroImage;
           routeType = 'login';

@@ -70,7 +70,11 @@ const staticUrls = [
   "/faq",
   "/terms",
   "/privacy-policy",
-  "/tools/qibla"
+  "/tools/qibla",
+  "/qibla",
+  "/saved",
+  "/login",
+  "/listings/add"
 ];
 
 // Helper functions for secure character escaping and robust schema URLs
@@ -382,9 +386,18 @@ async function prerender() {
     } else if (url === "/privacy-policy") {
       title = "Privacy Policy | Halal Ottawa";
       description = "Learn how your personal details, submissions, and metrics are secured and managed on Halal Ottawa.";
-    } else if (url === "/tools/qibla") {
+    } else if (url === "/tools/qibla" || url === "/qibla") {
       title = "Ottawa Qibla Direction - Halal Ottawa";
       description = "Find the Qibla direction online accurately using your device compass and location in Ottawa.";
+    } else if (url === "/saved") {
+      title = "Saved Places & Articles | Halal Ottawa";
+      description = "View your saved halal places, restaurants, mosques, and news articles on Halal Ottawa.";
+    } else if (url === "/login") {
+      title = "Sign In / Register | Halal Ottawa";
+      description = "Sign in to Halal Ottawa to save your favorite halal spots, manage listings, and contribute.";
+    } else if (url === "/listings/add") {
+      title = "Add a Listing | Halal Ottawa";
+      description = "Submit and recommend a halal restaurant, mosque, butcher, or business to Halal Ottawa.";
     }
 
     const relativeFilePath = url === "/" ? "index.html" : `${url.substring(1)}/index.html`;
@@ -962,8 +975,14 @@ async function prerender() {
         ssrBodyHtml = renderPrivacyPolicySSRHtml();
       } else if (page.urlPath === '/terms') {
         ssrBodyHtml = renderTermsSSRHtml();
-      } else if (page.urlPath === '/tools/qibla') {
+      } else if (page.urlPath === '/tools/qibla' || page.urlPath === '/qibla') {
         ssrBodyHtml = renderQiblaSSRHtml();
+      } else if (page.urlPath === '/saved') {
+        ssrBodyHtml = renderSavedItemsSSRHtml();
+      } else if (page.urlPath === '/login') {
+        ssrBodyHtml = renderLoginSSRHtml();
+      } else if (page.urlPath === '/listings/add') {
+        ssrBodyHtml = renderAddListingSSRHtml();
       }
 
       if (ssrBodyHtml) {
