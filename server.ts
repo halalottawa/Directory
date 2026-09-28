@@ -2010,6 +2010,7 @@ async function startServer() {
       xml += `</urlset>\n`;
 
       res.header('Content-Type', 'application/xml');
+      res.header('Cache-Control', 'public, max-age=1800, s-maxage=1800');
       res.send(xml);
     } catch (e: any) {
       console.error("Error generating news sitemap:", e);
@@ -4351,12 +4352,24 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       cleanPath.startsWith('/auth') ||
       cleanPath.startsWith('/forgot-password') ||
       cleanPath.startsWith('/listings/add') ||
+      cleanPath.startsWith('/news/add') ||
+      cleanPath.startsWith('/news/edit') ||
       cleanPath.includes('__cookie_check')
     ) {
       return "private, no-cache, no-store, must-revalidate";
     }
 
-    // Public content routes (listings, categories, news, home, info pages)
+    // Dynamic news routes must always serve fresh content
+    if (cleanPath === '/news' || cleanPath.startsWith('/news/')) {
+      return "public, max-age=0, must-revalidate";
+    }
+
+    // Home page contains latest news and quick updates
+    if (cleanPath === '/') {
+      return "public, max-age=30, stale-while-revalidate=120";
+    }
+
+    // Public content routes (listings, categories, info pages)
     return "public, max-age=60, stale-while-revalidate=3600";
   }
 

@@ -23,6 +23,7 @@ export const EditNews: React.FC = () => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
+    author: 'Youssef Agrebi',
     content: '',
     sourceLink: '',
     coverImage: '',
@@ -44,6 +45,7 @@ export const EditNews: React.FC = () => {
           }
           setFormData({
             title: data.title,
+            author: data.author || 'Youssef Agrebi',
             content: data.content,
             sourceLink: data.sourceLink || '',
             coverImage: data.coverImage || '',
@@ -257,6 +259,7 @@ export const EditNews: React.FC = () => {
         
       await updateDoc(doc(db, 'news', id), {
         ...formData,
+        author: formData.author?.trim() || 'Youssef Agrebi',
         coverImage: finalImageUrl,
         slug: newSlug,
         updatedAt: new Date().toISOString(),
@@ -341,6 +344,18 @@ export const EditNews: React.FC = () => {
                 className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              />
+            </div>
+
+            <div className="relative md:col-span-2">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Author Name (e.g. Youssef Agrebi)"
+                required
+                className="w-full pl-14 pr-4 py-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-[#e90b35] outline-none transition-all"
+                value={formData.author}
+                onChange={(e) => setFormData({ ...formData, author: e.target.value })}
               />
             </div>
 

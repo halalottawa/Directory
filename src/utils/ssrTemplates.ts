@@ -815,6 +815,8 @@ export function renderListingDetailSSRHtml(listing: any): string {
 export function renderNewsDetailSSRHtml(news: any): string {
   const coverUrl = news.coverImage ? (getOptimizedImageUrlSSR(news.coverImage, 800, 256) || news.coverImage) : '/ottawa-sunset.webp';
   const dateStr = news.publishDate || news.createdAt ? new Date(news.publishDate || news.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const authorName = news.author || 'Youssef Agrebi';
+  const initials = authorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
 
   const sourceLink = news.sourceLink ? (news.sourceLink.startsWith('http') ? news.sourceLink : `https://${news.sourceLink}`) : null;
 
@@ -825,12 +827,15 @@ export function renderNewsDetailSSRHtml(news: any): string {
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         <div class="absolute bottom-6 left-6 right-6 text-white">
           <h1 class="text-2xl font-bold leading-tight m-0 text-white">${escapeHtmlText(news.title)}</h1>
-          <div class="flex items-center gap-4 mt-3 text-xs text-white/80">
+          <div class="flex flex-wrap items-center gap-4 mt-3 text-xs text-white/90">
             <span class="flex items-center gap-2">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
             </span>
-            ${news.author ? `<span>${escapeHtmlText(news.author)}</span>` : ''}
+            <span class="flex items-center gap-2">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>By ${escapeHtmlText(authorName)}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -847,6 +852,31 @@ export function renderNewsDetailSSRHtml(news: any): string {
             Learn More
           </a>
         </div>` : ''}
+
+        <!-- E-E-A-T Author Profile Card -->
+        <section class="pt-6 border-t border-gray-100">
+          <div class="bg-gray-50/80 border border-gray-100 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shadow-sm">
+            <div class="w-14 h-14 rounded-2xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
+              ${escapeHtmlText(initials)}
+            </div>
+            <div class="space-y-1.5 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
+                  Editorial Contributor
+                </span>
+                <span class="text-[11px] text-gray-400 font-medium">
+                  Verified Local Journalist
+                </span>
+              </div>
+              <h3 class="text-base font-bold text-gray-900 leading-snug m-0">
+                Written by ${escapeHtmlText(authorName)}
+              </h3>
+              <p class="text-xs sm:text-sm text-gray-600 leading-relaxed m-0 mt-1">
+                Editor and community researcher at Halal Ottawa, dedicated to researching and reporting on local Ottawa community announcements, Muslim lifestyle, and verified halal dining.
+              </p>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   `;
@@ -862,6 +892,7 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
     const articleUrl = `/news/${article.slug || article.id}`;
     const coverUrl = article.coverImage ? (getOptimizedImageUrlSSR(article.coverImage, 400, 192) || article.coverImage) : '/ottawa-sunset.webp';
     const dateStr = article.publishDate || article.createdAt ? new Date(article.publishDate || article.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const authorName = article.author || 'Youssef Agrebi';
 
     return `
       <a href="${escapeHtmlAttr(articleUrl)}" class="block bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-50 group flex flex-col text-decoration-none text-inherit">
@@ -883,11 +914,15 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
             <h2 class="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors m-0 text-gray-900">${escapeHtmlText(article.title)}</h2>
             <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(article.content || '')}</p>
           </div>
-          <div class="pt-4 flex justify-between items-end">
-            <div class="flex items-center gap-4 text-xs text-gray-400 font-semibold">
-              <span class="flex items-center gap-2">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div class="pt-4 flex justify-between items-end border-t border-gray-50 mt-3">
+            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">
+              <span class="flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 <span>${dateStr}</span>
+              </span>
+              <span class="flex items-center gap-1.5 text-gray-500 font-medium">
+                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span>By ${escapeHtmlText(authorName)}</span>
               </span>
             </div>
           </div>

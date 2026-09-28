@@ -108,17 +108,16 @@ export const Home: React.FC = () => {
   useEffect(() => {
     setIsApp(isAppWrapper());
 
-    // Guard: skip redundant Firestore fetch when valid SSR data exists and user is not logged in
-    if (initialSSRGuardRef.current && !user) {
+    // Stale-While-Revalidate: display SSR data instantly without loading spinner,
+    // while running background fetch to revalidate latest news and listings in real-time.
+    if (initialSSRGuardRef.current) {
       initialSSRGuardRef.current = false;
       getGeneralSettings(true).then(settings => {
         if (settings?.heroImageUrl) setHeroImageUrl(settings.heroImageUrl);
       }).catch(err => {
         console.warn("Failed to load general settings:", err);
       });
-      return;
     }
-    initialSSRGuardRef.current = false;
 
     const fetchHomeData = async () => {
       try {

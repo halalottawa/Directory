@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Newspaper, ChevronRight, Search, Plus, User, Clock } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
+import { Newspaper, ChevronRight, Search, Plus, Clock } from 'lucide-react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { NewsArticle } from '../types';
@@ -13,14 +13,35 @@ import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
 
+const getArticleTime = (article: any): number => {
+  const val = article.publishDate || article.createdAt;
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (typeof val.seconds === 'number') return val.seconds * 1000;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+};
+
 export const News: React.FC = () => {
   const { user } = useAuth();
-  const [news, setNews] = useState<NewsArticle[]>(DEMO_NEWS);
-  const [searchQuery, setSearchQuery] = useState('');
 
+  // Fast hydration: use server-rendered news if available, avoiding flicker
+  const [allNews, setAllNews] = useState<NewsArticle[]>(() => {
+    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'news_list') {
+      const initData = (window as any).__INITIAL_DATA__;
+      if (initData && Array.isArray(initData.news) && initData.news.length > 0) {
+        return initData.news;
+      }
+    }
+    return DEMO_NEWS;
+  });
+
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
 
+  // Real-time Firestore subscription to guarantee fresh news
   useEffect(() => {
     const q = user?.role === 'admin' 
       ? query(collection(db, 'news')) 
@@ -32,37 +53,46 @@ export const News: React.FC = () => {
         ...doc.data()
       })) as NewsArticle[];
 
-      // Sort client-side: Featured first, then by date
-      firestoreNews.sort((a, b) => {
+      // Merge with DEMO_NEWS if any, deduplicating by ID or slug
+      const mergedMap = new Map<string, NewsArticle>();
+      DEMO_NEWS.forEach(item => mergedMap.set(item.id, item));
+      firestoreNews.forEach(item => {
+        mergedMap.set(item.id, item);
+        if (item.slug) {
+          const demoItem = DEMO_NEWS.find(d => d.slug === item.slug);
+          if (demoItem) mergedMap.delete(demoItem.id);
+        }
+      });
+      const combined = Array.from(mergedMap.values());
+
+      // Sort: Featured first, then newest first
+      combined.sort((a, b) => {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return getArticleTime(b) - getArticleTime(a);
       });
 
-      // Merge with demo data
-      const allNews = [...firestoreNews, ...DEMO_NEWS];
-      
-      // Sort allNews as well
-      allNews.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-      
-      // Filter by search query
-      const filtered = allNews.filter(article => 
-        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.content.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-      setNews(filtered);
-      setCurrentPage(1); // Reset to first page on search
+      setAllNews(combined);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'news');
     });
 
     return () => unsubscribe();
-  }, [searchQuery, user]);
+  }, [user?.role]);
+
+  // Client-side search filtering without destroying Firestore listener
+  const filteredNews = useMemo(() => {
+    if (!searchQuery.trim()) return allNews;
+    const q = searchQuery.toLowerCase().trim();
+    return allNews.filter(article => 
+      (article.title && article.title.toLowerCase().includes(q)) ||
+      (article.content && article.content.toLowerCase().includes(q))
+    );
+  }, [allNews, searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [isApp, setIsApp] = useState(false);
@@ -84,9 +114,8 @@ export const News: React.FC = () => {
   }, []);
 
   const shouldUseInfiniteScroll = isMobile && isApp;
-
-  const totalPages = Math.ceil(news.length / itemsPerPage);
-  const currentNews = news.slice(
+  const totalPages = Math.ceil(filteredNews.length / itemsPerPage);
+  const currentNews = filteredNews.slice(
     shouldUseInfiniteScroll ? 0 : (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -142,6 +171,7 @@ export const News: React.FC = () => {
           <Link 
             to="/news/add" 
             className="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg active:scale-95 transition-all text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f]"
+            aria-label="Add News Article"
           >
             <Plus className="w-6 h-6 md:w-5 md:h-5" />
           </Link>
@@ -159,51 +189,61 @@ export const News: React.FC = () => {
         />
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {currentNews.map((article, idx) => (
-          <Link
-            key={article.id}
-            to={`/news/${article.slug || article.id}`}
-            className="block bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-50 group flex flex-col"
-          >
-            <div className="relative h-48 shrink-0">
-              {article.coverImage && article.coverImage.trim() !== '' ? (
-                <img 
-                  src={getOptimizedImageUrl(article.coverImage, 400, 192)} 
-                  alt={article.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  loading={idx < 3 ? "eager" : "lazy"}
-                  fetchPriority={idx < 3 ? "high" : "auto"}
-                  width="400"
-                  height="192"
-                  decoding="async"
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <span className="text-gray-400 text-xs font-medium">No Image</span>
-                </div>
-              )}
-              {article.isFeatured && (
-                <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
-              )}
-              {!article.isApproved && (
-                <div className="absolute top-3 right-3 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Pending</div>
-              )}
-            </div>
-            <div className="p-5 flex flex-col justify-between flex-1">
-              <div>
-                <h2 className="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{article.title}</h2>
-                <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{article.content}</p>
+      {currentNews.length === 0 ? (
+        <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm max-w-lg mx-auto">
+          <Newspaper className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-gray-800">No News Found</h3>
+          <p className="text-gray-500 text-sm mt-1">
+            {searchQuery ? `No articles matching "${searchQuery}".` : 'No community news published yet.'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {currentNews.map((article, idx) => (
+            <Link
+              key={article.id}
+              to={`/news/${article.slug || article.id}`}
+              className="block bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-50 group flex flex-col"
+            >
+              <div className="relative h-48 shrink-0">
+                {article.coverImage && article.coverImage.trim() !== '' ? (
+                  <img 
+                    src={getOptimizedImageUrl(article.coverImage, 400, 192)} 
+                    alt={article.title} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    loading={idx < 3 ? "eager" : "lazy"}
+                    fetchPriority={idx < 3 ? "high" : "auto"}
+                    width="400"
+                    height="192"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-400 text-xs font-medium">No Image</span>
+                  </div>
+                )}
+                {article.isFeatured && (
+                  <div className="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>
+                )}
+                {!article.isApproved && (
+                  <div className="absolute top-3 right-3 bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Pending</div>
+                )}
               </div>
-              <div className="pt-4 flex justify-between items-end">
-                <div className="flex items-center gap-4 text-xs text-gray-400 font-semibold">
-                  <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+              <div className="p-5 flex flex-col justify-between flex-1">
+                <div>
+                  <h2 className="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{article.title}</h2>
+                  <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{article.content}</p>
+                </div>
+                <div className="pt-4 flex justify-between items-end">
+                  <div className="flex items-center gap-4 text-xs text-gray-400 font-semibold">
+                    <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
 
       {/* Infinite Scroll target for mobile */}
       {shouldUseInfiniteScroll && currentPage < totalPages && (

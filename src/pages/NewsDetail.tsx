@@ -88,10 +88,19 @@ export const NewsDetail: React.FC = () => {
         try {
           const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(5));
           const snap = await getDocs(qNews);
+          const parseNewsDate = (item: any): number => {
+            const val = item.publishDate || item.createdAt;
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            if (typeof val.toDate === 'function') return val.toDate().getTime();
+            if (typeof val.seconds === 'number') return val.seconds * 1000;
+            const d = new Date(val);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+          };
           const relatedFs = snap.docs
             .map(d => ({ id: d.id, ...d.data() } as NewsArticle))
-            .filter(n => n.id !== fetchedArticle!.id)
-            .sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime());
+            .filter(n => n.id !== fetchedArticle!.id && n.slug !== fetchedArticle!.slug)
+            .sort((a, b) => parseNewsDate(b) - parseNewsDate(a));
             
           const relatedDemo = DEMO_NEWS.filter(n => n.id !== fetchedArticle!.id && n.id !== slug);
           const combined = [...relatedFs, ...relatedDemo].slice(0, 3);

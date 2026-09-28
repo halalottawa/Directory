@@ -23,7 +23,6 @@ const BASE_URL = 'https://www.halalottawa.ca';
 const staticUrls = [
   "/",
   "/listings",
-  "/news",
   "/restaurants",
   "/restaurants/orleans",
   "/restaurants/kanata",
@@ -335,10 +334,7 @@ async function prerender() {
     let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with community updates and local news.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
-    if (url === "/news") {
-      title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
-      description = "Stay up to date with the latest stories, local community announcements, mosque updates, and community news from Ottawa's Muslim community.";
-    } else if (url === "/restaurants") {
+    if (url === "/restaurants") {
       title = `Halal Restaurants in Ottawa - ${monthYearStr}`;
       description = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
     } else if (url === "/restaurants/orleans") {
@@ -596,28 +592,6 @@ async function prerender() {
           };
         }
       }
-
-      // News Articles SSG
-      const newsQuery = query(collection(db, 'news'), where('isApproved', '==', true));
-      const newsSnap = await getDocs(newsQuery);
-      newsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const url = `/news/${idPath}`;
-        const title = `${data.title} | Halal Ottawa`;
-        const description = data.content ? truncateDescription(data.content) : "Read latest updates and news regarding the Ottawa halal and Muslim community.";
-        const ogImage = getAbsoluteUrl(data.coverImage || "");
-
-        pagesToPrerender.push({
-          urlPath: url,
-          filePath: path.join(distPath, "news", idPath, "index.html"),
-          routeType: "news",
-          initialData: { id: doc.id, ...data },
-          title,
-          description,
-          ogImage
-        });
-      });
 
       console.log(`Successfully fetched and prepared ${pagesToPrerender.length} pages for Static Site Generation.`);
     } catch (e) {
@@ -965,10 +939,6 @@ async function prerender() {
           urlPath: page.urlPath,
           listings: page.initialData.listings
         });
-      } else if (page.routeType === 'news' && page.initialData) {
-        ssrBodyHtml = renderNewsDetailSSRHtml(page.initialData);
-      } else if (page.urlPath === '/news') {
-        ssrBodyHtml = renderNewsListSSRHtml();
       } else if (page.urlPath === '/faq') {
         ssrBodyHtml = renderFAQSSRHtml();
       } else if (page.urlPath === '/privacy-policy') {
