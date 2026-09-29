@@ -203,6 +203,7 @@ export function renderHomeSSRHtml(data: {
     const newsUrl = `/news/${item.slug || item.id}`;
     const coverUrl = item.coverImage ? (getOptimizedImageUrlSSR(item.coverImage, 400, 192) || item.coverImage) : '/ottawa-sunset.webp';
     const dateStr = item.publishDate || item.createdAt ? new Date(item.publishDate || item.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const authorName = item.author || 'Youssef Agrebi';
 
     return `
       <a href="${escapeHtmlAttr(newsUrl)}" class="bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm text-decoration-none text-inherit ${index >= 3 ? 'hidden md:flex' : ''}">
@@ -216,10 +217,14 @@ export function renderHomeSSRHtml(data: {
               <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(item.content || '')}</p>
             </div>
           </div>
-          <div class="flex items-center gap-4 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
-            <span class="flex items-center gap-2">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
+            </span>
+            <span class="flex items-center gap-1.5 text-gray-500 font-medium">
+              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>By ${escapeHtmlText(authorName)}</span>
             </span>
           </div>
         </div>

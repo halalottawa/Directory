@@ -228,8 +228,14 @@ export const NewsDetail: React.FC = () => {
         </div>
         <div className="absolute bottom-6 left-6 right-6 text-white">
           <h1 className="text-2xl font-bold leading-tight">{article.title}</h1>
-          <div className="flex items-center gap-4 mt-3 text-xs text-white/80">
-            <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-white/90">
+            <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+            {(article.author || 'Youssef Agrebi') && (
+              <span className="flex items-center gap-2 text-white/90 font-medium">
+                <User className="w-3.5 h-3.5 text-white/80" strokeWidth={2.5} />
+                <span>By {article.author || 'Youssef Agrebi'}</span>
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -360,8 +366,14 @@ export const NewsDetail: React.FC = () => {
                 </div>
                 <div className="flex-1 flex flex-col justify-between p-5">
                   <h3 className="font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{related.title}</h3>
-                  <div className="flex items-center gap-4 mt-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(related.publishDate)}</span>
+                  <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-gray-400 font-semibold">
+                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(related.publishDate)}</span>
+                    {(related.author || 'Youssef Agrebi') && (
+                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                        <span>By {related.author || 'Youssef Agrebi'}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>

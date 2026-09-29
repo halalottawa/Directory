@@ -3026,7 +3026,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   });
 
   // Dedicated handler for __cookie_check.html to resolve Cloud Run / AI Studio preview proxy redirects & bots
-  app.get("/__cookie_check.html", (req, res) => {
+  app.get("/__cookie_check.html", async (req, res) => {
     try {
       const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
       let targetPath = "/";
@@ -3050,6 +3050,27 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
       if (targetPath.includes("__cookie_check")) targetPath = "/";
 
+      // If a social media crawler (Facebook, Twitter, LinkedIn, WhatsApp, etc.) or search bot hits this endpoint,
+      // serve the fully rendered SSI target HTML directly with 200 OK so preview cards render rich previews!
+      const userAgent = String(req.headers['user-agent'] || '').toLowerCase();
+      const isSocialCrawler = /facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|slackbot|discordbot|googlebot|bingbot/i.test(userAgent);
+      if (isSocialCrawler && targetPath && targetPath !== '/') {
+        try {
+          const distPath = path.join(process.cwd(), "dist");
+          const spaPath = path.join(distPath, "template.spa.html");
+          const indexPath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
+          const baseFile = fs.existsSync(indexPath) ? indexPath : path.resolve(process.cwd(), "index.html");
+          if (fs.existsSync(baseFile)) {
+            const template = fs.readFileSync(baseFile, "utf-8");
+            const result = await getInjectedHTML(template, targetPath, req);
+            res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+            return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(result.html);
+          }
+        } catch (botErr) {
+          console.error("Error serving crawler in __cookie_check.html:", botErr);
+        }
+      }
+
       const isSecure = req.secure || String(req.headers["x-forwarded-proto"] || "").toLowerCase().includes("https");
 
       res.cookie("__session", "true", {
@@ -3072,12 +3093,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
       res.setHeader("Content-Type", "text/html; charset=utf-8");
 
+      const canonicalTarget = `https://www.halalottawa.ca${targetPath}`;
+
       const html = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verifying Session - Halal Ottawa</title>
+  <link rel="canonical" href="${canonicalTarget}">
+  <meta property="og:url" content="${canonicalTarget}">
   <meta http-equiv="refresh" content="0; url=${targetPath}">
   <script>
     (function() {

@@ -23,6 +23,7 @@ const BASE_URL = 'https://www.halalottawa.ca';
 const staticUrls = [
   "/",
   "/listings",
+  "/news",
   "/restaurants",
   "/restaurants/orleans",
   "/restaurants/kanata",
@@ -334,7 +335,11 @@ async function prerender() {
     let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with community updates and local news.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
-    if (url === "/restaurants") {
+    if (url === "/news") {
+      title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
+      description = "Stay up to date with the latest stories, local community announcements, mosque updates, and community news from Ottawa's Muslim community.";
+      ogImage = "https://www.halalottawa.ca/default-og.jpg";
+    } else if (url === "/restaurants") {
       title = `Halal Restaurants in Ottawa - ${monthYearStr}`;
       description = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
     } else if (url === "/restaurants/orleans") {
@@ -413,35 +418,79 @@ async function prerender() {
     try {
       console.log("Fetching dynamic contents from Firestore...");
 
-      // Pre-fetch Home Page Initial Data
+      // Pre-fetch Home Page Initial Data and All News Articles
       try {
         const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
-        const qNewsHome = query(collection(db, 'news'), where('isApproved', '==', true), limit(10));
+        const qNewsAll = query(collection(db, 'news'), where('isApproved', '==', true));
 
         const [listingsSnap, newsSnap] = await Promise.all([
-          getDocs(qListingsHome), getDocs(qNewsHome)
+          getDocs(qListingsHome), getDocs(qNewsAll)
         ]);
 
         let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        const parseListingTime = (val: any): number => {
+        const parseTime = (val: any): number => {
           if (!val) return 0;
+          if (typeof val === 'number') return val;
           if (typeof val.toDate === 'function') return val.toDate().getTime();
           if (typeof val.seconds === 'number') return val.seconds * 1000;
           const d = new Date(val);
           return isNaN(d.getTime()) ? 0 : d.getTime();
         };
-        listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 8);
-        let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        newsData = newsData.sort((a, b) => new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime()).slice(0, 6);
+        listingsData = listingsData.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8);
+
+        let allNewsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        allNewsData = allNewsData.sort((a, b) => parseTime(b.publishDate || b.createdAt) - parseTime(a.publishDate || a.createdAt));
 
         const homePage = pagesToPrerender.find(p => p.urlPath === "/");
         if (homePage) {
           homePage.initialData = {
             listings: listingsData,
-            news: newsData,
+            news: allNewsData.slice(0, 6),
             timestamp: Date.now()
           };
         }
+
+        const newsListPage = pagesToPrerender.find(p => p.urlPath === "/news");
+        if (newsListPage) {
+          newsListPage.routeType = "news_list";
+          newsListPage.initialData = {
+            news: allNewsData,
+            timestamp: Date.now()
+          };
+        }
+
+        // News Articles SSG: generate static HTML for every news article
+        allNewsData.forEach((data) => {
+          const title = `${data.title} | Halal Ottawa`;
+          const description = data.content ? truncateDescription(data.content) : "Read latest updates and news regarding the Ottawa halal and Muslim community.";
+          const ogImage = getAbsoluteUrl(data.coverImage || "");
+
+          // 1. Slug URL
+          if (data.slug) {
+            pagesToPrerender.push({
+              urlPath: `/news/${data.slug}`,
+              filePath: path.join(distPath, "news", data.slug, "index.html"),
+              routeType: "news",
+              initialData: data,
+              title,
+              description,
+              ogImage
+            });
+          }
+
+          // 2. ID URL (if distinct from slug)
+          if (data.id && data.id !== data.slug) {
+            pagesToPrerender.push({
+              urlPath: `/news/${data.id}`,
+              filePath: path.join(distPath, "news", data.id, "index.html"),
+              routeType: "news",
+              initialData: data,
+              title,
+              description,
+              ogImage
+            });
+          }
+        });
       } catch (homeErr) {
         console.error("Error fetching home page pre-fetch data:", homeErr);
       }
@@ -939,6 +988,11 @@ async function prerender() {
           urlPath: page.urlPath,
           listings: page.initialData.listings
         });
+      } else if (page.routeType === 'news' && page.initialData) {
+        ssrBodyHtml = renderNewsDetailSSRHtml(page.initialData);
+      } else if (page.routeType === 'news_list' || page.urlPath === '/news') {
+        const articles = page.initialData?.news || [];
+        ssrBodyHtml = renderNewsListSSRHtml(articles);
       } else if (page.urlPath === '/faq') {
         ssrBodyHtml = renderFAQSSRHtml();
       } else if (page.urlPath === '/privacy-policy') {

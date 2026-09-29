@@ -547,8 +547,14 @@ export const Home: React.FC = () => {
                       <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.content}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
+                  <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
+                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
+                    {(news.author || 'Youssef Agrebi') && (
+                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                        <span>By {news.author || 'Youssef Agrebi'}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>

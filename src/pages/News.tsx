@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Newspaper, ChevronRight, Search, Plus, Clock } from 'lucide-react';
+import { Newspaper, ChevronRight, Search, Plus, Clock, User } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -234,9 +234,15 @@ export const News: React.FC = () => {
                   <h2 className="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{article.title}</h2>
                   <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{article.content}</p>
                 </div>
-                <div className="pt-4 flex justify-between items-end">
-                  <div className="flex items-center gap-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-2"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+                <div className="pt-4 flex justify-between items-end border-t border-gray-50 mt-3">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">
+                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
+                    {(article.author || 'Youssef Agrebi') && (
+                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                        <span>By {article.author || 'Youssef Agrebi'}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
