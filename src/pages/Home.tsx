@@ -550,9 +550,17 @@ export const Home: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
                     <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
                     {(news.author || 'Youssef Agrebi') && (
-                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                      <span 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          navigate('/author/youssef-agrebi');
+                        }}
+                        className="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer"
+                        title="View author profile"
+                      >
                         <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
-                        <span>By {news.author || 'Youssef Agrebi'}</span>
+                        <span className="hover:underline">By {news.author || 'Youssef Agrebi'}</span>
                       </span>
                     )}
                   </div>

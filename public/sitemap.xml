@@ -3,79 +3,85 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.halalottawa.ca/</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/news</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/author/youssef-agrebi</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/restaurants</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/mosques</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/organizations</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/grocery</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/clothing</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/schools</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/butchers</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/faq</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/terms</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/privacy-policy</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/tools/qibla</loc>
-    <lastmod>2026-09-19</lastmod>
+    <lastmod>2026-09-30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
@@ -1260,6 +1266,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/restaurants/elite-turkish-bakery</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/elite-turkish-bakery.webp</image:loc>
+      <image:title>Elite Turkish Bakery</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/schools/ummaty-school</loc>
     <lastmod>2026-05-24</lastmod>
     <changefreq>weekly</changefreq>
@@ -2400,6 +2416,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/news/oc-transpo-will-be-free-across-ottawa-next-weekend</loc>
+    <lastmod>2026-09-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/oc-transpo-will-be-free-across-ottawa-next-weekend.webp</image:loc>
+      <image:title>OC Transpo will be free across Ottawa next weekend</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/news/othman-shokair-family-seeks-community-support-after-son-injured-in-barrhaven-crash</loc>
     <lastmod>2026-06-21</lastmod>
     <changefreq>weekly</changefreq>
@@ -2420,6 +2446,16 @@
     </image:image>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/news/ottawa-police-ask-for-help-locating-missing-69-year-old-man</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-police-ask-for-help-locating-missing-69-year-old-man.webp</image:loc>
+      <image:title>Ottawa Police ask for help locating missing 69-year-old man</image:title>
+    </image:image>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/news/ottawa-run-for-palestine-returns-in-support-of-children-in-gaza-this-september</loc>
     <lastmod>2026-08-31</lastmod>
     <changefreq>weekly</changefreq>
@@ -2427,6 +2463,16 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/ottawa-run-for-palestine-returns-in-support-of-children-in-gaza-this-september-cover.webp</image:loc>
       <image:title>Ottawa Run for Palestine returns in support of children in Gaza this September</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://www.halalottawa.ca/news/protein-chefs-brings-halal-meal-prep-and-delivery-to-ottawa</loc>
+    <lastmod>2026-09-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/protein-chefs-brings-halal-meal-prep-and-delivery-to-ottawa.webp</image:loc>
+      <image:title>Protein Chefs brings Halal meal prep and delivery to Ottawa</image:title>
     </image:image>
   </url>
   <url>
@@ -2451,7 +2497,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/news/these-shawarma-restaurants-serve-the-biggest-portions-in-ottawa</loc>
-    <lastmod>2026-06-27</lastmod>
+    <lastmod>2026-09-29</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
     <image:image>

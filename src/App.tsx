@@ -75,6 +75,7 @@ const PrivacyPolicy = React.lazy(() => import('./pages/PrivacyPolicy').then(modu
 const TermsOfService = React.lazy(() => import('./pages/TermsOfService').then(module => ({ default: module.TermsOfService })));
 const FAQ = React.lazy(() => import('./pages/FAQ').then(module => ({ default: module.FAQ })));
 const QiblaDirection = React.lazy(() => import('./pages/QiblaDirection').then(module => ({ default: module.QiblaDirection })));
+const AuthorPage = React.lazy(() => import('./pages/AuthorPage').then(module => ({ default: module.AuthorPage })));
 const NotFound = React.lazy(() => import('./pages/NotFound').then(module => ({ default: module.NotFound })));
 const ShortLinkRedirect = React.lazy(() => import('./pages/ShortLinkRedirect').then(module => ({ default: module.ShortLinkRedirect })));
 
@@ -220,7 +221,7 @@ const AppContent: React.FC = () => {
   }, []);
 
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
-  const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname);
+  const isAllowedPublicPathInApp = ['/privacy-policy', '/terms', '/faq'].includes(location.pathname) || location.pathname.startsWith('/author');
 
   // In native mobile app wrappers, redirect to login only once auth check has resolved and user is not a guest
   if (isApp && !loading && !user && !isGuest && !isAuthPage && !isAllowedPublicPathInApp) {
@@ -250,6 +251,10 @@ const AppContent: React.FC = () => {
           <Route path="/listings/:slug" element={<ListingDetail />} />
           <Route path="/news" element={<News />} />
           <Route path="/news/:slug" element={<NewsDetail />} />
+          <Route path="/author/:slug" element={<AuthorPage />} />
+          <Route path="/author" element={<Navigate to="/author/youssef-agrebi" replace />} />
+          <Route path="/authors/:slug" element={<AuthorPage />} />
+          <Route path="/authors" element={<Navigate to="/author/youssef-agrebi" replace />} />
           <Route path="/events" element={<Navigate to="/" replace />} />
           <Route path="/events/*" element={<Navigate to="/" replace />} />
           <Route path="/jobs" element={<Navigate to="/" replace />} />

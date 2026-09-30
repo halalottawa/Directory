@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
-import { Newspaper, ChevronRight, Search, Plus, Clock, User } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Newspaper, ChevronRight, Search, Plus, Clock, User, ArrowRight } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,7 @@ const getArticleTime = (article: any): number => {
 
 export const News: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Fast hydration: use server-rendered news if available, avoiding flicker
   const [allNews, setAllNews] = useState<NewsArticle[]>(() => {
@@ -237,13 +238,11 @@ export const News: React.FC = () => {
                 <div className="pt-4 flex justify-between items-end border-t border-gray-50 mt-3">
                   <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">
                     <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
-                    {(article.author || 'Youssef Agrebi') && (
-                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
-                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
-                        <span>By {article.author || 'Youssef Agrebi'}</span>
-                      </span>
-                    )}
                   </div>
+                  <span className="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer shrink-0">
+                    <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                    <span className="hover:underline">Read More</span>
+                  </span>
                 </div>
               </div>
             </Link>

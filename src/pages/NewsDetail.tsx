@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Clock, User, ChevronLeft, ExternalLink, Edit2, Trash2 } from 'lucide-react';
+import { Clock, User, ChevronLeft, ChevronRight, ExternalLink, Edit2, Trash2, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { doc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -159,7 +159,8 @@ export const NewsDetail: React.FC = () => {
             "datePublished": article.publishDate,
             "author": {
               "@type": "Person",
-              "name": article.author || "Halal Ottawa Staff"
+              "name": article.author || "Youssef Agrebi",
+              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
             },
             "publisher": {
               "@type": "Organization",
@@ -231,10 +232,14 @@ export const NewsDetail: React.FC = () => {
           <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-white/90">
             <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
             {(article.author || 'Youssef Agrebi') && (
-              <span className="flex items-center gap-2 text-white/90 font-medium">
-                <User className="w-3.5 h-3.5 text-white/80" strokeWidth={2.5} />
+              <Link 
+                to="/author/youssef-agrebi"
+                className="flex items-center gap-2 text-white/95 hover:text-white font-medium hover:underline transition-all group"
+                title="View Youssef Agrebi author profile"
+              >
+                <User className="w-3.5 h-3.5 text-white/80 group-hover:text-white" strokeWidth={2.5} />
                 <span>By {article.author || 'Youssef Agrebi'}</span>
-              </span>
+              </Link>
             )}
           </div>
         </div>
@@ -324,6 +329,30 @@ export const NewsDetail: React.FC = () => {
             </div>
           )}
 
+        {/* Author Byline Box */}
+        <section className="pt-6 border-t border-gray-100">
+          <div className="bg-gray-50/80 rounded-2xl p-4 sm:p-5 border border-gray-100 flex items-start gap-4">
+            <Link to="/author/youssef-agrebi" className="shrink-0" title="View Youssef Agrebi profile">
+              <div className="w-12 h-12 rounded-xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-base shadow-sm">
+                YA
+              </div>
+            </Link>
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <Link to="/author/youssef-agrebi" className="font-bold text-sm text-gray-900 hover:text-[#e90b35] transition-colors">
+                  {article.author || 'Youssef Agrebi'}
+                </Link>
+                <Link to="/author/youssef-agrebi" className="text-xs text-[#e90b35] font-semibold hover:underline">
+                  All articles →
+                </Link>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <CommentSection parentId={article.id} parentType="news" />
       </div>
 
@@ -366,14 +395,14 @@ export const NewsDetail: React.FC = () => {
                 </div>
                 <div className="flex-1 flex flex-col justify-between p-5">
                   <h3 className="font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{related.title}</h3>
-                  <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(related.publishDate)}</span>
-                    {(related.author || 'Youssef Agrebi') && (
-                      <span className="flex items-center gap-1.5 text-gray-500 font-medium">
-                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
-                        <span>By {related.author || 'Youssef Agrebi'}</span>
-                      </span>
-                    )}
+                  <div className="pt-4 flex justify-between items-end border-t border-gray-50 mt-4">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">
+                      <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(related.publishDate)}</span>
+                    </div>
+                    <span className="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer shrink-0">
+                      <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                      <span className="hover:underline">Read More</span>
+                    </span>
                   </div>
                 </div>
               </Link>

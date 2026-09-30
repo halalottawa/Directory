@@ -24,6 +24,7 @@ import {
   renderSavedItemsSSRHtml,
   renderLoginSSRHtml,
   renderAddListingSSRHtml,
+  renderAuthorSSRHtml,
   renderNotFoundSSRHtml
 } from "./src/utils/ssrTemplates";
 
@@ -3911,6 +3912,26 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           } catch (e) {
             console.error("Error fetching news details", e);
           }
+        } else if (p0 === 'author' || p0 === 'authors') {
+          title = "Youssef Agrebi - Editor & Journalist | Halal Ottawa";
+          description = "Read all verified Ottawa Muslim community announcements, news, and investigative reports published by Youssef Agrebi on Halal Ottawa.";
+          ogImage = defaultHeroImage;
+          routeType = 'author';
+          try {
+            const qNews = query(collection(db, 'news'), where('isApproved', '==', true));
+            const newsSnap = await getDocs(qNews);
+            let authorArticles = newsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            authorArticles = authorArticles.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
+            initialData = {
+              name: 'Youssef Agrebi',
+              articles: authorArticles
+            };
+          } catch (e) {
+            initialData = {
+              name: 'Youssef Agrebi',
+              articles: []
+            };
+          }
         } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
           try {
             // Try fetching by Firestore Document ID first
@@ -4149,7 +4170,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             "dateModified": initialData.updatedAt || initialData.publishDate || new Date().toISOString(),
             "author": {
               "@type": "Person",
-              "name": initialData.author || "Halal Ottawa Staff"
+              "name": initialData.author || "Youssef Agrebi"
             },
             "publisher": {
               "@type": "Organization",
@@ -4245,6 +4266,39 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               "item": fullUrl
             });
           }
+        } else if (routeType === 'author') {
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 2,
+            "name": "News",
+            "item": "https://www.halalottawa.ca/news"
+          });
+
+          breadcrumbItems.push({
+            "@type": "ListItem",
+            "position": 3,
+            "name": initialData.name || "Youssef Agrebi",
+            "item": fullUrl
+          });
+
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "name": title,
+            "description": description,
+            "url": fullUrl,
+            "mainEntity": {
+              "@type": "Person",
+              "name": initialData.name || "Youssef Agrebi",
+              "jobTitle": "Senior Journalist & Community Editor",
+              "worksFor": {
+                "@type": "Organization",
+                "name": "Halal Ottawa",
+                "url": "https://www.halalottawa.ca"
+              },
+              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
+            }
+          };
         } else if (routeType === 'news') {
           breadcrumbItems.push({
             "@type": "ListItem",
@@ -4317,6 +4371,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         ssrBodyHtml = renderNewsListSSRHtml(initialData.news);
       } else if (routeType === 'news' && initialData) {
         ssrBodyHtml = renderNewsDetailSSRHtml(initialData);
+      } else if (routeType === 'author' && initialData) {
+        ssrBodyHtml = renderAuthorSSRHtml(initialData, initialData.articles || []);
       } else if (routeType === 'faq') {
         ssrBodyHtml = renderFAQSSRHtml();
       } else if (routeType === 'privacy-policy') {

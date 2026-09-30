@@ -222,10 +222,10 @@ export function renderHomeSSRHtml(data: {
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
             </span>
-            <span class="flex items-center gap-1.5 text-gray-500 font-medium">
+            <a href="/author/youssef-agrebi" class="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium text-decoration-none">
               <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               <span>By ${escapeHtmlText(authorName)}</span>
-            </span>
+            </a>
           </div>
         </div>
       </a>
@@ -837,10 +837,10 @@ export function renderNewsDetailSSRHtml(news: any): string {
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
             </span>
-            <span class="flex items-center gap-2">
+            <a href="/author/youssef-agrebi" class="flex items-center gap-2 text-white/90 hover:text-white font-medium text-decoration-none hover:underline">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               <span>By ${escapeHtmlText(authorName)}</span>
-            </span>
+            </a>
           </div>
         </div>
       </div>
@@ -858,26 +858,25 @@ export function renderNewsDetailSSRHtml(news: any): string {
           </a>
         </div>` : ''}
 
-        <!-- E-E-A-T Author Profile Card -->
+        <!-- Author Byline Box -->
         <section class="pt-6 border-t border-gray-100">
-          <div class="bg-gray-50/80 border border-gray-100 rounded-3xl p-5 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 shadow-sm">
-            <div class="w-14 h-14 rounded-2xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0">
-              ${escapeHtmlText(initials)}
-            </div>
-            <div class="space-y-1.5 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] uppercase font-bold tracking-wider text-[#e90b35] bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
-                  Editorial Contributor
-                </span>
-                <span class="text-[11px] text-gray-400 font-medium">
-                  Verified Local Journalist
-                </span>
+          <div class="bg-gray-50/80 rounded-2xl p-4 sm:p-5 border border-gray-100 flex items-start gap-4">
+            <a href="/author/youssef-agrebi" class="text-decoration-none shrink-0" title="View Youssef Agrebi profile">
+              <div class="w-12 h-12 rounded-xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-base shadow-sm">
+                ${escapeHtmlText(initials)}
               </div>
-              <h3 class="text-base font-bold text-gray-900 leading-snug m-0">
-                Written by ${escapeHtmlText(authorName)}
-              </h3>
+            </a>
+            <div class="space-y-1 flex-1">
+              <div class="flex items-center justify-between gap-2">
+                <a href="/author/youssef-agrebi" class="font-bold text-sm text-gray-900 text-decoration-none hover:text-[#e90b35]">
+                  ${escapeHtmlText(authorName)}
+                </a>
+                <a href="/author/youssef-agrebi" class="text-xs text-[#e90b35] font-semibold text-decoration-none hover:underline">
+                  All articles →
+                </a>
+              </div>
               <p class="text-xs sm:text-sm text-gray-600 leading-relaxed m-0 mt-1">
-                Editor and community researcher at Halal Ottawa, dedicated to researching and reporting on local Ottawa community announcements, Muslim lifestyle, and verified halal dining.
+                Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
               </p>
             </div>
           </div>
@@ -925,11 +924,11 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 <span>${dateStr}</span>
               </span>
-              <span class="flex items-center gap-1.5 text-gray-500 font-medium">
-                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                <span>By ${escapeHtmlText(authorName)}</span>
-              </span>
             </div>
+            <span class="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer shrink-0">
+              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span class="hover:underline">Read More</span>
+            </span>
           </div>
         </div>
       </a>
@@ -1315,6 +1314,85 @@ export function renderAddListingSSRHtml(): string {
           </div>
         </div>
       </div>
+    </div>
+  `;
+}
+
+/**
+ * Static HTML for Author Profile Pages (/author/youssef-agrebi)
+ */
+export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []): string {
+  const authorName = authorData.name || "Youssef Agrebi";
+  const initials = authorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
+  const authorBio = "Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.";
+
+  const articlesHtml = articles.map((article, idx) => {
+    const articleUrl = `/news/${article.slug || article.id}`;
+    const coverUrl = article.coverImage ? (getOptimizedImageUrlSSR(article.coverImage, 400, 192) || article.coverImage) : '/ottawa-sunset.webp';
+    const dateStr = article.publishDate || article.createdAt ? new Date(article.publishDate || article.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+
+    return `
+      <a href="${escapeHtmlAttr(articleUrl)}" class="bg-white hover:shadow-md transition-all border border-gray-100 group flex flex-col rounded-3xl overflow-hidden shadow-sm text-decoration-none text-inherit">
+        <div class="relative h-48 shrink-0 bg-gray-100 overflow-hidden">
+          <img 
+            src="${escapeHtmlAttr(coverUrl)}" 
+            alt="${escapeHtmlAttr(article.title)}" 
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+            loading="${idx < 3 ? 'eager' : 'lazy'}" 
+            ${idx < 3 ? 'fetchpriority="high"' : ''}
+            width="400" 
+            height="192" 
+            decoding="async" 
+          />
+          ${article.isFeatured ? '<div class="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider shadow">Featured</div>' : ''}
+        </div>
+        <div class="flex-1 flex flex-col justify-between p-5 sm:p-6">
+          <div>
+            <h3 class="font-bold text-base sm:text-lg leading-snug text-gray-900 group-hover:text-[#e90b35] transition-colors line-clamp-2 m-0">${escapeHtmlText(article.title)}</h3>
+            <p class="text-gray-500 text-xs sm:text-sm line-clamp-3 leading-relaxed mt-2.5 m-0">${escapeHtmlText(article.content || '')}</p>
+          </div>
+          <div class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-semibold">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span>${dateStr}</span>
+            </span>
+            <span class="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer shrink-0">
+              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span class="hover:underline">Read More</span>
+            </span>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('\n');
+
+  return `
+    <div class="p-4 md:p-8 space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <!-- Breadcrumb -->
+      <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-gray-500 font-medium">
+        <a href="/" class="text-inherit hover:text-[#e90b35] text-decoration-none">Home</a>
+        <span>/</span>
+        <a href="/news" class="text-inherit hover:text-[#e90b35] text-decoration-none">News</a>
+        <span>/</span>
+        <span class="text-gray-900 font-bold">${escapeHtmlText(authorName)}</span>
+      </nav>
+
+      <!-- About Author Section -->
+      <div>
+        <h1 class="text-xl sm:text-2xl font-bold text-gray-900 m-0">About ${escapeHtmlText(authorName)}</h1>
+        <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0 leading-relaxed max-w-3xl">${escapeHtmlText(authorBio)}</p>
+      </div>
+
+      <!-- Articles Section -->
+      <section class="space-y-6">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 m-0">Articles by ${escapeHtmlText(authorName)}</h2>
+          <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0">Explore ${articles.length} published ${articles.length === 1 ? 'story' : 'stories'}, community announcements, and halal dining discoveries across Ottawa.</p>
+        </div>
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${articlesHtml}
+        </div>
+      </section>
     </div>
   `;
 }

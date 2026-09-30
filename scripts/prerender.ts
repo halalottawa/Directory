@@ -15,6 +15,7 @@ import {
   renderSavedItemsSSRHtml,
   renderLoginSSRHtml,
   renderAddListingSSRHtml,
+  renderAuthorSSRHtml,
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 
@@ -74,7 +75,8 @@ const staticUrls = [
   "/qibla",
   "/saved",
   "/login",
-  "/listings/add"
+  "/listings/add",
+  "/author/youssef-agrebi"
 ];
 
 // Helper functions for secure character escaping and robust schema URLs
@@ -399,6 +401,9 @@ async function prerender() {
     } else if (url === "/listings/add") {
       title = "Add a Listing | Halal Ottawa";
       description = "Submit and recommend a halal restaurant, mosque, butcher, or business to Halal Ottawa.";
+    } else if (url === "/author/youssef-agrebi") {
+      title = "Youssef Agrebi - Editor & Journalist | Halal Ottawa";
+      description = "Read all verified Ottawa Muslim community announcements, news, and investigative reports published by Youssef Agrebi on Halal Ottawa.";
     }
 
     const relativeFilePath = url === "/" ? "index.html" : `${url.substring(1)}/index.html`;
@@ -447,6 +452,16 @@ async function prerender() {
             listings: listingsData,
             news: allNewsData.slice(0, 6),
             timestamp: Date.now()
+          };
+        }
+
+        const authorPage = pagesToPrerender.find(p => p.urlPath === "/author/youssef-agrebi");
+        if (authorPage) {
+          const authorArticles = allNewsData.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
+          authorPage.routeType = 'author';
+          authorPage.initialData = {
+            name: 'Youssef Agrebi',
+            articles: authorArticles
           };
         }
 
@@ -812,6 +827,25 @@ async function prerender() {
               "worstRating": "1"
             };
           }
+        } else if (page.routeType === 'author') {
+          schemaData = {
+            "@context": "https://schema.org",
+            "@type": "ProfilePage",
+            "name": page.title,
+            "description": page.description,
+            "url": fullUrl,
+            "mainEntity": {
+              "@type": "Person",
+              "name": "Youssef Agrebi",
+              "jobTitle": "Senior Journalist & Community Editor",
+              "worksFor": {
+                "@type": "Organization",
+                "name": "Halal Ottawa",
+                "url": "https://www.halalottawa.ca"
+              },
+              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
+            }
+          };
         } else if (page.routeType === 'news') {
           schemaData = {
             "@context": "https://schema.org",
@@ -826,7 +860,7 @@ async function prerender() {
             "dateModified": page.initialData.updatedAt || page.initialData.publishDate || new Date().toISOString(),
             "author": {
               "@type": "Person",
-              "name": page.initialData.author || "Halal Ottawa Staff"
+              "name": page.initialData.author || "Youssef Agrebi"
             },
             "publisher": {
               "@type": "Organization",
@@ -988,6 +1022,8 @@ async function prerender() {
           urlPath: page.urlPath,
           listings: page.initialData.listings
         });
+      } else if ((page.routeType === 'author' || page.urlPath === '/author/youssef-agrebi') && page.initialData) {
+        ssrBodyHtml = renderAuthorSSRHtml(page.initialData, page.initialData.articles || []);
       } else if (page.routeType === 'news' && page.initialData) {
         ssrBodyHtml = renderNewsDetailSSRHtml(page.initialData);
       } else if (page.routeType === 'news_list' || page.urlPath === '/news') {
