@@ -17,6 +17,7 @@ import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { ArticleAd } from '../components/ArticleAd';
+import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
 
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -229,7 +230,7 @@ export const NewsDetail: React.FC = () => {
         </div>
         <div className="absolute bottom-6 left-6 right-6 text-white">
           <h1 className="text-2xl font-bold leading-tight">{article.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-white/90">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs text-white/90">
             <span className="flex items-center gap-2"><Clock className="w-3.5 h-3.5" strokeWidth={2.5} /> {formatDate(article.publishDate)}</span>
             {(article.author || 'Youssef Agrebi') && (
               <Link 
@@ -241,6 +242,7 @@ export const NewsDetail: React.FC = () => {
                 <span>By {article.author || 'Youssef Agrebi'}</span>
               </Link>
             )}
+            <GooglePreferredSourceBadge variant="compact" className="bg-white/95 hover:bg-white text-gray-900 border-none shadow-sm" />
           </div>
         </div>
       </div>
@@ -329,29 +331,12 @@ export const NewsDetail: React.FC = () => {
             </div>
           )}
 
-        {/* Author Byline Box */}
-        <section className="pt-6 border-t border-gray-100">
-          <div className="bg-gray-50/80 rounded-2xl p-4 sm:p-5 border border-gray-100 flex items-start gap-4">
-            <Link to="/author/youssef-agrebi" className="shrink-0" title="View Youssef Agrebi profile">
-              <div className="w-12 h-12 rounded-xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-base shadow-sm">
-                YA
-              </div>
-            </Link>
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <Link to="/author/youssef-agrebi" className="font-bold text-sm text-gray-900 hover:text-[#e90b35] transition-colors">
-                  {article.author || 'Youssef Agrebi'}
-                </Link>
-                <Link to="/author/youssef-agrebi" className="text-xs text-[#e90b35] font-semibold hover:underline">
-                  All articles →
-                </Link>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* Google Preferred Source & Author Banner */}
+        <GooglePreferredSourceBadge 
+          variant="banner" 
+          className="my-6" 
+          authorName={article.author || 'Youssef Agrebi'}
+        />
 
         <CommentSection parentId={article.id} parentType="news" />
       </div>

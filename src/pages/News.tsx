@@ -12,6 +12,7 @@ import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
+import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
 
 const getArticleTime = (article: any): number => {
   const val = article.publishDate || article.createdAt;
@@ -166,8 +167,11 @@ export const News: React.FC = () => {
         }}
       />
 
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl md:text-3xl font-bold">News</h1>
+      <div className="flex justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl md:text-3xl font-bold">News</h1>
+          <GooglePreferredSourceBadge variant="compact" />
+        </div>
         {user?.role === 'admin' && (
           <Link 
             to="/news/add" 
@@ -178,6 +182,8 @@ export const News: React.FC = () => {
           </Link>
         )}
       </div>
+
+      <GooglePreferredSourceBadge variant="banner" />
 
       <div className="relative w-full">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { getGeneralSettings } from '../firebase';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { GooglePreferredSourceBadge } from './GooglePreferredSourceBadge';
 
 // Custom inline SVG social icons for zero bundle-size cost
 const FaFacebook: React.FC<{ className?: string }> = ({ className }) => (
@@ -87,6 +88,9 @@ export const Footer: React.FC = () => {
               <li><Link to="/listings" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">All Listings</Link></li>
               <li><Link to="/news" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Community News</Link></li>
             </ul>
+            <div className="pt-2">
+              <GooglePreferredSourceBadge variant="footer" theme="dark" />
+            </div>
           </div>
 
           {/* Community */}

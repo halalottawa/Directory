@@ -832,7 +832,7 @@ export function renderNewsDetailSSRHtml(news: any): string {
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         <div class="absolute bottom-6 left-6 right-6 text-white">
           <h1 class="text-2xl font-bold leading-tight m-0 text-white">${escapeHtmlText(news.title)}</h1>
-          <div class="flex flex-wrap items-center gap-4 mt-3 text-xs text-white/90">
+          <div class="flex flex-wrap items-center gap-3 sm:gap-4 mt-3 text-xs text-white/90">
             <span class="flex items-center gap-2">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
@@ -840,6 +840,10 @@ export function renderNewsDetailSSRHtml(news: any): string {
             <a href="/author/youssef-agrebi" class="flex items-center gap-2 text-white/90 hover:text-white font-medium text-decoration-none hover:underline">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               <span>By ${escapeHtmlText(authorName)}</span>
+            </a>
+            <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white/95 text-gray-900 text-[11px] font-semibold rounded-lg text-decoration-none shadow-sm">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+              <span>Preferred Source</span>
             </a>
           </div>
         </div>
@@ -858,29 +862,41 @@ export function renderNewsDetailSSRHtml(news: any): string {
           </a>
         </div>` : ''}
 
-        <!-- Author Byline Box -->
-        <section class="pt-6 border-t border-gray-100">
-          <div class="bg-gray-50/80 rounded-2xl p-4 sm:p-5 border border-gray-100 flex items-start gap-4">
-            <a href="/author/youssef-agrebi" class="text-decoration-none shrink-0" title="View Youssef Agrebi profile">
-              <div class="w-12 h-12 rounded-xl bg-[#e90b35] text-white flex items-center justify-center font-bold text-base shadow-sm">
-                ${escapeHtmlText(initials)}
+        <!-- Google Preferred Source & Author Banner -->
+        <div class="bg-gradient-to-r from-gray-50 via-white to-gray-50/80 border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-xs my-6">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+              <div class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
+                <img src="/favicon.png" alt="Halal Ottawa" class="w-6 h-6 object-contain shrink-0" width="24" height="24" onerror="this.src='https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp'" />
               </div>
-            </a>
-            <div class="space-y-1 flex-1">
-              <div class="flex items-center justify-between gap-2">
-                <a href="/author/youssef-agrebi" class="font-bold text-sm text-gray-900 text-decoration-none hover:text-[#e90b35]">
-                  ${escapeHtmlText(authorName)}
-                </a>
-                <a href="/author/youssef-agrebi" class="text-xs text-[#e90b35] font-semibold text-decoration-none hover:underline">
-                  All articles →
-                </a>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <a href="/author/youssef-agrebi" class="font-bold text-gray-900 text-sm sm:text-base text-decoration-none hover:text-[#e90b35]">
+                    ${escapeHtmlText(authorName)}
+                  </a>
+                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60 shrink-0">
+                    Author
+                  </span>
+                </div>
+                <p class="text-gray-600 text-xs sm:text-sm mt-0.5 leading-relaxed m-0">
+                  Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
+                </p>
+                <div class="mt-2 flex items-center">
+                  <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#0A66C2] text-decoration-none font-medium" title="Youssef Agrebi on LinkedIn">
+                    <svg class="w-4 h-4 fill-[#0A66C2] shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
+                    <span>LinkedIn</span>
+                  </a>
+                </div>
               </div>
-              <p class="text-xs sm:text-sm text-gray-600 leading-relaxed m-0 mt-1">
-                Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
-              </p>
             </div>
+            <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="shrink-0 inline-flex items-center gap-2 px-3.5 py-2.5 bg-white text-gray-800 text-xs sm:text-sm font-semibold rounded-xl border border-gray-200 shadow-xs text-decoration-none hover:bg-gray-50 self-start sm:self-auto" title="Add as preferred source on Google">
+              <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+              <span class="text-left leading-tight">
+                Add as preferred source on Google
+              </span>
+            </a>
           </div>
-        </section>
+        </div>
       </div>
     </div>
   `;
@@ -937,10 +953,35 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
 
   return `
     <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div class="flex justify-between items-center">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">Ottawa News</h1>
+          <div class="flex items-center gap-3">
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">Ottawa News</h1>
+            <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-gray-800 text-[11px] font-semibold rounded-lg border border-gray-200 shadow-2xs text-decoration-none">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+              <span>Preferred Source</span>
+            </a>
+          </div>
           <p class="text-sm text-gray-500 mt-1 m-0">Stay up to date with the latest stories and Muslim community news in Ottawa.</p>
+        </div>
+      </div>
+
+      <!-- Google Preferred Source Banner -->
+      <div class="bg-gradient-to-r from-gray-50 via-white to-red-50/30 border border-gray-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-start sm:items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
+              <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+            </div>
+            <div>
+              <h4 class="font-bold text-gray-900 text-sm sm:text-base leading-tight m-0">Follow Halal Ottawa on Google</h4>
+              <p class="text-gray-500 text-xs sm:text-sm mt-1 leading-relaxed m-0">Add Halal Ottawa as your preferred source to see our stories first in Google Search, Top Stories, and AI Overviews.</p>
+            </div>
+          </div>
+          <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="shrink-0 inline-flex items-center gap-2 px-4 py-2.5 bg-white text-gray-800 text-xs sm:text-sm font-semibold rounded-xl border border-gray-300 shadow-xs text-decoration-none">
+            <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+            <span>Add as preferred source</span>
+          </a>
         </div>
       </div>
 
@@ -1378,9 +1419,24 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
       </nav>
 
       <!-- About Author Section -->
-      <div>
-        <h1 class="text-xl sm:text-2xl font-bold text-gray-900 m-0">About ${escapeHtmlText(authorName)}</h1>
-        <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0 leading-relaxed max-w-3xl">${escapeHtmlText(authorBio)}</p>
+      <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-gray-900 m-0">About ${escapeHtmlText(authorName)}</h1>
+          <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0 leading-relaxed max-w-3xl">${escapeHtmlText(authorBio)}</p>
+          <div class="mt-3 flex items-center gap-2">
+            <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 text-decoration-none hover:text-[#0A66C2] shadow-xs" title="Connect with Youssef Agrebi on LinkedIn">
+              <svg class="w-4 h-4 fill-[#0A66C2] shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
+              <span>Connect on LinkedIn</span>
+            </a>
+          </div>
+        </div>
+        <div class="shrink-0 pt-1">
+          <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3.5 py-2 bg-white text-gray-800 text-xs sm:text-sm font-semibold rounded-xl border border-gray-300 shadow-2xs text-decoration-none">
+            <svg class="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
+            <span>Add as preferred source on Google</span>
+            <svg class="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          </a>
+        </div>
       </div>
 
       <!-- Articles Section -->
