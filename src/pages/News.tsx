@@ -9,6 +9,7 @@ import { DEMO_NEWS } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { getPlainText } from '../utils/textUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
@@ -239,7 +240,7 @@ export const News: React.FC = () => {
               <div className="p-5 flex flex-col justify-between flex-1">
                 <div>
                   <h2 className="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors">{article.title}</h2>
-                  <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{article.content}</p>
+                  <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{getPlainText(article.content)}</p>
                 </div>
                 <div className="pt-4 flex justify-between items-end border-t border-gray-50 mt-3">
                   <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">

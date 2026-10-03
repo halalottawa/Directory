@@ -404,9 +404,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  // Initialize Auth on mount and keep persistent listener alive across route changes
+  // Initialize Auth immediately only for auth/protected routes or users with stored sessions.
+  // Anonymous visitors browsing public landing pages defer auth initialization until browser idle.
   useEffect(() => {
-    initAuth();
+    const isProtectedOrAuthRoute = (path: string): boolean => {
+      return (
+        path === '/login' ||
+        path === '/register' ||
+        path.startsWith('/admin') ||
+        path.startsWith('/saved') ||
+        path.startsWith('/profile') ||
+        path.startsWith('/settings') ||
+        path.includes('/add') ||
+        path.includes('/edit')
+      );
+    };
+
+    if (hasStoredAuthSession() || isProtectedOrAuthRoute(location.pathname)) {
+      initAuth();
+    } else {
+      let cancelled = false;
+      const startDeferred = () => {
+        if (!cancelled) initAuth();
+      };
+
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        const handle = (window as any).requestIdleCallback(startDeferred, { timeout: 4000 });
+        return () => {
+          cancelled = true;
+          if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+            (window as any).cancelIdleCallback(handle);
+          }
+        };
+      } else {
+        const timer = setTimeout(startDeferred, 2500);
+        return () => {
+          cancelled = true;
+          clearTimeout(timer);
+        };
+      }
+    }
 
     return () => {
       if (unsubscribeAuthRef.current) {
@@ -414,7 +451,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsubscribeAuthRef.current = null;
       }
     };
-  }, [initAuth]);
+  }, [initAuth, location.pathname]);
 
   // Strategy B: Native JS-to-WebView hybrid push notification bridge
   useEffect(() => {

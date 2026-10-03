@@ -114,6 +114,7 @@ export interface NewsArticle {
   author: string;
   publishDate: string;
   content: string;
+  excerpt?: string;
   sourceLink?: string;
   isFeatured: boolean;
   isApproved: boolean;

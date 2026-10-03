@@ -27,6 +27,7 @@ import {
   renderAuthorSSRHtml,
   renderNotFoundSSRHtml
 } from "./src/utils/ssrTemplates";
+import { getExcerpt } from "./src/utils/textUtils";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
@@ -3438,10 +3439,37 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             return isNaN(d.getTime()) ? 0 : d.getTime();
           };
 
-          let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          let listingsData = listingsSnap.docs.map(doc => {
+            const d = doc.data() as any;
+            return {
+              id: doc.id,
+              name: d.name || '',
+              slug: d.slug || doc.id,
+              category: d.category || 'restaurants',
+              coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
+              photos: d.photos ? d.photos.slice(0, 1) : [],
+              averageRating: d.averageRating || 5.0,
+              address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
+              isFeatured: !!d.isFeatured,
+              description: getExcerpt(d.description, 160),
+              createdAt: d.createdAt || null
+            };
+          });
           listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 12);
           
-          let newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+          let newsData = newsSnap.docs.map(doc => {
+            const d = doc.data() as any;
+            return {
+              id: doc.id,
+              title: d.title || '',
+              slug: d.slug || doc.id,
+              excerpt: getExcerpt(d.excerpt || d.content, 160),
+              coverImage: d.coverImage || '',
+              publishDate: d.publishDate || d.createdAt || null,
+              author: d.author || 'Youssef Agrebi',
+              createdAt: d.createdAt || null
+            };
+          });
           newsData = newsData.sort((a, b) => parseListingTime(b.publishDate || b.createdAt) - parseListingTime(a.publishDate || a.createdAt)).slice(0, 6);
           
           initialData = {
@@ -4026,7 +4054,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
-    html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
+    const isHomeRoute = cleanUrlPath === '/' || cleanUrlPath === '' || routeType === 'home';
+    if (!isHomeRoute) {
+      html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
+    }
     html = html.replace(/<script\b[^>]*>window\.__INITIAL_ROUTE_TYPE__[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<div\s+id=["']root["']>[\s\S]*?<\/div>/i, '<div id="root"></div>');
@@ -4440,18 +4471,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       return "private, no-cache, no-store, must-revalidate";
     }
 
-    // Dynamic news routes must always serve fresh content
-    if (cleanPath === '/news' || cleanPath.startsWith('/news/')) {
-      return "public, max-age=0, must-revalidate";
-    }
-
-    // Home page contains latest news and quick updates
-    if (cleanPath === '/') {
-      return "public, max-age=30, stale-while-revalidate=120";
-    }
-
-    // Public content routes (listings, categories, info pages)
-    return "public, max-age=60, stale-while-revalidate=3600";
+    // Public server-rendered HTML and API responses used by homepage, list pages, and content:
+    // Enables Vercel Edge caching with s-maxage=300 and stale-while-revalidate=86400.
+    return "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
   }
 
   // Vite middleware for development

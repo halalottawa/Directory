@@ -7,6 +7,7 @@ import { NewsArticle } from '../types';
 import { DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { getPlainText } from '../utils/textUtils';
 import { getAbsoluteUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
@@ -172,19 +173,18 @@ export const AuthorPage: React.FC = () => {
           <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed max-w-3xl">
             {authorBio}
           </p>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-2.5 flex items-center">
             <a
               href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 hover:border-[#0A66C2]/40 rounded-xl text-xs font-semibold text-gray-700 hover:text-[#0A66C2] shadow-xs hover:shadow-sm transition-all group"
-              title="Connect with Youssef Agrebi on LinkedIn"
-              aria-label="Connect with Youssef Agrebi on LinkedIn"
+              className="text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center justify-center group"
+              title={`Connect with ${authorName} on LinkedIn`}
+              aria-label={`Connect with ${authorName} on LinkedIn`}
             >
-              <svg className="w-4 h-4 fill-[#0A66C2] group-hover:scale-110 transition-transform shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="w-5 h-5 fill-current group-hover:scale-105 transition-transform shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z" />
               </svg>
-              <span>Connect on LinkedIn</span>
             </a>
           </div>
         </div>
@@ -265,7 +265,7 @@ export const AuthorPage: React.FC = () => {
                       {article.title}
                     </h3>
                     <p className="text-gray-500 text-xs sm:text-sm line-clamp-3 leading-relaxed mt-2.5">
-                      {article.content}
+                      {getPlainText(article.content)}
                     </p>
                   </div>
 

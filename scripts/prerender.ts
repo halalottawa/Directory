@@ -18,6 +18,7 @@ import {
   renderAuthorSSRHtml,
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
+import { getExcerpt } from '../src/utils/textUtils';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -432,7 +433,22 @@ async function prerender() {
           getDocs(qListingsHome), getDocs(qNewsAll)
         ]);
 
-        let listingsData = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        let listingsData = listingsSnap.docs.map(doc => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            name: d.name || '',
+            slug: d.slug || doc.id,
+            category: d.category || 'restaurants',
+            coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
+            photos: d.photos ? d.photos.slice(0, 1) : [],
+            averageRating: d.averageRating || 5.0,
+            address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
+            isFeatured: !!d.isFeatured,
+            description: getExcerpt(d.description, 160),
+            createdAt: d.createdAt || null
+          };
+        });
         const parseTime = (val: any): number => {
           if (!val) return 0;
           if (typeof val === 'number') return val;
@@ -446,11 +462,22 @@ async function prerender() {
         let allNewsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
         allNewsData = allNewsData.sort((a, b) => parseTime(b.publishDate || b.createdAt) - parseTime(a.publishDate || a.createdAt));
 
+        const homeNewsData = allNewsData.slice(0, 6).map(item => ({
+          id: item.id,
+          title: item.title || '',
+          slug: item.slug || item.id,
+          excerpt: getExcerpt(item.excerpt || item.content, 160),
+          coverImage: item.coverImage || '',
+          publishDate: item.publishDate || item.createdAt || null,
+          author: item.author || 'Youssef Agrebi',
+          createdAt: item.createdAt || null
+        }));
+
         const homePage = pagesToPrerender.find(p => p.urlPath === "/");
         if (homePage) {
           homePage.initialData = {
             listings: listingsData,
-            news: allNewsData.slice(0, 6),
+            news: homeNewsData,
             timestamp: Date.now()
           };
         }

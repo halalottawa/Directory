@@ -12,6 +12,9 @@
  * Used during static site generation (scripts/prerender.ts) and dynamic server SSR (server.ts).
  */
 
+import { getPlainText, getExcerpt } from './textUtils';
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
+
 export function escapeHtmlText(str: string): string {
   if (!str) return '';
   return String(str)
@@ -133,17 +136,8 @@ export function renderHomeSSRHtml(data: {
     },
   ];
 
-  const categoryCardsMobileHtml = categories.slice(0, 6).map(cat => `
-    <a href="/${cat.slug}" aria-label="Browse ${escapeHtmlAttr(cat.name)} category" class="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all text-decoration-none">
-      <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
-        ${cat.svg}
-      </div>
-      <span class="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">${escapeHtmlText(cat.name)}</span>
-    </a>
-  `).join('\n');
-
-  const categoryCardsDesktopHtml = categories.map(cat => `
-    <div class="flex-1 min-w-[130px]">
+  const categoryCardsHtml = categories.map((cat, i) => `
+    <div class="flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}">
       <a href="/${cat.slug}" aria-label="Browse ${escapeHtmlAttr(cat.name)} category" class="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full text-decoration-none">
         <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
           ${cat.svg}
@@ -214,7 +208,7 @@ export function renderHomeSSRHtml(data: {
           <div>
             <h3 class="font-bold leading-tight m-0 text-gray-900 group-hover:text-[#e90b35] transition-colors">${escapeHtmlText(item.title)}</h3>
             <div class="hidden md:block">
-              <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(item.content || '')}</p>
+              <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(item.excerpt || getExcerpt(item.content || '', 160))}</p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
@@ -238,13 +232,15 @@ export function renderHomeSSRHtml(data: {
       <section class="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
         <div class="absolute inset-0 z-0">
           <img 
-            src="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp" 
+            src="${escapeHtmlAttr(getImageUrl(GLOBAL_HERO_IMAGE_PATH, 1600))}" 
+            srcset="${escapeHtmlAttr(getImageSrcSet(GLOBAL_HERO_IMAGE_PATH, [640, 1024, 1600]))}"
+            sizes="100vw"
             alt="Ottawa Sunset" 
             class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 
             fetchpriority="high"
             loading="eager"
-            width="1920" 
-            height="1080"
+            width="1600" 
+            height="900"
             decoding="async"
           />
           <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent"></div>
@@ -273,22 +269,27 @@ export function renderHomeSSRHtml(data: {
 
       <!-- Main Content Container -->
       <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
-        <!-- Categories - Mobile Grid -->
-        <section class="grid grid-cols-3 gap-3 md:hidden">
-          ${categoryCardsMobileHtml}
-        </section>
+        <!-- Reserved Ad Banner Space (eliminates CLS on hydration) -->
+        <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[90px]">
+          <div class="w-full flex justify-center min-h-[50px]"></div>
+          <p style="text-align: center;" class="mt-2 text-xs text-gray-500 m-0">
+            <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-500 text-decoration-none">
+              Ads By Muslim Ad Network
+            </a>
+          </p>
+        </div>
 
-        <!-- Categories - Desktop Carousel -->
-        <section class="hidden md:block relative group mb-8">
-          <div class="overflow-x-auto py-2 scroll-smooth scrollbar-hide">
-            <div class="flex gap-3">
-              ${categoryCardsDesktopHtml}
+        <!-- Categories - Merged Single Responsive Component -->
+        <section class="relative group mb-8">
+          <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
+            <div class="grid grid-cols-3 md:flex gap-3">
+              ${categoryCardsHtml}
             </div>
           </div>
         </section>
 
         <!-- Latest Listings Section -->
-        <section class="space-y-4">
+        <section class="space-y-4 content-visibility-auto">
           <div class="flex justify-between items-end">
             <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest Listings</h2>
             <a href="/listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
@@ -302,7 +303,7 @@ export function renderHomeSSRHtml(data: {
 
         ${news.length > 0 ? `
         <!-- Latest News Section -->
-        <section class="space-y-4">
+        <section class="space-y-4 content-visibility-auto">
           <div class="flex justify-between items-end">
             <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest News</h2>
             <a href="/news" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
@@ -315,7 +316,7 @@ export function renderHomeSSRHtml(data: {
         </section>` : ''}
 
         <!-- FAQ Section -->
-        <section class="hidden md:block space-y-8 pt-8 pb-4">
+        <section class="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
           <div class="text-center space-y-2">
             <h2 class="text-2xl font-bold text-gray-900 m-0">Frequently Asked Questions</h2>
             <p class="text-gray-500 m-0">Everything you need to know about Halal Ottawa</p>
@@ -882,9 +883,8 @@ export function renderNewsDetailSSRHtml(news: any): string {
                   Youssef Agrebi is an editor at Halal Ottawa with deep roots across the National Capital Region. Youssef is dedicated to reporting on local community announcements and Halal dining discoveries in Ottawa.
                 </p>
                 <div class="mt-2 flex items-center">
-                  <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-[#0A66C2] text-decoration-none font-medium" title="Youssef Agrebi on LinkedIn">
-                    <svg class="w-4 h-4 fill-[#0A66C2] shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
-                    <span>LinkedIn</span>
+                  <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-500 hover:text-gray-700 text-decoration-none" title="Youssef Agrebi on LinkedIn" aria-label="Youssef Agrebi on LinkedIn">
+                    <svg class="w-5 h-5 shrink-0" style="width:20px;height:20px;fill:#6b7280;" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
                   </a>
                 </div>
               </div>
@@ -932,7 +932,7 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
         <div class="p-5 flex flex-col justify-between flex-1">
           <div>
             <h2 class="text-lg font-bold leading-tight group-hover:text-[#e90b35] transition-colors m-0 text-gray-900">${escapeHtmlText(article.title)}</h2>
-            <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(article.content || '')}</p>
+            <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(getPlainText(article.content || ''))}</p>
           </div>
           <div class="pt-4 flex justify-between items-end border-t border-gray-50 mt-3">
             <div class="flex flex-wrap items-center gap-3 text-xs text-gray-400 font-semibold">
@@ -1390,7 +1390,7 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
         <div class="flex-1 flex flex-col justify-between p-5 sm:p-6">
           <div>
             <h3 class="font-bold text-base sm:text-lg leading-snug text-gray-900 group-hover:text-[#e90b35] transition-colors line-clamp-2 m-0">${escapeHtmlText(article.title)}</h3>
-            <p class="text-gray-500 text-xs sm:text-sm line-clamp-3 leading-relaxed mt-2.5 m-0">${escapeHtmlText(article.content || '')}</p>
+            <p class="text-gray-500 text-xs sm:text-sm line-clamp-3 leading-relaxed mt-2.5 m-0">${escapeHtmlText(getPlainText(article.content || ''))}</p>
           </div>
           <div class="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400 font-semibold">
             <span class="flex items-center gap-1.5">
@@ -1423,10 +1423,9 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
         <div>
           <h1 class="text-xl sm:text-2xl font-bold text-gray-900 m-0">About ${escapeHtmlText(authorName)}</h1>
           <p class="text-xs sm:text-sm text-gray-500 mt-1 m-0 leading-relaxed max-w-3xl">${escapeHtmlText(authorBio)}</p>
-          <div class="mt-3 flex items-center gap-2">
-            <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 text-decoration-none hover:text-[#0A66C2] shadow-xs" title="Connect with Youssef Agrebi on LinkedIn">
-              <svg class="w-4 h-4 fill-[#0A66C2] shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
-              <span>Connect on LinkedIn</span>
+          <div class="mt-2.5 flex items-center">
+            <a href="https://www.linkedin.com/in/youssef-agrebi-a05010aa/" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-gray-500 hover:text-gray-700 text-decoration-none" title="Connect with ${escapeHtmlText(authorName)} on LinkedIn" aria-label="Connect with ${escapeHtmlText(authorName)} on LinkedIn">
+              <svg class="w-5 h-5 shrink-0" style="width:20px;height:20px;fill:#6b7280;" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.67 1.67 0 1 0 0-3.34 1.67 1.67 0 0 0 0 3.34m1.39 9.74v-8.37H5.07v8.37h2.78z"/></svg>
             </a>
           </div>
         </div>

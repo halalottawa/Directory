@@ -68,7 +68,7 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
   }, [variant]);
 
   return (
-    <div className={`my-8 w-full flex flex-col items-center justify-center overflow-hidden ${className}`}>
+    <div className={`my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[90px] ${className}`}>
       <div ref={containerRef} className="w-full flex justify-center min-h-[50px]" />
       <p style={{ textAlign: 'center' }} className="mt-2 text-xs text-gray-500">
         <a 

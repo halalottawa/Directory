@@ -42,17 +42,44 @@
         } catch (e) {}
       })();
     </script>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-226RR0C4XS"></script>
+    <!-- Defer Analytics & Third-Party Publisher Scripts until after window load / idle to eliminate TBT -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-226RR0C4XS');
+
+      function initThirdPartyScripts() {
+        if (window.__thirdPartyLoaded) return;
+        window.__thirdPartyLoaded = true;
+
+        var ga = document.createElement('script');
+        ga.async = true;
+        ga.src = 'https://www.googletagmanager.com/gtag/js?id=G-226RR0C4XS';
+        document.head.appendChild(ga);
+
+        var swg = document.createElement('script');
+        swg.async = true;
+        swg.src = 'https://news.google.com/swg/js/v1/publisher.js';
+        document.head.appendChild(swg);
+      }
+
+      if (document.readyState === 'complete') {
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(initThirdPartyScripts, { timeout: 3000 });
+        } else {
+          setTimeout(initThirdPartyScripts, 2000);
+        }
+      } else {
+        window.addEventListener('load', function() {
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(initThirdPartyScripts, { timeout: 3000 });
+          } else {
+            setTimeout(initThirdPartyScripts, 2000);
+          }
+        });
+      }
     </script>
-    <!-- Google Preferred Source library -->
-    <script async src="https://news.google.com/swg/js/v1/publisher.js"></script>
     <meta name="description" content="A community-driven halal discovery hub for Ottawa, featuring local listings, restaurants, mosques, and community news." />
     <meta property="og:title" content="Halal Ottawa" />
     <meta property="og:description" content="A community-driven halal discovery hub for Ottawa, featuring local listings, restaurants, mosques, and community news." />
@@ -67,16 +94,25 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Preload Self-Hosted Inter WOFF2 Font (CLS = 0) -->
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin="anonymous" />
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://lh3.googleusercontent.com" crossorigin />
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="preconnect" href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev" crossorigin />
+    <link rel="dns-prefetch" href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev" />
+    <!-- Preload LCP Hero Image with responsive srcset -->
+    <link 
+      rel="preload" 
+      as="image" 
+      fetchpriority="high"
+      href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp"
+      imagesrcset="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 640w, https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 1024w, https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 1600w"
+      imagesizes="100vw"
+    />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
     <link rel="preconnect" href="https://halal-ottawa-images.r2.cloudflarestorage.com" crossorigin />
-    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
     <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com" />
     <link rel="dns-prefetch" href="https://googleusercontent.com" />
@@ -84,9 +120,6 @@
     <link rel="dns-prefetch" href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev" />
     <link rel="dns-prefetch" href="https://res.cloudinary.com" />
     <link rel="dns-prefetch" href="https://halal-ottawa-images.r2.cloudflarestorage.com" />
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" media="print" onload="this.media='all'" />
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" /></noscript>
     <title>Halal Ottawa</title>
   </head>
   <body>

@@ -13,7 +13,9 @@ import { isAppWrapper } from '../utils/platform';
 import { SEO } from '../components/SEO';
 import { Helmet } from 'react-helmet-async';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
+import { getPlainText, getExcerpt } from '../utils/textUtils';
 import { ArticleAd } from '../components/ArticleAd';
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
 
 const faqs = [
   {
@@ -245,7 +247,21 @@ export const Home: React.FC = () => {
           .slice(0, 8);
         setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));
 
-        const newsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
+        const newsData = newsSnap.docs.map(doc => {
+          const d = doc.data() as any;
+          return {
+            id: doc.id,
+            title: d.title || '',
+            slug: d.slug || doc.id,
+            excerpt: getExcerpt(d.excerpt || d.content, 160),
+            content: '',
+            coverImage: d.coverImage || '',
+            publishDate: d.publishDate || d.createdAt || null,
+            author: d.author || 'Youssef Agrebi',
+            isApproved: d.isApproved,
+            createdAt: d.createdAt || null
+          } as unknown as NewsArticle;
+        });
         
         // Merge with DEMO_NEWS, deduplicating by ID or slug
         const mergedNewsMap = new Map<string, NewsArticle>();
@@ -283,7 +299,7 @@ export const Home: React.FC = () => {
   };
 
   return (
-    <div className="animate-in fade-in duration-500 w-full">
+    <div className="w-full">
       <Helmet>
         <meta name="man-site-verification" content="a2a54c227a8165de30c8765717af49c3" />
       </Helmet>
@@ -292,7 +308,7 @@ export const Home: React.FC = () => {
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local community news."
         canonicalUrl={getAbsoluteUrl("")}
         disableSuffix={true}
-        ogImage={heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp"}
+        ogImage={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 1600)}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -324,9 +340,16 @@ export const Home: React.FC = () => {
         <section className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
           <div className="absolute inset-0 z-0">
             <img 
-              src={getOptimizedImageUrl(heroImageUrl || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp", 1920, 1080)} 
+              src={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 1600)}
+              srcSet={getImageSrcSet(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, [640, 1024, 1600])}
+              sizes="100vw"
               alt="Ottawa Sunset" 
               className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
+              fetchPriority="high"
+              loading="eager"
+              decoding="async"
+              width="1600"
+              height="900"
             />
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent" />
@@ -348,7 +371,12 @@ export const Home: React.FC = () => {
                   placeholder="Search halal restaurants, mosques, or places in Ottawa..."
                   className="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    React.startTransition(() => {
+                      setSearchQuery(val);
+                    });
+                  }}
                 />
               </form>
             </div>
@@ -360,61 +388,44 @@ export const Home: React.FC = () => {
       <div className="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
         <ArticleAd />
 
-        {/* Categories - Mobile Grid */}
-      <section className="grid grid-cols-3 gap-3 md:hidden">
-        {CATEGORIES.slice(0, 6).map((cat) => (
-          <Link
-            key={cat}
-            to={`/${cat.toLowerCase()}`}
-            aria-label={`Browse ${cat} category`}
-            className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all active:scale-95 outline-none focus:ring-2 focus:ring-[#e90b35]"
+        {/* Categories - Merged Single Responsive Component */}
+        <section className="relative group mb-8">
+          <button 
+            onClick={scrollPrevCategories}
+            aria-label="Scroll categories left"
+            className="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
           >
-            <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
-              <CategoryIcon category={cat as any} className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4 transition-transform hover:-translate-x-0.5" />
+          </button>
+          <div className="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide" ref={categoryScrollRef}>
+            <div className="grid grid-cols-3 md:flex gap-3">
+              {CATEGORIES.map((cat, i) => (
+                <div key={cat} className={`flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}`}>
+                  <Link
+                    to={`/${cat.toLowerCase()}`}
+                    aria-label={`Browse ${cat} category`}
+                    className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35] active:scale-95"
+                  >
+                    <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
+                      <CategoryIcon category={cat as any} className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">{cat}</span>
+                  </Link>
+                </div>
+              ))}
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">{cat}</span>
-          </Link>
-        ))}
-      </section>
-
-      {/* Categories - Desktop Carousel */}
-      <section className="hidden md:block relative group mb-8">
-        <button 
-          onClick={scrollPrevCategories}
-          aria-label="Scroll categories left"
-          className="absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full flex items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
-        >
-          <ChevronLeft className="w-4 h-4 transition-transform hover:-translate-x-0.5" />
-        </button>
-        <div className="overflow-x-auto py-2 scroll-smooth scrollbar-hide" ref={categoryScrollRef}>
-          <div className="flex gap-3">
-            {CATEGORIES.map((cat, i) => (
-              <div key={`${cat}-${i}`} className="flex-1 min-w-[130px]">
-                <Link
-                  to={`/${cat.toLowerCase()}`}
-                  aria-label={`Browse ${cat} category`}
-                  className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35]"
-                >
-                  <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
-                    <CategoryIcon category={cat as any} className="w-5 h-5" />
-                  </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">{cat}</span>
-                </Link>
-              </div>
-            ))}
           </div>
-        </div>
-        <button 
-          onClick={scrollNextCategories}
-          aria-label="Scroll categories right"
-          className="absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full flex items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
-        >
-          <ChevronRight className="w-4 h-4 transition-transform hover:translate-x-0.5" />
-        </button>
-      </section>
+          <button 
+            onClick={scrollNextCategories}
+            aria-label="Scroll categories right"
+            className="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
+          >
+            <ChevronRight className="w-4 h-4 transition-transform hover:translate-x-0.5" />
+          </button>
+        </section>
 
       {/* Latest Listings */}
-      <section className="space-y-4">
+      <section className="space-y-4 content-visibility-auto">
         <div className="flex justify-between items-end">
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Listings</h2>
           <Link 
@@ -449,8 +460,7 @@ export const Home: React.FC = () => {
                        src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
                        alt={listing.name} 
                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                       loading={idx < 2 ? "eager" : "lazy"}
-                       fetchPriority={idx < 2 ? "high" : "auto"}
+                       loading="lazy"
                        width="480"
                        height="240"
                        decoding="async"
@@ -491,7 +501,7 @@ export const Home: React.FC = () => {
       <ArticleAd />
 
       {/* Latest News */}
-      <section className="space-y-4">
+      <section className="space-y-4 content-visibility-auto">
         <div className="flex justify-between items-end">
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest News</h2>
           <Link 
@@ -544,7 +554,7 @@ export const Home: React.FC = () => {
                   <div>
                     <h3 className="font-bold leading-tight">{news.title}</h3>
                     <div className="hidden md:block">
-                      <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.content}</p>
+                      <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.excerpt || getExcerpt(news.content, 160)}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
@@ -577,7 +587,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="hidden md:block space-y-8 pt-8 pb-4">
+      <section className="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
           <p className="text-gray-500">Everything you need to know about Halal Ottawa</p>

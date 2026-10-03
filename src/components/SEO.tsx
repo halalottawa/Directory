@@ -1,8 +1,9 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { getGeneralSettings } from '../firebase';
+import { getImageUrl, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
 
-export const DEFAULT_HERO_OG_IMAGE = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp';
+export const DEFAULT_HERO_OG_IMAGE = getImageUrl(GLOBAL_HERO_IMAGE_PATH, 1200);
 
 interface SEOProps {
   title: string;
