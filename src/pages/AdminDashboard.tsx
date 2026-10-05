@@ -309,7 +309,11 @@ export const AdminDashboard: React.FC = () => {
           if (data.isFeatured) updates.isFeatured = true;
           if (Object.keys(updates).length > 0) {
             await updateDoc(doc(db, 'listings', data.listingId), updates);
-            notifyContentChanged('listing:approve');
+            notifyContentChanged('listing:approve', {
+              collection: 'listings',
+              docId: data.listingId,
+              isApproved: true,
+            });
           }
         }
         await updateDoc(doc(db, collectionName, id), { status: 'resolved' });
@@ -317,7 +321,11 @@ export const AdminDashboard: React.FC = () => {
       } else {
         await updateDoc(doc(db, collectionName, id), { isApproved: true });
         if (collectionName === 'listings' || collectionName === 'news') {
-          notifyContentChanged(`${collectionName}:approve`);
+          notifyContentChanged(`${collectionName}:approve`, {
+            collection: collectionName,
+            docId: id,
+            isApproved: true,
+          });
         }
         toast.success('Item approved successfully');
       }
@@ -331,7 +339,13 @@ export const AdminDashboard: React.FC = () => {
   const handleFeatureListing = async (listing: Listing) => {
     try {
       await updateDoc(doc(db, 'listings', listing.id), { isFeatured: !listing.isFeatured });
-      notifyContentChanged('listing:edit');
+      if (listing.isApproved) {
+        notifyContentChanged('listing:edit', {
+          collection: 'listings',
+          docId: listing.id,
+          isApproved: true,
+        });
+      }
       toast.success(`Listing ${listing.isFeatured ? 'unfeatured' : 'featured'} successfully`);
       fetchData();
     } catch (err) {
@@ -349,9 +363,16 @@ export const AdminDashboard: React.FC = () => {
       confirmVariant: 'danger',
       onConfirm: async () => {
         try {
+          const wasApprovedPublicItem =
+            (collectionName === 'listings' && approvedListings.some(l => l.id === id)) ||
+            (collectionName === 'news' && approvedNews.some(n => n.id === id));
           await deleteDoc(doc(db, collectionName, id));
-          if (collectionName === 'listings' || collectionName === 'news') {
-            notifyContentChanged(`${collectionName}:delete`);
+          if (wasApprovedPublicItem && (collectionName === 'listings' || collectionName === 'news')) {
+            notifyContentChanged(`${collectionName}:delete`, {
+              collection: collectionName,
+              docId: id,
+              isApproved: true,
+            });
           }
           toast.success('Item deleted successfully');
           setSelectedModerationIds(prev => prev.filter(prevId => prevId !== id));
@@ -383,9 +404,6 @@ export const AdminDashboard: React.FC = () => {
         const toastId = toast.loading(`Deleting ${ids.length} items...`);
         try {
           await Promise.all(ids.map(id => deleteDoc(doc(db, collectionName, id))));
-          if (collectionName === 'listings' || collectionName === 'news') {
-            notifyContentChanged(`${collectionName}:bulk_delete`);
-          }
           toast.success(`${ids.length} items deleted successfully`, { id: toastId });
           if (type === 'moderation') setSelectedModerationIds([]);
           else setSelectedFeedbackIds([]);
@@ -1269,7 +1287,10 @@ export const AdminDashboard: React.FC = () => {
       }
       
       if (successCount > 0) {
-        notifyContentChanged('listing:publish');
+        notifyContentChanged('listing:publish', {
+          collection: 'listings',
+          isApproved: true,
+        });
       }
       setImportPlaceName('');
       fetchData(); // Refresh the lists
@@ -1473,7 +1494,13 @@ export const AdminDashboard: React.FC = () => {
 
       if (updatedFieldsLog.length > 0) {
         await updateDoc(doc(db, 'listings', listing.id), updates);
-        notifyContentChanged('listing:edit');
+        if (listing.isApproved) {
+          notifyContentChanged('listing:edit', {
+            collection: 'listings',
+            docId: listing.id,
+            isApproved: true,
+          });
+        }
         toast.success(`Successfully updated ${updatedFieldsLog.join(', ')} for ${listing.name}`, { id: toastId });
         fetchData();
       } else {
@@ -1564,7 +1591,10 @@ export const AdminDashboard: React.FC = () => {
           
           toast.success('Information sync completed for all listings!', { id: toastId });
           localStorage.removeItem('refreshDetailsCompletedIds');
-          notifyContentChanged('listing:bulk_edit');
+          notifyContentChanged('listing:bulk_edit', {
+            collection: 'listings',
+            isApproved: true,
+          });
           
           fetchData();
         } catch (err) {

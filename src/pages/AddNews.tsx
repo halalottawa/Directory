@@ -230,7 +230,13 @@ export const AddNews: React.FC = () => {
         publishDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
-      notifyContentChanged('news:publish');
+      if (isAdmin) {
+        notifyContentChanged('news:publish', {
+          collection: 'news',
+          docId: uniqueSlug,
+          isApproved: true,
+        });
+      }
       setShowSuccess(true);
       setTimeout(() => {
         navigate('/news');

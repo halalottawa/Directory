@@ -23,6 +23,7 @@ export const EditListing: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [originalSlug, setOriginalSlug] = useState('');
+  const [isApproved, setIsApproved] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isDetectingSuburb, setIsDetectingSuburb] = useState(false);
@@ -238,6 +239,7 @@ export const EditListing: React.FC = () => {
             socialMediaLinks: data.socialMediaLinks?.length ? data.socialMediaLinks : [''],
           });
           setOriginalSlug(data.slug || '');
+          setIsApproved(Boolean(data.isApproved));
         } else {
           toast.error('Listing not found');
           navigate('/listings');
@@ -316,7 +318,13 @@ export const EditListing: React.FC = () => {
         photos: processedPhotos,
         updatedAt: new Date().toISOString(),
       });
-      notifyContentChanged('listing:edit');
+      if (isApproved) {
+        notifyContentChanged('listing:edit', {
+          collection: 'listings',
+          docId: id,
+          isApproved: true,
+        });
+      }
 
       if (originalSlug && newSlug && originalSlug !== newSlug) {
         try {
@@ -350,7 +358,13 @@ export const EditListing: React.FC = () => {
     if (!id) return;
     try {
       await deleteDoc(doc(db, 'listings', id));
-      notifyContentChanged('listing:delete');
+      if (isApproved) {
+        notifyContentChanged('listing:delete', {
+          collection: 'listings',
+          docId: id,
+          isApproved: true,
+        });
+      }
       navigate('/listings');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `listings/${id}`);

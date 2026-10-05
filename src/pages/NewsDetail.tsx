@@ -130,7 +130,13 @@ export const NewsDetail: React.FC = () => {
     if (!article) return;
     try {
       await deleteDoc(doc(db, 'news', article.id));
-      notifyContentChanged('news:delete');
+      if (article.isApproved) {
+        notifyContentChanged('news:delete', {
+          collection: 'news',
+          docId: article.id,
+          isApproved: true,
+        });
+      }
       navigate('/news');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `news/${article.id}`);

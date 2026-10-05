@@ -268,7 +268,13 @@ export const AddListing: React.FC = () => {
         submittedBy: user.uid,
         createdAt: new Date().toISOString(),
       });
-      notifyContentChanged('listing:publish');
+      if (isAdmin) {
+        notifyContentChanged('listing:publish', {
+          collection: 'listings',
+          docId: uniqueSlug,
+          isApproved: true,
+        });
+      }
 
       setShowSuccess(true);
       setTimeout(() => {

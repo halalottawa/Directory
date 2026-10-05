@@ -361,7 +361,13 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     if (!listing) return;
     try {
       await deleteDoc(doc(db, 'listings', listing.id));
-      notifyContentChanged('listing:delete');
+      if (listing.isApproved) {
+        notifyContentChanged('listing:delete', {
+          collection: 'listings',
+          docId: listing.id,
+          isApproved: true,
+        });
+      }
       navigate('/listings');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `listings/${listing.id}`);

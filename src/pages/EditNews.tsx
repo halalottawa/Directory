@@ -19,6 +19,7 @@ export const EditNews: React.FC = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [originalSlug, setOriginalSlug] = useState('');
+  const [isApproved, setIsApproved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -53,6 +54,7 @@ export const EditNews: React.FC = () => {
             slug: data.slug || '',
           });
           setOriginalSlug(data.slug || '');
+          setIsApproved(Boolean(data.isApproved));
         } else {
           navigate('/news');
         }
@@ -265,7 +267,13 @@ export const EditNews: React.FC = () => {
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });
-      notifyContentChanged('news:edit');
+      if (isApproved) {
+        notifyContentChanged('news:edit', {
+          collection: 'news',
+          docId: id,
+          isApproved: true,
+        });
+      }
 
       if (originalSlug && newSlug && originalSlug !== newSlug) {
         try {
@@ -300,7 +308,13 @@ export const EditNews: React.FC = () => {
     if (!id) return;
     try {
       await deleteDoc(doc(db, 'news', id));
-      notifyContentChanged('news:delete');
+      if (isApproved) {
+        notifyContentChanged('news:delete', {
+          collection: 'news',
+          docId: id,
+          isApproved: true,
+        });
+      }
       navigate('/news');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `news/${id}`);

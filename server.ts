@@ -267,54 +267,75 @@ async function getCachedNewsData(): Promise<any[]> {
   return items;
 }
 
-const DEPLOY_HOOK_DEBOUNCE_MS = 10 * 60 * 1000; // 10 minutes
-let lastDeployHookCallAt = 0;
-let pendingDeployHookTimer: ReturnType<typeof setTimeout> | null = null;
+const CACHE_INVALIDATION_COOLDOWN_MS = 30 * 1000; // 30 seconds
+let lastCacheInvalidationAt = 0;
+let cacheInvalidationPending = false;
 
-async function triggerVercelDeployHook(reason = "content_mutation"): Promise<void> {
-  // Always invalidate in-memory server caches so SSR and API routes immediately reflect changes
+function clearServerContentCachesNow(): void {
+  lastCacheInvalidationAt = Date.now();
+  cacheInvalidationPending = false;
   cachedHomePayload = null;
   cachedHomePayloadExpiry = 0;
   cachedListingsPayload = null;
   cachedListingsExpiry = 0;
   cachedNewsPayload = null;
   cachedNewsExpiry = 0;
+}
 
+function invalidateServerContentCaches(): boolean {
+  const now = Date.now();
+  if (now - lastCacheInvalidationAt >= CACHE_INVALIDATION_COOLDOWN_MS) {
+    clearServerContentCachesNow();
+    return true;
+  }
+  cacheInvalidationPending = true;
+  return false;
+}
+
+const DEPLOY_HOOK_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+let lastDeployHookCallAt = 0;
+let deployHookPending = false;
+let pendingDeployHookReason = "deferred_mutation";
+
+async function fireVercelDeployHookNow(reason: string): Promise<boolean> {
   const hookUrl = (process.env.VERCEL_DEPLOY_HOOK_URL || "").trim();
   if (!hookUrl) {
-    return;
+    deployHookPending = false;
+    return false;
   }
+  lastDeployHookCallAt = Date.now();
+  deployHookPending = false;
+  try {
+    await fetch(hookUrl, { method: "POST" });
+    return true;
+  } catch (err) {
+    console.error(`[DeployHook] Failed to trigger deploy hook (${reason})`);
+    return false;
+  }
+}
 
-  const executePost = async (triggerReason: string) => {
-    lastDeployHookCallAt = Date.now();
-    try {
-      await fetch(hookUrl, { method: "POST" });
-    } catch (err) {
-      console.error(`[DeployHook] Failed to trigger deploy hook (${triggerReason})`);
-    }
-  };
-
+async function triggerVercelDeployHook(reason = "content_mutation"): Promise<boolean> {
+  const hookUrl = (process.env.VERCEL_DEPLOY_HOOK_URL || "").trim();
+  if (!hookUrl) {
+    return false;
+  }
   const now = Date.now();
-  const elapsed = now - lastDeployHookCallAt;
-
-  if (elapsed >= DEPLOY_HOOK_DEBOUNCE_MS) {
-    if (pendingDeployHookTimer) {
-      clearTimeout(pendingDeployHookTimer);
-      pendingDeployHookTimer = null;
-    }
-    await executePost(reason);
-    return;
+  if (now - lastDeployHookCallAt >= DEPLOY_HOOK_COOLDOWN_MS) {
+    return await fireVercelDeployHookNow(reason);
   }
+  deployHookPending = true;
+  pendingDeployHookReason = reason;
+  return false;
+}
 
-  if (!pendingDeployHookTimer) {
-    const remainingMs = DEPLOY_HOOK_DEBOUNCE_MS - elapsed;
-    pendingDeployHookTimer = setTimeout(() => {
-      pendingDeployHookTimer = null;
-      executePost(reason).catch(() => {});
-    }, remainingMs);
-    if (typeof (pendingDeployHookTimer as any)?.unref === "function") {
-      (pendingDeployHookTimer as any).unref();
-    }
+function flushPendingCacheAndDeployTasks(): void {
+  const now = Date.now();
+  if (cacheInvalidationPending && now - lastCacheInvalidationAt >= CACHE_INVALIDATION_COOLDOWN_MS) {
+    clearServerContentCachesNow();
+  }
+  if (deployHookPending && now - lastDeployHookCallAt >= DEPLOY_HOOK_COOLDOWN_MS) {
+    const reason = pendingDeployHookReason;
+    fireVercelDeployHookNow(reason).catch(() => {});
   }
 }
 
@@ -567,6 +588,107 @@ async function startServer() {
 
   const app = express();
   app.use(compression());
+
+  // Flush any pending cache invalidation (after 30s) or pending deploy hook call (after 2m)
+  // at the start of the next incoming request without using long-lived timers.
+  app.use((_req, _res, next) => {
+    flushPendingCacheAndDeployTasks();
+    next();
+  });
+
+  const ADMIN_EMAILS = new Set([
+    "abesabil00@gmail.com",
+    "abersabil00@gmail.com",
+    "fibaliktn@gmail.com",
+    "fibalik.tn@gmail.com",
+  ]);
+
+  interface VerifiedRequestUser {
+    uid: string;
+    email: string;
+    isAdmin: boolean;
+    idToken: string;
+  }
+
+  async function verifyFirebaseAuthToken(
+    req: express.Request
+  ): Promise<{ ok: true; user: VerifiedRequestUser } | { ok: false; status: 401; error: string }> {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return { ok: false, status: 401, error: "Authorization header with Bearer token is required" };
+    }
+    const idToken = authHeader.slice("Bearer ".length).trim();
+    if (!idToken) {
+      return { ok: false, status: 401, error: "Bearer token is required" };
+    }
+
+    let decoded: admin.auth.DecodedIdToken;
+    try {
+      decoded = await admin.auth().verifyIdToken(idToken);
+    } catch (err) {
+      return { ok: false, status: 401, error: "Invalid or expired Firebase ID token" };
+    }
+
+    const uid = decoded.uid;
+    const email = (decoded.email || "").toLowerCase().trim();
+    let isAdmin =
+      ADMIN_EMAILS.has(email) ||
+      (decoded as any).role === "admin" ||
+      (decoded as any).admin === true;
+
+    if (!isAdmin) {
+      if (hasServiceAccount) {
+        try {
+          const userSnap = await getAdminDb().collection("users").doc(uid).get();
+          if (userSnap.exists && userSnap.data()?.role === "admin") {
+            isAdmin = true;
+          }
+        } catch {}
+      }
+      if (!isAdmin) {
+        try {
+          const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+          if (fs.existsSync(configPath)) {
+            const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+            if (config.projectId) {
+              const dbId = config.firestoreDatabaseId || "(default)";
+              const urlDoc = `https://firestore.googleapis.com/v1/projects/${config.projectId}/databases/${dbId}/documents/users/${encodeURIComponent(uid)}`;
+              const restRes = await fetch(urlDoc, {
+                headers: { Authorization: `Bearer ${idToken}` },
+              });
+              if (restRes.ok) {
+                const docData: any = await restRes.json();
+                if (docData?.fields?.role?.stringValue === "admin") {
+                  isAdmin = true;
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    return {
+      ok: true,
+      user: { uid, email, isAdmin, idToken },
+    };
+  }
+
+  async function requireAdminAuth(
+    req: express.Request,
+    res: express.Response
+  ): Promise<VerifiedRequestUser | null> {
+    const authResult = await verifyFirebaseAuthToken(req);
+    if (!authResult.ok) {
+      res.status(authResult.status).json({ error: authResult.error });
+      return null;
+    }
+    if (!authResult.user.isAdmin) {
+      res.status(403).json({ error: "Forbidden: admin role required" });
+      return null;
+    }
+    return authResult.user;
+  }
 
   // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
   app.use((req, res, next) => {
@@ -1155,18 +1277,75 @@ async function startServer() {
   });
 
   app.post("/api/revalidate", express.json(), async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+
     try {
+      const authResult = await verifyFirebaseAuthToken(req);
+      if (!authResult.ok) {
+        return res.status(authResult.status).json({ error: authResult.error });
+      }
+
+      const { user } = authResult;
       const reason = typeof req.body?.reason === "string" ? req.body.reason : "client_revalidate";
-      await triggerVercelDeployHook(reason);
-      res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
-      res.json({ ok: true });
+      const collectionName = req.body?.collection;
+      const docId = typeof req.body?.docId === "string" ? req.body.docId.trim() : "";
+      const clientIsApproved = req.body?.isApproved;
+
+      let docData: any = null;
+      if ((collectionName === "listings" || collectionName === "news") && docId) {
+        try {
+          const fb = await ensureFirebaseDb();
+          if (fb) {
+            const snap = await fb.utils.getDoc(fb.utils.doc(fb.db, collectionName, docId));
+            if (snap.exists()) {
+              docData = snap.data();
+            }
+          }
+        } catch {}
+      }
+
+      if (!user.isAdmin) {
+        if (
+          (collectionName !== "listings" && collectionName !== "news") ||
+          !docId ||
+          !docData ||
+          docData.submittedBy !== user.uid
+        ) {
+          return res.status(403).json({ error: "Forbidden: must be admin or owner of the modified content" });
+        }
+      }
+
+      const isDeleteAction = reason.endsWith(":delete") || reason.endsWith(":bulk_delete");
+      const affectsApprovedContent = docData
+        ? docData.isApproved === true
+        : isDeleteAction
+        ? user.isAdmin && clientIsApproved !== false
+        : user.isAdmin && clientIsApproved !== false;
+
+      if (!affectsApprovedContent) {
+        return res.json({ ok: true, skipped: "unapproved" });
+      }
+
+      const cacheFlushed = invalidateServerContentCaches();
+      const deployTriggered = await triggerVercelDeployHook(reason);
+
+      return res.json({
+        ok: true,
+        cacheFlushed,
+        cacheInvalidationPending,
+        deployTriggered,
+        deployHookPending,
+      });
     } catch (err) {
-      res.status(500).json({ error: "Failed to revalidate" });
+      return res.status(500).json({ error: "Failed to revalidate" });
     }
   });
 
   app.get("/api/admin/migrate-r2", async (req, res) => {
     try {
+      const adminUser = await requireAdminAuth(req, res);
+      if (!adminUser) return;
+
       const limitVal = parseInt(req.query.limit as string) || 10;
       const collectionName = (req.query.collection as string) || "all";
 
@@ -1358,6 +1537,7 @@ async function startServer() {
       }
 
       if (migratedCount > 0) {
+        invalidateServerContentCaches();
         await triggerVercelDeployHook("server:migrate-r2");
       }
 
@@ -2967,6 +3147,9 @@ IMPORTANT REQUIRED RULES:
 
   app.get("/api/fix-descriptions", async (req, res) => {
     try {
+      const adminUser = await requireAdminAuth(req, res);
+      if (!adminUser) return;
+
       const { GoogleGenAI } = await import('@google/genai');
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
@@ -3028,6 +3211,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         await new Promise(r => setTimeout(r, 3000));
       }
       if (updated > 0) {
+        invalidateServerContentCaches();
         await triggerVercelDeployHook("server:fix-descriptions");
       }
       res.json({ status: "ok", updated });
