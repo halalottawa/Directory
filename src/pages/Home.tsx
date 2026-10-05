@@ -14,7 +14,16 @@ import { Helmet } from 'react-helmet-async';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getPlainText, getExcerpt } from '../utils/textUtils';
 import { ArticleAd } from '../components/ArticleAd';
-import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
+import {
+  getImageUrl,
+  getImageSrcSet,
+  getUntransformedImageUrl,
+  GLOBAL_HERO_IMAGE_PATH,
+  HERO_IMAGE_WIDTHS,
+  HERO_IMAGE_SIZES,
+  CARD_IMAGE_WIDTHS,
+  CARD_IMAGE_SIZES,
+} from '../config/images';
 
 const faqs = [
   {
@@ -236,8 +245,8 @@ export const Home: React.FC = () => {
           <div className="absolute inset-0 z-0">
             <img 
               src={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 1600)}
-              srcSet={getImageSrcSet(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, [640, 1024, 1600])}
-              sizes="100vw"
+              srcSet={getImageSrcSet(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS)}
+              sizes={HERO_IMAGE_SIZES}
               alt="Ottawa Sunset" 
               className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
               fetchPriority="high"
@@ -245,6 +254,13 @@ export const Home: React.FC = () => {
               decoding="async"
               width="1600"
               height="900"
+              onError={(e) => {
+                const fallback = getUntransformedImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH);
+                if (fallback && e.currentTarget.src !== fallback) {
+                  e.currentTarget.removeAttribute('srcset');
+                  e.currentTarget.src = fallback;
+                }
+              }}
             />
             {/* Gradient Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent" />
@@ -352,13 +368,22 @@ export const Home: React.FC = () => {
                 <div className="relative aspect-[2/1] w-full bg-gray-100">
                   {listing.photos?.[0] ? (
                     <img 
-                       src={getOptimizedImageUrl(listing.photos[0], 480, 240)} 
+                       src={getImageUrl(listing.photos[0], 480)} 
+                       srcSet={getImageSrcSet(listing.photos[0], CARD_IMAGE_WIDTHS)}
+                       sizes={CARD_IMAGE_SIZES}
                        alt={listing.name} 
                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                        loading="lazy"
                        width="480"
                        height="240"
                        decoding="async"
+                       onError={(e) => {
+                         const fallback = getUntransformedImageUrl(listing.photos[0]);
+                         if (fallback && e.currentTarget.src !== fallback) {
+                           e.currentTarget.removeAttribute('srcset');
+                           e.currentTarget.src = fallback;
+                         }
+                       }}
                      />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -431,13 +456,22 @@ export const Home: React.FC = () => {
                 <div className="relative w-24 h-24 md:w-full md:h-48 aspect-square md:aspect-none shrink-0 bg-gray-100">
                   {news.coverImage && news.coverImage.trim() !== '' ? (
                     <img 
-                      src={getOptimizedImageUrl(news.coverImage, 400, 192)} 
+                      src={getImageUrl(news.coverImage, 480)} 
+                      srcSet={getImageSrcSet(news.coverImage, CARD_IMAGE_WIDTHS)}
+                      sizes="(max-width: 767px) 96px, (max-width: 1023px) 50vw, 33vw"
                       alt={news.title} 
                       className="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" 
                       loading="lazy"
                       width="400"
                       height="192"
                       decoding="async"
+                      onError={(e) => {
+                        const fallback = getUntransformedImageUrl(news.coverImage);
+                        if (fallback && e.currentTarget.src !== fallback) {
+                          e.currentTarget.removeAttribute('srcset');
+                          e.currentTarget.src = fallback;
+                        }
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">

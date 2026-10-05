@@ -13,7 +13,17 @@
  */
 
 import { getPlainText, getExcerpt } from './textUtils';
-import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
+import {
+  getImageUrl,
+  getImageSrcSet,
+  getUntransformedImageUrl,
+  GLOBAL_HERO_IMAGE_PATH,
+  HERO_IMAGE_WIDTHS,
+  HERO_IMAGE_SIZES,
+  CARD_IMAGE_WIDTHS,
+  CARD_IMAGE_SIZES,
+} from '../config/images';
+import { DEFAULT_SITE_LOGO_URL } from '../services/publicSettings';
 
 export function escapeHtmlText(str: string): string {
   if (!str) return '';
@@ -94,53 +104,83 @@ export function renderHomeSSRHtml(data: {
   news?: any[];
   events?: any[];
   jobs?: any[];
-  settings?: { heroImageUrl?: string };
+  settings?: { heroImageUrl?: string; logoUrl?: string };
 }): string {
   const listings = data.listings || [];
   const news = data.news || [];
   const heroImagePath = data.settings?.heroImageUrl || GLOBAL_HERO_IMAGE_PATH;
+  const heroUntransformedUrl = getUntransformedImageUrl(heroImagePath);
+  const logoUrl =
+    data.settings?.logoUrl && !data.settings.logoUrl.includes('/wp-content/')
+      ? data.settings.logoUrl
+      : DEFAULT_SITE_LOGO_URL;
+
+  const navCategories = [
+    { name: 'Restaurants', slug: 'restaurants', hasDropdown: true },
+    { name: 'Mosques', slug: 'mosques', hasDropdown: false },
+    { name: 'Grocery', slug: 'grocery', hasDropdown: false },
+    { name: 'Clothing', slug: 'clothing', hasDropdown: false },
+    { name: 'Schools', slug: 'schools', hasDropdown: false },
+    { name: 'Butchers', slug: 'butchers', hasDropdown: false },
+  ];
+
+  const topNavLinksHtml = navCategories
+    .map(
+      (cat) => `
+          <div class="relative group/menu py-2">
+            <a href="/${cat.slug}" class="flex items-center gap-1.5 text-sm font-semibold transition-colors whitespace-nowrap text-gray-900 hover:text-[#e90b35] text-decoration-none">
+              <span>${escapeHtmlText(cat.name)}</span>
+              ${
+                cat.hasDropdown
+                  ? '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path></svg>'
+                  : ''
+              }
+            </a>
+          </div>`
+    )
+    .join('\n');
 
   const categories = [
     { 
       name: 'Restaurants', 
       slug: 'restaurants', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 2v6a3 3 0 01-3 3 3 3 0 01-3-3V2m-3 0v6a3 3 0 003 3 3 3 0 003-3V2M6 2v20m0-11a3 3 0 003-3V2M6 8a3 3 0 00-3-3V2"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path></svg>'
     },
     { 
       name: 'Mosques', 
       slug: 'mosques', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>'
     },
     { 
       name: 'Organizations', 
       slug: 'organizations', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>'
     },
     { 
       name: 'Grocery', 
       slug: 'grocery', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>'
     },
     { 
       name: 'Clothing', 
       slug: 'clothing', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.5a2 2 0 001.24 1.54L6 11.5V20a2 2 0 002 2h8a2 2 0 002-2v-8.5l1.9-0.77a2 2 0 001.24-1.54l.58-3.5a2 2 0 00-1.34-2.23z"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg>'
     },
     { 
       name: 'Schools', 
       slug: 'schools', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"></path><path d="M22 10v6"></path><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"></path></svg>'
     },
     { 
       name: 'Butchers', 
       slug: 'butchers', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 7v5l3 3"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12.5" cy="8.5" r="2.5"></circle><path d="M12.5 2a6.5 6.5 0 0 0-6.22 4.6c-1.1 3.13-.78 3.9-3.18 6.08A3 3 0 0 0 5 18c4 0 8.4-1.8 11.4-4.3A6.5 6.5 0 0 0 12.5 2Z"></path><path d="m18.5 6 2.19 4.5a6.48 6.48 0 0 1 .31 2 6.49 6.49 0 0 1-2.6 5.2C15.4 20.2 11 22 7 22a3 3 0 0 1-2.68-1.66L2.4 16.5"></path></svg>'
     },
   ];
 
   const categoryCardsHtml = categories.map((cat, i) => `
     <div class="flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}">
-      <a href="/${cat.slug}" aria-label="Browse ${escapeHtmlAttr(cat.name)} category" class="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full text-decoration-none">
+      <a href="/${cat.slug}" aria-label="Browse ${escapeHtmlAttr(cat.name)} category" class="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35] active:scale-95 text-decoration-none">
         <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
           ${cat.svg}
         </div>
@@ -158,7 +198,9 @@ export function renderHomeSSRHtml(data: {
     }
     const listingUrl = `/${catSlug}/${l.slug || l.id}`;
     const photoUrl = (l.photos && l.photos.length > 0) ? l.photos[0] : (l.coverImage || '/ottawa-sunset.webp');
-    const optimizedPhoto = getOptimizedImageUrlSSR(photoUrl, 480, 240) || photoUrl;
+    const cardSrc = getImageUrl(photoUrl, 480) || photoUrl;
+    const cardSrcSet = getImageSrcSet(photoUrl, CARD_IMAGE_WIDTHS);
+    const cardRawFallback = getUntransformedImageUrl(photoUrl) || photoUrl;
     const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
     const rawAddress = l.address ? l.address.split(',')[0] : 'Ottawa, ON';
     const isEager = idx < 2;
@@ -167,7 +209,9 @@ export function renderHomeSSRHtml(data: {
       <a href="${escapeHtmlAttr(listingUrl)}" class="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all text-decoration-none text-inherit block">
         <div class="relative aspect-[2/1] w-full bg-gray-100">
           <img 
-            src="${escapeHtmlAttr(optimizedPhoto)}" 
+            src="${escapeHtmlAttr(cardSrc)}" 
+            srcset="${escapeHtmlAttr(cardSrcSet)}"
+            sizes="${escapeHtmlAttr(CARD_IMAGE_SIZES)}"
             alt="${escapeHtmlAttr(l.name)}" 
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
             loading="${isEager ? 'eager' : 'lazy'}" 
@@ -175,6 +219,7 @@ export function renderHomeSSRHtml(data: {
             width="480" 
             height="240" 
             decoding="async"
+            onerror="this.onerror=null;this.removeAttribute('srcset');this.src='${escapeHtmlAttr(cardRawFallback)}';"
           />
           ${l.isFeatured ? '<div class="absolute top-3 left-3 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">Featured</div>' : ''}
           <div class="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold text-gray-800">
@@ -197,14 +242,17 @@ export function renderHomeSSRHtml(data: {
 
   const newsCardsHtml = news.slice(0, 6).map((item, index) => {
     const newsUrl = `/news/${item.slug || item.id}`;
-    const coverUrl = item.coverImage ? (getOptimizedImageUrlSSR(item.coverImage, 400, 192) || item.coverImage) : '/ottawa-sunset.webp';
+    const rawCover = item.coverImage || '/ottawa-sunset.webp';
+    const coverUrl = getImageUrl(rawCover, 480) || rawCover;
+    const coverSrcSet = getImageSrcSet(rawCover, CARD_IMAGE_WIDTHS);
+    const coverRawFallback = getUntransformedImageUrl(rawCover) || rawCover;
     const dateStr = item.publishDate || item.createdAt ? new Date(item.publishDate || item.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const authorName = item.author || 'Youssef Agrebi';
 
     return `
       <a href="${escapeHtmlAttr(newsUrl)}" class="bg-white hover:shadow-md transition-all border border-gray-50 group flex md:flex-col gap-4 md:gap-0 p-3 md:p-0 rounded-2xl md:rounded-3xl overflow-hidden shadow-sm text-decoration-none text-inherit ${index >= 3 ? 'hidden md:flex' : ''}">
         <div class="relative w-24 h-24 md:w-full md:h-48 aspect-square md:aspect-none shrink-0 bg-gray-100">
-          <img src="${escapeHtmlAttr(coverUrl)}" alt="${escapeHtmlAttr(item.title)}" class="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" loading="lazy" width="400" height="192" decoding="async" />
+          <img src="${escapeHtmlAttr(coverUrl)}" srcset="${escapeHtmlAttr(coverSrcSet)}" sizes="(max-width: 767px) 96px, (max-width: 1023px) 50vw, 33vw" alt="${escapeHtmlAttr(item.title)}" class="w-full h-full object-cover rounded-xl md:rounded-none group-hover:scale-105 transition-transform duration-500" loading="lazy" width="400" height="192" decoding="async" onerror="this.onerror=null;this.removeAttribute('srcset');this.src='${escapeHtmlAttr(coverRawFallback)}';" />
         </div>
         <div class="flex-1 flex flex-col justify-between py-1 md:p-5">
           <div>
@@ -218,127 +266,203 @@ export function renderHomeSSRHtml(data: {
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
               <span>${dateStr}</span>
             </span>
-            <a href="/author/youssef-agrebi" class="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium text-decoration-none">
+            <span class="flex items-center gap-1.5 text-gray-500 font-medium">
               <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               <span>By ${escapeHtmlText(authorName)}</span>
-            </a>
+            </span>
           </div>
         </div>
       </a>
     `;
   }).join('\n');
 
-  return `
-    <div class="w-full" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <!-- Hero Section -->
-      <section class="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
-        <div class="absolute inset-0 z-0">
-          <img 
-            src="${escapeHtmlAttr(getImageUrl(heroImagePath, 1600))}" 
-            srcset="${escapeHtmlAttr(getImageSrcSet(heroImagePath, [640, 1024, 1600]))}"
-            sizes="100vw"
-            alt="Ottawa Sunset" 
-            class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 
-            fetchpriority="high"
-            loading="eager"
-            width="1600" 
-            height="900"
-            decoding="async"
-          />
-          <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent"></div>
-          <div class="absolute inset-0 bg-black/55"></div>
-        </div>
-        <div class="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">
-          <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-lg leading-tight m-0">
-            Halal Places in Ottawa
-          </h1>
-          <p class="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md m-0">
-            Discover verified halal restaurants, cafes, mosques, and local community news
-          </p>
-          <div class="w-full max-w-2xl mx-auto">
-            <form action="/listings" method="GET" class="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all flex items-center">
-              <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              <input 
-                type="text" 
-                name="search" 
-                placeholder="Search halal restaurants, mosques, or places in Ottawa..." 
-                class="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
-              />
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <!-- Main Content Container -->
-      <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
-        <!-- Reserved Ad Banner Space (eliminates CLS on hydration) -->
-        <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[90px]">
-          <div class="w-full flex justify-center min-h-[50px]"></div>
+  const adSlotPlaceholderHtml = `
+        <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[274px] md:min-h-[114px]">
+          <div class="w-full flex justify-center items-center min-h-[250px] md:min-h-[90px]"></div>
           <p style="text-align: center;" class="mt-2 text-xs text-gray-500 m-0">
             <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-500 text-decoration-none">
               Ads By Muslim Ad Network
             </a>
           </p>
+        </div>`;
+
+  return `
+    <div class="min-h-screen bg-gray-50 flex flex-col">
+      <header class="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 z-40 flex justify-between items-center px-4 md:px-8 lg:px-12">
+        <div class="flex items-center justify-start md:hidden">
+          <button class="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors" aria-label="Open menu">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+          </button>
         </div>
+        <div class="hidden md:flex items-center justify-start gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" fetchpriority="high" width="180" height="52" decoding="async" referrerpolicy="no-referrer" />
+        </div>
+        <nav class="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
+          ${topNavLinksHtml}
+        </nav>
+        <div class="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" />
+        </div>
+        <div class="flex justify-end items-center gap-3 relative">
+          <a href="/login" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm" aria-label="Login or Account">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </a>
+        </div>
+      </header>
+      <main class="flex-1 pt-20 pb-12">
+        <div class="w-full">
+          <!-- Hero Section -->
+          <section class="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
+            <div class="absolute inset-0 z-0">
+              <img 
+                src="${escapeHtmlAttr(getImageUrl(heroImagePath, 1600))}" 
+                srcset="${escapeHtmlAttr(getImageSrcSet(heroImagePath, HERO_IMAGE_WIDTHS))}"
+                sizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}"
+                alt="Ottawa Sunset" 
+                class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 
+                fetchpriority="high"
+                loading="eager"
+                width="1600" 
+                height="900"
+                decoding="async"
+                onerror="this.onerror=null;this.removeAttribute('srcset');this.src='${escapeHtmlAttr(heroUntransformedUrl)}';"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent"></div>
+              <div class="absolute inset-0 bg-black/55"></div>
+            </div>
+            <div class="relative z-10 w-full max-w-3xl mx-auto text-center space-y-6">
+              <h1 class="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight drop-shadow-lg leading-tight m-0">
+                Halal Places in Ottawa
+              </h1>
+              <p class="text-white/95 text-sm md:text-lg max-w-xl mx-auto font-medium drop-shadow-md m-0">
+                Discover verified halal restaurants, cafes, mosques, and local community news
+              </p>
+              <div class="w-full max-w-2xl mx-auto">
+                <form action="/listings" method="GET" class="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all flex items-center">
+                  <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  <input 
+                    type="text" 
+                    name="search" 
+                    placeholder="Search halal restaurants, mosques, or places in Ottawa..." 
+                    class="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
+                  />
+                </form>
+              </div>
+            </div>
+          </section>
 
-        <!-- Categories - Merged Single Responsive Component -->
-        <section class="relative group mb-8">
-          <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
-            <div class="grid grid-cols-3 md:flex gap-3">
-              ${categoryCardsHtml}
+          <!-- Main Content Container -->
+          <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 pb-12 space-y-8 md:space-y-12">
+            ${adSlotPlaceholderHtml}
+
+            <!-- Categories - Merged Single Responsive Component -->
+            <section class="relative group mb-8">
+              <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
+                <div class="grid grid-cols-3 md:flex gap-3">
+                  ${categoryCardsHtml}
+                </div>
+              </div>
+            </section>
+
+            <!-- Latest Listings Section -->
+            <section class="space-y-4 content-visibility-auto">
+              <div class="flex justify-between items-end">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest Listings</h2>
+                <a href="/listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                  View all
+                </a>
+              </div>
+              <div class="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+                ${listingCardsHtml}
+              </div>
+            </section>
+
+            ${adSlotPlaceholderHtml}
+
+            ${news.length > 0 ? `
+            <!-- Latest News Section -->
+            <section class="space-y-4 content-visibility-auto">
+              <div class="flex justify-between items-end">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest News</h2>
+                <a href="/news" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                  View all
+                </a>
+              </div>
+              <div class="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
+                ${newsCardsHtml}
+              </div>
+            </section>` : ''}
+
+            <!-- FAQ Section -->
+            <section class="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
+              <div class="text-center space-y-2">
+                <h2 class="text-2xl font-bold text-gray-900 m-0">Frequently Asked Questions</h2>
+                <p class="text-gray-500 m-0">Everything you need to know about Halal Ottawa</p>
+              </div>
+              <div class="space-y-4">
+                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
+                  <h3 class="font-bold text-lg text-gray-900 m-0">How do I add my business to the directory?</h3>
+                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">You can add your business by clicking the "Add Listing" button or the "+" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval.</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
+                  <h3 class="font-bold text-lg text-gray-900 m-0">Is it free to list my business?</h3>
+                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Yes! Basic listings are completely free. We also offer premium features to stand out and attract more customers, which you can explore in your dashboard.</p>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
+                  <h3 class="font-bold text-lg text-gray-900 m-0">How are listings approved?</h3>
+                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Our community moderators review all submitted listings within 24-48 hours. They verify the information to ensure quality standards our community expects.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[110] hidden items-center justify-around px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] min-h-[4.5rem]" aria-hidden="true"></nav>
+      <footer class="bg-gray-950 pt-12 md:pt-16 pb-8 border-t border-gray-850 min-h-[420px]">
+        <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
+          <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
+            <div class="lg:col-span-2 space-y-6">
+              <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="Halal Ottawa Home">
+                <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-10 w-auto brightness-0 invert" loading="lazy" width="160" height="40" decoding="async" />
+              </a>
+              <p class="text-gray-400 text-sm leading-relaxed max-w-sm m-0">
+                Supporting the Ottawa Muslim community by connecting people with halal-certified businesses, organizations, and local community news. Your trusted hub for halal life in the capital.
+              </p>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Browse</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="/listings" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">All Listings</a></li>
+                <li><a href="/news" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Community News</a></li>
+              </ul>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Support</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Donation</a></li>
+                <li><a href="/faq" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">FAQ</a></li>
+                <li><a href="/tools/qibla" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Qibla Direction</a></li>
+                <li><a href="/terms" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
+                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
+              </ul>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Locations</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Orleans</a></li>
+                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Kanata</a></li>
+                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
+                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Downtown</a></li>
+              </ul>
             </div>
           </div>
-        </section>
-
-        <!-- Latest Listings Section -->
-        <section class="space-y-4 content-visibility-auto">
-          <div class="flex justify-between items-end">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest Listings</h2>
-            <a href="/listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
-              View all
-            </a>
+          <div class="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-gray-500 text-xs text-center md:text-left m-0">
+              © ${new Date().getFullYear()} Halal Ottawa. All rights reserved.
+            </p>
           </div>
-          <div class="flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
-            ${listingCardsHtml}
-          </div>
-        </section>
-
-        ${news.length > 0 ? `
-        <!-- Latest News Section -->
-        <section class="space-y-4 content-visibility-auto">
-          <div class="flex justify-between items-end">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest News</h2>
-            <a href="/news" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
-              View all
-            </a>
-          </div>
-          <div class="space-y-3 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
-            ${newsCardsHtml}
-          </div>
-        </section>` : ''}
-
-        <!-- FAQ Section -->
-        <section class="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
-          <div class="text-center space-y-2">
-            <h2 class="text-2xl font-bold text-gray-900 m-0">Frequently Asked Questions</h2>
-            <p class="text-gray-500 m-0">Everything you need to know about Halal Ottawa</p>
-          </div>
-          <div class="space-y-4">
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-              <h3 class="font-bold text-lg text-gray-900 m-0">How do I add my business to the directory?</h3>
-              <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">You can add your business by clicking the "Add Listing" button or the "+" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval.</p>
-            </div>
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-              <h3 class="font-bold text-lg text-gray-900 m-0">Is it free to list my business?</h3>
-              <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Yes! Basic listings are completely free. We also offer premium features to stand out and attract more customers, which you can explore in your dashboard.</p>
-            </div>
-            <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-              <h3 class="font-bold text-lg text-gray-900 m-0">How are listings approved?</h3>
-              <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Our community moderators review all submitted listings within 24-48 hours. They verify the information to ensure quality standards our community expects.</p>
-            </div>
-          </div>
-        </section>
-      </div>
+        </div>
+      </footer>
     </div>
   `;
 }

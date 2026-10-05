@@ -28,7 +28,7 @@ import {
   renderNotFoundSSRHtml
 } from "./src/utils/ssrTemplates";
 import { getExcerpt } from "./src/utils/textUtils";
-import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from "./src/config/images";
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
@@ -4213,8 +4213,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     if (pathParts.length === 0) {
       const heroPath = initialData?.settings?.heroImageUrl || defaultHeroImage || GLOBAL_HERO_IMAGE_PATH;
       const heroHref = getImageUrl(heroPath, 1600);
-      const heroSrcSet = getImageSrcSet(heroPath, [640, 1024, 1600]);
-      extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="100vw" />`;
+      const heroSrcSet = getImageSrcSet(heroPath, HERO_IMAGE_WIDTHS);
+      extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}" />`;
       const websiteSchema = {
         "@context": "https://schema.org",
         "@type": "WebSite",

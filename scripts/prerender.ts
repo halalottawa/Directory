@@ -19,7 +19,7 @@ import {
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 import { getExcerpt } from '../src/utils/textUtils';
-import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../src/config/images';
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from '../src/config/images';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -746,8 +746,8 @@ async function prerender() {
       if (page.routeType === "home" || page.urlPath === "/") {
         const heroPath = page.initialData?.settings?.heroImageUrl || GLOBAL_HERO_IMAGE_PATH;
         const heroHref = getImageUrl(heroPath, 1600);
-        const heroSrcSet = getImageSrcSet(heroPath, [640, 1024, 1600]);
-        extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="100vw" />`;
+        const heroSrcSet = getImageSrcSet(heroPath, HERO_IMAGE_WIDTHS);
+        extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}" />`;
       } else if (page.routeType === "listing" && page.initialData) {
         // Preload listing's cover photo
         const hasPhoto = page.initialData.photos && page.initialData.photos.length > 0 && page.initialData.photos[0] && page.initialData.photos[0].trim() !== '';
