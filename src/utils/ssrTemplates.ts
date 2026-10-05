@@ -215,7 +215,6 @@ export function renderHomeSSRHtml(data: {
             alt="${escapeHtmlAttr(l.name)}" 
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
             loading="${isEager ? 'eager' : 'lazy'}" 
-            ${isEager ? 'fetchpriority="high"' : ''}
             width="480" 
             height="240" 
             decoding="async"
@@ -278,7 +277,7 @@ export function renderHomeSSRHtml(data: {
 
   const adSlotPlaceholderHtml = `
         <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[274px] md:min-h-[114px]">
-          <div class="w-full flex justify-center items-center min-h-[250px] md:min-h-[90px]"></div>
+          <div class="mx-auto flex justify-center items-center w-[300px] max-w-full h-[250px] min-h-[250px] md:w-[728px] md:h-[90px] md:min-h-[90px]"></div>
           <p style="text-align: center;" class="mt-2 text-xs text-gray-500 m-0">
             <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-500 text-decoration-none">
               Ads By Muslim Ad Network
@@ -295,13 +294,13 @@ export function renderHomeSSRHtml(data: {
           </button>
         </div>
         <div class="hidden md:flex items-center justify-start gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
-          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" fetchpriority="high" width="180" height="52" decoding="async" referrerpolicy="no-referrer" />
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" width="180" height="52" decoding="async" referrerpolicy="no-referrer" />
         </div>
         <nav class="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
           ${topNavLinksHtml}
         </nav>
         <div class="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
-          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" fetchpriority="high" decoding="async" referrerpolicy="no-referrer" />
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" decoding="async" referrerpolicy="no-referrer" />
         </div>
         <div class="flex justify-end items-center gap-3 relative">
           <a href="/login" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm" aria-label="Login or Account">
@@ -315,15 +314,15 @@ export function renderHomeSSRHtml(data: {
           <section class="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
             <div class="absolute inset-0 z-0">
               <img 
-                src="${escapeHtmlAttr(getImageUrl(heroImagePath, 1600))}" 
+                src="${escapeHtmlAttr(getImageUrl(heroImagePath, 750))}" 
                 srcset="${escapeHtmlAttr(getImageSrcSet(heroImagePath, HERO_IMAGE_WIDTHS))}"
                 sizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}"
                 alt="Ottawa Sunset" 
                 class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 
                 fetchpriority="high"
                 loading="eager"
-                width="1600" 
-                height="900"
+                width="750" 
+                height="564"
                 decoding="async"
                 onerror="this.onerror=null;this.removeAttribute('srcset');this.src='${escapeHtmlAttr(heroUntransformedUrl)}';"
               />

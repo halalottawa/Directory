@@ -3,7 +3,7 @@
 // Image transformation mode controlled via VITE_IMAGE_TRANSFORM ("cloudflare" enables /cdn-cgi/image/...)
 export const DEFAULT_IMAGE_HOST = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev';
 
-export const HERO_IMAGE_WIDTHS: number[] = [480, 828, 1200, 1600];
+export const HERO_IMAGE_WIDTHS: number[] = [480, 750];
 export const HERO_IMAGE_SIZES = '100vw';
 export const CARD_IMAGE_WIDTHS: number[] = [320, 480, 640];
 export const CARD_IMAGE_SIZES = '(max-width: 767px) 240px, (max-width: 1023px) 50vw, 25vw';

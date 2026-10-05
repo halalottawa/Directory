@@ -4212,7 +4212,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
     if (pathParts.length === 0) {
       const heroPath = initialData?.settings?.heroImageUrl || defaultHeroImage || GLOBAL_HERO_IMAGE_PATH;
-      const heroHref = getImageUrl(heroPath, 1600);
+      const heroHref = getImageUrl(heroPath, 750);
       const heroSrcSet = getImageSrcSet(heroPath, HERO_IMAGE_WIDTHS);
       extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}" />`;
       const websiteSchema = {

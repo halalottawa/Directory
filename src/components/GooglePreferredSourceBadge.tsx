@@ -75,7 +75,6 @@ export const GooglePreferredSourceBadge: React.FC<GooglePreferredSourceBadgeProp
             ? 'bg-gray-800/90 text-gray-200 border-gray-700 hover:bg-gray-750 hover:text-white hover:border-gray-600'
             : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300'
         } ${className}`}
-        {...{ 'google-add-preferred-source-btn': '' }}
         data-theme={theme}
       >
         <GoogleLogo size="w-3.5 h-3.5" />
@@ -97,7 +96,6 @@ export const GooglePreferredSourceBadge: React.FC<GooglePreferredSourceBadgeProp
             ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white hover:border-gray-600'
             : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300'
         } ${className}`}
-        {...{ 'google-add-preferred-source-btn': '' }}
         data-theme={theme}
       >
         <GoogleLogo size="w-4 h-4 shrink-0" />
@@ -161,7 +159,6 @@ export const GooglePreferredSourceBadge: React.FC<GooglePreferredSourceBadgeProp
             rel="noopener noreferrer"
             title="Add as preferred source on Google"
             className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-white border border-gray-200 text-gray-800 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-900 shadow-xs hover:shadow-sm active:scale-98 transition-all shrink-0 select-none self-start sm:self-auto"
-            {...{ 'google-add-preferred-source-btn': '' }}
             data-theme={theme}
           >
             <GoogleLogo size="w-4 h-4 shrink-0" />
@@ -186,7 +183,6 @@ export const GooglePreferredSourceBadge: React.FC<GooglePreferredSourceBadgeProp
           ? 'bg-gray-800 text-gray-200 border-gray-700 hover:bg-gray-750 hover:text-white hover:border-gray-600'
           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300'
       } ${className}`}
-      {...{ 'google-add-preferred-source-btn': '' }}
       data-theme={theme}
     >
       <GoogleLogo size="w-4 h-4" />

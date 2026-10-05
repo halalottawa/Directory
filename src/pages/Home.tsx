@@ -212,7 +212,7 @@ export const Home: React.FC = () => {
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local community news."
         canonicalUrl={getAbsoluteUrl("")}
         disableSuffix={true}
-        ogImage={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 1600)}
+        ogImage={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 750)}
         structuredData={{
           "@context": "https://schema.org",
           "@type": "WebSite",
@@ -244,7 +244,7 @@ export const Home: React.FC = () => {
         <section className="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
           <div className="absolute inset-0 z-0">
             <img 
-              src={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 1600)}
+              src={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 750)}
               srcSet={getImageSrcSet(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS)}
               sizes={HERO_IMAGE_SIZES}
               alt="Ottawa Sunset" 
@@ -252,8 +252,8 @@ export const Home: React.FC = () => {
               fetchPriority="high"
               loading="eager"
               decoding="async"
-              width="1600"
-              height="900"
+              width="750"
+              height="564"
               onError={(e) => {
                 const fallback = getUntransformedImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH);
                 if (fallback && e.currentTarget.src !== fallback) {

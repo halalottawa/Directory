@@ -745,7 +745,7 @@ async function prerender() {
       // Dynamic LCP image preloads
       if (page.routeType === "home" || page.urlPath === "/") {
         const heroPath = page.initialData?.settings?.heroImageUrl || GLOBAL_HERO_IMAGE_PATH;
-        const heroHref = getImageUrl(heroPath, 1600);
+        const heroHref = getImageUrl(heroPath, 750);
         const heroSrcSet = getImageSrcSet(heroPath, HERO_IMAGE_WIDTHS);
         extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}" />`;
       } else if (page.routeType === "listing" && page.initialData) {

@@ -119,16 +119,16 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
       ? 'min-h-[274px]'
       : 'min-h-[274px] md:min-h-[114px]';
 
-  const innerHeightClass =
+  const innerSizeClass =
     variant === 'desktop'
-      ? 'min-h-[90px]'
+      ? 'w-[728px] max-w-full h-[90px] min-h-[90px]'
       : variant === 'mobile'
-      ? 'min-h-[250px]'
-      : 'min-h-[250px] md:min-h-[90px]';
+      ? 'w-[300px] max-w-full h-[250px] min-h-[250px]'
+      : 'w-[300px] max-w-full h-[250px] min-h-[250px] md:w-[728px] md:h-[90px] md:min-h-[90px]';
 
   return (
     <div className={`my-8 w-full flex flex-col items-center justify-center overflow-hidden ${outerHeightClass} ${className}`}>
-      <div ref={containerRef} className={`w-full flex justify-center items-center ${innerHeightClass}`} />
+      <div ref={containerRef} className={`mx-auto flex justify-center items-center ${innerSizeClass}`} />
       <p style={{ textAlign: 'center' }} className="mt-2 text-xs text-gray-500">
         <a 
           href="https://muslimadnetwork.com/?pub=halalottawa.ca" 

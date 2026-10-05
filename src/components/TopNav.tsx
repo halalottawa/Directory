@@ -85,7 +85,6 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             src={siteLogoUrl || DEFAULT_SITE_LOGO_URL} 
             alt="Halal Ottawa" 
             className="h-[52px] w-[180px] object-contain"
-            fetchPriority="high"
             width="180"
             height="52"
             decoding="async"
@@ -186,7 +185,6 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             className="h-[44px] w-[152px] object-contain"
             width="152"
             height="44"
-            fetchPriority="high"
             decoding="async"
             referrerPolicy="no-referrer"
             onError={(e) => {
