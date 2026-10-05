@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHand
 import { generateSlug, getUniqueSlug } from '../utils/slugify';
 import { SEO } from '../components/SEO';
 import { uploadFromUrl, uploadFile } from '../utils/storageUtils';
+import { notifyContentChanged } from '../utils/revalidate';
 import { toast } from 'sonner';
 
 export const AddNews: React.FC = () => {
@@ -229,6 +230,7 @@ export const AddNews: React.FC = () => {
         publishDate: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
+      notifyContentChanged('news:publish');
       setShowSuccess(true);
       setTimeout(() => {
         navigate('/news');

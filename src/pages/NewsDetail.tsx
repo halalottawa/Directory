@@ -18,6 +18,7 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { ArticleAd } from '../components/ArticleAd';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
+import { notifyContentChanged } from '../utils/revalidate';
 
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -129,6 +130,7 @@ export const NewsDetail: React.FC = () => {
     if (!article) return;
     try {
       await deleteDoc(doc(db, 'news', article.id));
+      notifyContentChanged('news:delete');
       navigate('/news');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `news/${article.id}`);

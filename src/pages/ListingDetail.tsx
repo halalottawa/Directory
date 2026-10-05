@@ -18,6 +18,7 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { toast } from 'sonner';
 import { ArticleAd } from '../components/ArticleAd';
+import { notifyContentChanged } from '../utils/revalidate';
 
 // Custom inline SVG social icons for zero bundle-size cost
 const FaInstagram: React.FC<{ className?: string }> = ({ className }) => (
@@ -360,6 +361,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     if (!listing) return;
     try {
       await deleteDoc(doc(db, 'listings', listing.id));
+      notifyContentChanged('listing:delete');
       navigate('/listings');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `listings/${listing.id}`);

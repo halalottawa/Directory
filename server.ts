@@ -267,6 +267,57 @@ async function getCachedNewsData(): Promise<any[]> {
   return items;
 }
 
+const DEPLOY_HOOK_DEBOUNCE_MS = 10 * 60 * 1000; // 10 minutes
+let lastDeployHookCallAt = 0;
+let pendingDeployHookTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function triggerVercelDeployHook(reason = "content_mutation"): Promise<void> {
+  // Always invalidate in-memory server caches so SSR and API routes immediately reflect changes
+  cachedHomePayload = null;
+  cachedHomePayloadExpiry = 0;
+  cachedListingsPayload = null;
+  cachedListingsExpiry = 0;
+  cachedNewsPayload = null;
+  cachedNewsExpiry = 0;
+
+  const hookUrl = (process.env.VERCEL_DEPLOY_HOOK_URL || "").trim();
+  if (!hookUrl) {
+    return;
+  }
+
+  const executePost = async (triggerReason: string) => {
+    lastDeployHookCallAt = Date.now();
+    try {
+      await fetch(hookUrl, { method: "POST" });
+    } catch (err) {
+      console.error(`[DeployHook] Failed to trigger deploy hook (${triggerReason})`);
+    }
+  };
+
+  const now = Date.now();
+  const elapsed = now - lastDeployHookCallAt;
+
+  if (elapsed >= DEPLOY_HOOK_DEBOUNCE_MS) {
+    if (pendingDeployHookTimer) {
+      clearTimeout(pendingDeployHookTimer);
+      pendingDeployHookTimer = null;
+    }
+    await executePost(reason);
+    return;
+  }
+
+  if (!pendingDeployHookTimer) {
+    const remainingMs = DEPLOY_HOOK_DEBOUNCE_MS - elapsed;
+    pendingDeployHookTimer = setTimeout(() => {
+      pendingDeployHookTimer = null;
+      executePost(reason).catch(() => {});
+    }, remainingMs);
+    if (typeof (pendingDeployHookTimer as any)?.unref === "function") {
+      (pendingDeployHookTimer as any).unref();
+    }
+  }
+}
+
 function isBufferHtml(buf: Buffer): boolean {
   if (!buf || buf.length < 4) return false;
   const str = buf.toString("utf8", 0, Math.min(buf.length, 500)).trim().toLowerCase();
@@ -1103,6 +1154,17 @@ async function startServer() {
     }
   });
 
+  app.post("/api/revalidate", express.json(), async (req, res) => {
+    try {
+      const reason = typeof req.body?.reason === "string" ? req.body.reason : "client_revalidate";
+      await triggerVercelDeployHook(reason);
+      res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to revalidate" });
+    }
+  });
+
   app.get("/api/admin/migrate-r2", async (req, res) => {
     try {
       const limitVal = parseInt(req.query.limit as string) || 10;
@@ -1293,6 +1355,10 @@ async function startServer() {
             logs.push(`Saved updates to ${colInfo.name} -> doc: ${docId}`);
           }
         }
+      }
+
+      if (migratedCount > 0) {
+        await triggerVercelDeployHook("server:migrate-r2");
       }
 
       res.json({
@@ -2960,6 +3026,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           console.log(`Updated ${data.name}`);
         }
         await new Promise(r => setTimeout(r, 3000));
+      }
+      if (updated > 0) {
+        await triggerVercelDeployHook("server:fix-descriptions");
       }
       res.json({ status: "ok", updated });
     } catch (e: any) {

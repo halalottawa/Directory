@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
 import { getSuburbFromAddress } from '../utils/geo';
 import { getApiUrl } from '../utils/platform';
+import { notifyContentChanged } from '../utils/revalidate';
 
 export const AddListing: React.FC = () => {
   const navigate = useNavigate();
@@ -267,6 +268,7 @@ export const AddListing: React.FC = () => {
         submittedBy: user.uid,
         createdAt: new Date().toISOString(),
       });
+      notifyContentChanged('listing:publish');
 
       setShowSuccess(true);
       setTimeout(() => {

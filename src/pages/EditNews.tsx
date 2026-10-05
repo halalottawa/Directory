@@ -10,6 +10,7 @@ import { NewsArticle } from '../types';
 import { generateSlug } from '../utils/slugify';
 import { SEO } from '../components/SEO';
 import { uploadFromUrl, uploadFile } from '../utils/storageUtils';
+import { notifyContentChanged } from '../utils/revalidate';
 import { toast } from 'sonner';
 
 export const EditNews: React.FC = () => {
@@ -264,6 +265,7 @@ export const EditNews: React.FC = () => {
         slug: newSlug,
         updatedAt: new Date().toISOString(),
       });
+      notifyContentChanged('news:edit');
 
       if (originalSlug && newSlug && originalSlug !== newSlug) {
         try {
@@ -298,6 +300,7 @@ export const EditNews: React.FC = () => {
     if (!id) return;
     try {
       await deleteDoc(doc(db, 'news', id));
+      notifyContentChanged('news:delete');
       navigate('/news');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `news/${id}`);

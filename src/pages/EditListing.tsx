@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
 import { getSuburbFromAddress } from '../utils/geo';
 import { getApiUrl } from '../utils/platform';
+import { notifyContentChanged } from '../utils/revalidate';
 
 export const EditListing: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -315,6 +316,7 @@ export const EditListing: React.FC = () => {
         photos: processedPhotos,
         updatedAt: new Date().toISOString(),
       });
+      notifyContentChanged('listing:edit');
 
       if (originalSlug && newSlug && originalSlug !== newSlug) {
         try {
@@ -348,6 +350,7 @@ export const EditListing: React.FC = () => {
     if (!id) return;
     try {
       await deleteDoc(doc(db, 'listings', id));
+      notifyContentChanged('listing:delete');
       navigate('/listings');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `listings/${id}`);
