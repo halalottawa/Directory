@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Newspaper, ChevronRight, Search, Plus, Clock, User, ArrowRight } from 'lucide-react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { NewsArticle } from '../types';
 import { DEMO_NEWS } from '../constants';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getPlainText } from '../utils/textUtils';
@@ -29,13 +26,23 @@ export const News: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [hasValidSSRData] = useState(() => {
+    return (
+      typeof window !== 'undefined' &&
+      (window as any).__INITIAL_ROUTE_TYPE__ === 'news_list' &&
+      Array.isArray((window as any).__INITIAL_DATA__?.news) &&
+      (window as any).__INITIAL_DATA__.news.length > 0
+    );
+  });
+  const initialSSRGuardRef = useRef<boolean>(hasValidSSRData);
+
   // Fast hydration: use server-rendered news if available, avoiding flicker
   const [allNews, setAllNews] = useState<NewsArticle[]>(() => {
-    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'news_list') {
-      const initData = (window as any).__INITIAL_DATA__;
-      if (initData && Array.isArray(initData.news) && initData.news.length > 0) {
-        return initData.news;
-      }
+    if (hasValidSSRData) {
+      const initNews = (window as any).__INITIAL_DATA__.news;
+      delete (window as any).__INITIAL_DATA__;
+      delete (window as any).__INITIAL_ROUTE_TYPE__;
+      return initNews;
     }
     return DEMO_NEWS;
   });
@@ -44,43 +51,48 @@ export const News: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
 
-  // Real-time Firestore subscription to guarantee fresh news
   useEffect(() => {
-    const q = user?.role === 'admin' 
-      ? query(collection(db, 'news')) 
-      : query(collection(db, 'news'), where('isApproved', '==', true));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const firestoreNews = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as NewsArticle[];
+    if (initialSSRGuardRef.current && !user) {
+      initialSSRGuardRef.current = false;
+      return;
+    }
+    initialSSRGuardRef.current = false;
 
-      // Merge with DEMO_NEWS if any, deduplicating by ID or slug
-      const mergedMap = new Map<string, NewsArticle>();
-      DEMO_NEWS.forEach(item => mergedMap.set(item.id, item));
-      firestoreNews.forEach(item => {
-        mergedMap.set(item.id, item);
-        if (item.slug) {
-          const demoItem = DEMO_NEWS.find(d => d.slug === item.slug);
-          if (demoItem) mergedMap.delete(demoItem.id);
-        }
+    let isMounted = true;
+    fetch('/api/news')
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(data => {
+        if (!isMounted) return;
+        const firestoreNews = (Array.isArray(data.news) ? data.news : []) as NewsArticle[];
+
+        // Merge with DEMO_NEWS if any, deduplicating by ID or slug
+        const mergedMap = new Map<string, NewsArticle>();
+        DEMO_NEWS.forEach(item => mergedMap.set(item.id, item));
+        firestoreNews.forEach(item => {
+          mergedMap.set(item.id, item);
+          if (item.slug) {
+            const demoItem = DEMO_NEWS.find(d => d.slug === item.slug);
+            if (demoItem) mergedMap.delete(demoItem.id);
+          }
+        });
+        const combined = Array.from(mergedMap.values());
+
+        // Sort: Featured first, then newest first
+        combined.sort((a, b) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return getArticleTime(b) - getArticleTime(a);
+        });
+
+        setAllNews(combined);
+      })
+      .catch(error => {
+        console.error('Error fetching news from /api/news:', error);
       });
-      const combined = Array.from(mergedMap.values());
 
-      // Sort: Featured first, then newest first
-      combined.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return getArticleTime(b) - getArticleTime(a);
-      });
-
-      setAllNews(combined);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'news');
-    });
-
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+    };
   }, [user?.role]);
 
   // Client-side search filtering without destroying Firestore listener

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Newspaper, ChevronRight, ChevronLeft, Star, User, Clock, ChevronDown, Utensils } from 'lucide-react';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { db, getGeneralSettings } from '../firebase';
+import { getGeneralSettings } from '../services/publicSettings';
 import { Listing, NewsArticle } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS } from '../constants';
@@ -104,21 +103,16 @@ export const Home: React.FC = () => {
       : []
   );
   const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
-  const [heroImageUrl, setHeroImageUrl] = useState<string>('');
+  const [heroImageUrl, setHeroImageUrl] = useState<string>(initData?.settings?.heroImageUrl || '');
   const navigate = useNavigate();
 
   useEffect(() => {
     setIsApp(isAppWrapper());
 
-    // Stale-While-Revalidate: display SSR data instantly without loading spinner,
-    // while running background fetch to revalidate latest news and listings in real-time.
+    // When initial SSR data is embedded in window.__INITIAL_DATA__, make no data request on first load
     if (initialSSRGuardRef.current) {
       initialSSRGuardRef.current = false;
-      getGeneralSettings(true).then(settings => {
-        if (settings?.heroImageUrl) setHeroImageUrl(settings.heroImageUrl);
-      }).catch(err => {
-        console.warn("Failed to load general settings:", err);
-      });
+      return;
     }
 
     const fetchHomeData = async () => {
@@ -126,144 +120,46 @@ export const Home: React.FC = () => {
         if (!initData) {
           setLoading(true);
         }
-        
+
         try {
-          const settings = await getGeneralSettings(true);
-          setHeroImageUrl(settings?.heroImageUrl || '');
+          const settings = await getGeneralSettings();
+          if (settings?.heroImageUrl) setHeroImageUrl(settings.heroImageUrl);
         } catch (settingsErr) {
           console.warn("Failed to load general settings:", settingsErr);
         }
 
-        const isAdmin = user?.role === 'admin';
-
-        // Fetch Latest Listings with fallback
-        const fetchListings = async () => {
-          try {
-            if (isAdmin) {
-              return await getDocs(
-                query(collection(db, 'listings'), orderBy('createdAt', 'desc'), limit(8))
-              );
-            } else if (user) {
-              return await Promise.all([
-                getDocs(
-                  query(
-                    collection(db, 'listings'),
-                    where('isApproved', '==', true),
-                    orderBy('createdAt', 'desc'),
-                    limit(8)
-                  )
-                ),
-                getDocs(
-                  query(
-                    collection(db, 'listings'),
-                    where('submittedBy', '==', user.uid),
-                    limit(50)
-                  )
-                )
-              ]);
-            } else {
-              return await getDocs(
-                query(
-                  collection(db, 'listings'),
-                  where('isApproved', '==', true),
-                  orderBy('createdAt', 'desc'),
-                  limit(8)
-                )
-              );
-            }
-          } catch (error) {
-            console.warn("Index or query error for ordered listings. Falling back to unordered fetch.", error);
-            if (isAdmin) {
-              return await getDocs(query(collection(db, 'listings')));
-            } else if (user) {
-              return await Promise.all([
-                getDocs(query(collection(db, 'listings'), where('isApproved', '==', true))),
-                getDocs(query(collection(db, 'listings'), where('submittedBy', '==', user.uid)))
-              ]);
-            } else {
-              return await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
-            }
-          }
-        };
-
-        // Fetch Latest News with fallback to unordered query if Firestore composite index is not yet built
-        const fetchNews = async () => {
-          try {
-            const q = isAdmin
-              ? query(collection(db, 'news'), orderBy('createdAt', 'desc'), limit(8))
-              : query(collection(db, 'news'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
-            return await getDocs(q);
-          } catch (error) {
-            console.warn("Index not found for ordered news. Falling back to unordered larger fetch.", error);
-            const qFallback = isAdmin
-              ? query(collection(db, 'news'), limit(80))
-              : query(collection(db, 'news'), where('isApproved', '==', true), limit(80));
-            return await getDocs(qFallback);
-          }
-        };
-
-        // Execute queries in parallel
-        const [listingsResult, newsSnap] = await Promise.all([
-          fetchListings(),
-          fetchNews()
-        ]);
+        const res = await fetch('/api/home');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
 
         const parseTime = (val: any): number => {
           if (!val) return 0;
-          if (typeof val.toDate === 'function') {
-            return val.toDate().getTime();
-          }
-          if (typeof val.seconds === 'number') {
-            return val.seconds * 1000;
-          }
+          if (typeof val === 'number') return val;
+          if (typeof val.toDate === 'function') return val.toDate().getTime();
+          if (typeof val.seconds === 'number') return val.seconds * 1000;
           const d = new Date(val);
           return isNaN(d.getTime()) ? 0 : d.getTime();
         };
 
-        let listingsData: Listing[] = [];
-        if (isAdmin) {
-          listingsData = (listingsResult as any).docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Listing[];
-        } else if (user) {
-          const [approvedSnap, ownSnap] = listingsResult as any;
-          const seen = new Set<string>();
-          const temp: Listing[] = [];
-          for (const doc of approvedSnap.docs) {
-            seen.add(doc.id);
-            temp.push({ id: doc.id, ...doc.data() } as Listing);
-          }
-          for (const doc of ownSnap.docs) {
-            if (!seen.has(doc.id)) {
-              seen.add(doc.id);
-              temp.push({ id: doc.id, ...doc.data() } as Listing);
-            }
-          }
-          listingsData = temp;
-        } else {
-          listingsData = (listingsResult as any).docs.map((doc: any) => ({ id: doc.id, ...doc.data() })) as Listing[];
-        }
-
+        const listingsData: Listing[] = Array.isArray(data.listings) ? data.listings : [];
         const sortedListings = listingsData
           .sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt))
           .slice(0, 8);
         setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));
 
-        const newsData = newsSnap.docs.map(doc => {
-          const d = doc.data() as any;
-          return {
-            id: doc.id,
-            title: d.title || '',
-            slug: d.slug || doc.id,
-            excerpt: getExcerpt(d.excerpt || d.content, 160),
-            content: '',
-            coverImage: d.coverImage || '',
-            publishDate: d.publishDate || d.createdAt || null,
-            author: d.author || 'Youssef Agrebi',
-            isApproved: d.isApproved,
-            createdAt: d.createdAt || null
-          } as unknown as NewsArticle;
-        });
-        
-        // Merge with DEMO_NEWS, deduplicating by ID or slug
+        const newsData: NewsArticle[] = (Array.isArray(data.news) ? data.news : []).map((d: any) => ({
+          id: d.id,
+          title: d.title || '',
+          slug: d.slug || d.id,
+          excerpt: getExcerpt(d.excerpt || d.content, 160),
+          content: '',
+          coverImage: d.coverImage || '',
+          publishDate: d.publishDate || d.createdAt || null,
+          author: d.author || 'Youssef Agrebi',
+          isApproved: d.isApproved ?? true,
+          createdAt: d.createdAt || null
+        } as unknown as NewsArticle));
+
         const mergedNewsMap = new Map<string, NewsArticle>();
         DEMO_NEWS.forEach(item => mergedNewsMap.set(item.id, item));
         newsData.forEach(item => {
@@ -273,7 +169,7 @@ export const Home: React.FC = () => {
             if (demoItem) mergedNewsMap.delete(demoItem.id);
           }
         });
-        
+
         const sortedNews = Array.from(mergedNewsMap.values())
           .sort((a, b) => {
             const dateB = new Date(b.publishDate || b.createdAt || 0).getTime();
@@ -282,7 +178,6 @@ export const Home: React.FC = () => {
           })
           .slice(0, 6);
         setLatestNews(sortedNews);
-
       } catch (error) {
         console.error("Error fetching home data:", error);
       } finally {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
-import { getGeneralSettings } from '../firebase';
+import { getGeneralSettings, getInitialGeneralSettings, DEFAULT_SITE_LOGO_URL } from '../services/publicSettings';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { GooglePreferredSourceBadge } from './GooglePreferredSourceBadge';
 
@@ -35,7 +35,9 @@ const FaTiktok: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const Footer: React.FC = () => {
-  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>(() => {
+    return getInitialGeneralSettings()?.logoUrl || DEFAULT_SITE_LOGO_URL;
+  });
 
   useEffect(() => {
     getGeneralSettings().then((data) => {
@@ -53,13 +55,18 @@ export const Footer: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <Link to="/" className="flex items-center gap-2" aria-label="Halal Ottawa Home">
               <img 
-                src={siteLogoUrl || undefined} 
+                src={siteLogoUrl || DEFAULT_SITE_LOGO_URL} 
                 alt="Halal Ottawa" 
                 className="h-10 w-auto brightness-0 invert" 
                 loading="lazy"
                 width="160"
                 height="40"
                 decoding="async"
+                onError={(e) => {
+                  if (e.currentTarget.src !== DEFAULT_SITE_LOGO_URL) {
+                    e.currentTarget.src = DEFAULT_SITE_LOGO_URL;
+                  }
+                }}
               />
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">

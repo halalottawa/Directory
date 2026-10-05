@@ -3,6 +3,48 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+if (typeof window !== 'undefined') {
+  try {
+    const proto = Element.prototype as unknown as {
+      attachShadow?: (init: ShadowRootInit) => ShadowRoot;
+      __safeAttachShadowPatched?: boolean;
+    };
+    if (proto && proto.attachShadow && !proto.__safeAttachShadowPatched) {
+      const origAttachShadow = proto.attachShadow;
+      const shadowMap = typeof WeakMap !== 'undefined' ? new WeakMap<Element, ShadowRoot>() : null;
+      proto.attachShadow = function (this: Element, init: ShadowRootInit): ShadowRoot {
+        if (this.shadowRoot) {
+          return this.shadowRoot;
+        }
+        if (shadowMap && shadowMap.has(this)) {
+          return shadowMap.get(this)!;
+        }
+        try {
+          const root = origAttachShadow.call(this, init);
+          if (shadowMap && root) {
+            shadowMap.set(this, root);
+          }
+          return root;
+        } catch {
+          if (this.shadowRoot) {
+            return this.shadowRoot;
+          }
+          if (shadowMap && shadowMap.has(this)) {
+            return shadowMap.get(this)!;
+          }
+          const fallbackHost = document.createElement('div');
+          const fallbackRoot = origAttachShadow.call(fallbackHost, init || { mode: 'open' });
+          if (shadowMap && fallbackRoot) {
+            shadowMap.set(this, fallbackRoot);
+          }
+          return fallbackRoot;
+        }
+      };
+      proto.__safeAttachShadowPatched = true;
+    }
+  } catch (e) {}
+}
+
 if (typeof window !== 'undefined' && window.location.hostname === 'halalottawa.ca') {
   window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${window.location.search}${window.location.hash}`);
 }

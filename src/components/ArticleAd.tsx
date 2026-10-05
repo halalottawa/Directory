@@ -34,12 +34,33 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
       containerRef.current.appendChild(script);
     };
 
-    loadAd();
+    let hasTriggered = false;
+    const triggerEvents = ['scroll', 'pointerdown', 'touchstart', 'keydown'] as const;
+
+    const onFirstInteraction = () => {
+      if (hasTriggered) return;
+      hasTriggered = true;
+      triggerEvents.forEach(evt => window.removeEventListener(evt, onFirstInteraction));
+      loadAd();
+    };
+
+    if ((window as any).__userHasInteracted) {
+      loadAd();
+    } else {
+      triggerEvents.forEach(evt =>
+        window.addEventListener(evt, () => {
+          (window as any).__userHasInteracted = true;
+          onFirstInteraction();
+        }, { once: true, passive: true })
+      );
+    }
 
     if (variant === 'auto' && window.matchMedia) {
       const mediaQuery = window.matchMedia('(max-width: 767px)');
       const handleChange = () => {
-        loadAd();
+        if (hasTriggered || (window as any).__userHasInteracted) {
+          loadAd();
+        }
       };
 
       if (mediaQuery.addEventListener) {
@@ -49,6 +70,7 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
       }
 
       return () => {
+        triggerEvents.forEach(evt => window.removeEventListener(evt, onFirstInteraction));
         if (mediaQuery.removeEventListener) {
           mediaQuery.removeEventListener('change', handleChange);
         } else {
@@ -61,6 +83,7 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
     }
 
     return () => {
+      triggerEvents.forEach(evt => window.removeEventListener(evt, onFirstInteraction));
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }

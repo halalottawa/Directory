@@ -1,14 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Home, Newspaper, MapPin, Bookmark } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { useAuth } from '../context/AuthContext';
 
 export const BottomNav: React.FC = () => {
+  const { initAuth } = useAuth();
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/listings', icon: MapPin, label: 'Listings' },
@@ -22,10 +18,14 @@ export const BottomNav: React.FC = () => {
         <NavLink
           key={item.to}
           to={item.to}
-          className={({ isActive }) => cn(
-            "flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200",
-            isActive ? "text-[#e90b35]" : "text-gray-400 hover:text-gray-600"
-          )}
+          onClick={() => {
+            if (item.to === '/saved') initAuth();
+          }}
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 ${
+              isActive ? "text-[#e90b35]" : "text-gray-400 hover:text-gray-600"
+            }`
+          }
         >
           <item.icon className="w-6 h-6" />
           <span className="text-[10px] font-medium uppercase tracking-wider">{item.label}</span>

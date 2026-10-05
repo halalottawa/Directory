@@ -1,6 +1,6 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
-import { getGeneralSettings } from '../firebase';
+import { getGeneralSettings } from '../services/publicSettings';
 import { getImageUrl, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
 
 export const DEFAULT_HERO_OG_IMAGE = getImageUrl(GLOBAL_HERO_IMAGE_PATH, 1200);

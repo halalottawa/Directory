@@ -19,6 +19,7 @@ import {
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 import { getExcerpt } from '../src/utils/textUtils';
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from '../src/config/images';
 
 const BASE_URL = 'https://www.halalottawa.ca';
 
@@ -428,10 +429,14 @@ async function prerender() {
       try {
         const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
         const qNewsAll = query(collection(db, 'news'), where('isApproved', '==', true));
+        const settingsDocRef = doc(db, 'settings', 'general');
 
-        const [listingsSnap, newsSnap] = await Promise.all([
-          getDocs(qListingsHome), getDocs(qNewsAll)
+        const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
+          getDocs(qListingsHome),
+          getDocs(qNewsAll),
+          getDoc(settingsDocRef).catch(() => null)
         ]);
+        const settingsData = settingsSnap && settingsSnap.exists() ? settingsSnap.data() : {};
 
         let listingsData = listingsSnap.docs.map(doc => {
           const d = doc.data() as any;
@@ -478,6 +483,7 @@ async function prerender() {
           homePage.initialData = {
             listings: listingsData,
             news: homeNewsData,
+            settings: settingsData,
             timestamp: Date.now()
           };
         }
@@ -738,14 +744,10 @@ async function prerender() {
 
       // Dynamic LCP image preloads
       if (page.routeType === "home" || page.urlPath === "/") {
-        // Preload first listing's hero image (width=480, height=240)
-        const firstListing = page.initialData?.listings?.[0];
-        if (firstListing?.photos?.[0]) {
-          const firstListingPhoto = getPrerenderOptimizedImageUrl(firstListing.photos[0], 480, 240);
-          if (firstListingPhoto) {
-            extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(firstListingPhoto)}" fetchpriority="high" />`;
-          }
-        }
+        const heroPath = page.initialData?.settings?.heroImageUrl || GLOBAL_HERO_IMAGE_PATH;
+        const heroHref = getImageUrl(heroPath, 1600);
+        const heroSrcSet = getImageSrcSet(heroPath, [640, 1024, 1600]);
+        extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="100vw" />`;
       } else if (page.routeType === "listing" && page.initialData) {
         // Preload listing's cover photo
         const hasPhoto = page.initialData.photos && page.initialData.photos.length > 0 && page.initialData.photos[0] && page.initialData.photos[0].trim() !== '';

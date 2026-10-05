@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams, useParams, useLocation } from 'react-router-dom';
 import { MapPin, Star, Filter, Plus, Search, ChevronLeft } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy, where } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
@@ -63,7 +60,19 @@ export const Listings: React.FC = () => {
   const { subcategory } = useParams();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [rawListings, setRawListings] = useState<Listing[]>([]);
+  const [rawListings, setRawListings] = useState<Listing[]>(() => {
+    if (
+      typeof window !== 'undefined' &&
+      ((window as any).__INITIAL_ROUTE_TYPE__ === 'listings' || (window as any).__INITIAL_ROUTE_TYPE__ === 'category') &&
+      Array.isArray((window as any).__INITIAL_DATA__?.listings)
+    ) {
+      const initListings = (window as any).__INITIAL_DATA__.listings;
+      delete (window as any).__INITIAL_DATA__;
+      delete (window as any).__INITIAL_ROUTE_TYPE__;
+      return initListings;
+    }
+    return [];
+  });
   const itemsPerPage = 18;
   const [activeCategories, setActiveCategories] = useState<string[]>(() => {
     const cats = searchParams.getAll('category');
@@ -120,44 +129,35 @@ export const Listings: React.FC = () => {
   };
 
   useEffect(() => {
-    const q = query(collection(db, 'listings'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const firestoreListings = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Listing[];
+    let isMounted = true;
+    fetch('/api/listings')
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(data => {
+        if (!isMounted) return;
+        const firestoreListings = (Array.isArray(data.listings) ? data.listings : []) as Listing[];
+        const parseTime = (val: any): number => {
+          if (!val) return 0;
+          if (typeof val === 'number') return val;
+          if (typeof val.toDate === 'function') return val.toDate().getTime();
+          if (typeof val.seconds === 'number') return val.seconds * 1000;
+          const d = new Date(val);
+          return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
 
-      // Filter client-side for better robustness
-      const filtered = firestoreListings.filter(l => {
-        // Admin sees everything
-        if (user?.role === 'admin') return true;
-        
-        // User sees approved listings OR their own pending listings
-        return l.isApproved || (user && l.submittedBy === user.uid);
+        firestoreListings.sort((a, b) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return parseTime(b.createdAt) - parseTime(a.createdAt);
+        });
+        setRawListings(firestoreListings);
+      })
+      .catch(error => {
+        console.error('Error fetching listings from /api/listings:', error);
       });
 
-      const parseTime = (val: any): number => {
-        if (!val) return 0;
-        if (typeof val === 'number') return val;
-        if (typeof val.toDate === 'function') return val.toDate().getTime();
-        if (typeof val.seconds === 'number') return val.seconds * 1000;
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? 0 : d.getTime();
-      };
-
-      // Sort client-side: Featured first, then by date
-      filtered.sort((a, b) => {
-        if (a.isFeatured && !b.isFeatured) return -1;
-        if (!a.isFeatured && b.isFeatured) return 1;
-        return parseTime(b.createdAt) - parseTime(a.createdAt);
-      });
-      setRawListings(filtered);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'listings');
-    });
-
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const filteredListings = React.useMemo(() => {

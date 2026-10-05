@@ -94,9 +94,11 @@ export function renderHomeSSRHtml(data: {
   news?: any[];
   events?: any[];
   jobs?: any[];
+  settings?: { heroImageUrl?: string };
 }): string {
   const listings = data.listings || [];
   const news = data.news || [];
+  const heroImagePath = data.settings?.heroImageUrl || GLOBAL_HERO_IMAGE_PATH;
 
   const categories = [
     { 
@@ -232,8 +234,8 @@ export function renderHomeSSRHtml(data: {
       <section class="relative w-full h-[400px] md:h-[500px] lg:h-[550px] flex flex-col justify-center items-center px-4 overflow-hidden mb-8 md:mb-12">
         <div class="absolute inset-0 z-0">
           <img 
-            src="${escapeHtmlAttr(getImageUrl(GLOBAL_HERO_IMAGE_PATH, 1600))}" 
-            srcset="${escapeHtmlAttr(getImageSrcSet(GLOBAL_HERO_IMAGE_PATH, [640, 1024, 1600]))}"
+            src="${escapeHtmlAttr(getImageUrl(heroImagePath, 1600))}" 
+            srcset="${escapeHtmlAttr(getImageSrcSet(heroImagePath, [640, 1024, 1600]))}"
             sizes="100vw"
             alt="Ottawa Sunset" 
             class="w-full h-full object-cover brightness-[0.45] saturate-[1.2]" 

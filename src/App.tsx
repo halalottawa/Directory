@@ -4,7 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { isAppWrapper } from './utils/platform';
-import { getGeneralSettings } from './firebase';
+import { getGeneralSettings } from './services/publicSettings';
 
 const CookieCheckRedirect: React.FC = () => {
   useEffect(() => {
@@ -84,9 +84,9 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './context/AuthContext';
 
 import { HelmetProvider } from 'react-helmet-async';
-import { Toaster } from 'sonner';
-
 import { safeLocalStorage } from './utils/safeStorage';
+
+const Toaster = React.lazy(() => import('sonner').then(m => ({ default: m.Toaster })));
 
 const AppContent: React.FC = () => {
   const { user, loading, isGuest } = useAuth();
@@ -291,7 +291,9 @@ const AppContent: React.FC = () => {
 export default function App() {
   return (
     <HelmetProvider>
-      <Toaster position="top-center" richColors />
+      <Suspense fallback={null}>
+        <Toaster position="top-center" richColors />
+      </Suspense>
       <BrowserRouter>
         <AuthProvider>
           <AppContent />

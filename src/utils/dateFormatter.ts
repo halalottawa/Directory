@@ -11,6 +11,7 @@ export const formatDate = (dateString: string | Date): string => {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'America/Toronto',
   });
 };
 

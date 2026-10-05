@@ -27,7 +27,7 @@
 /* Performance optimizations for below-the-fold content */
 .content-visibility-auto {
   content-visibility: auto;
-  contain-intrinsic-size: 0 450px;
+  contain-intrinsic-size: auto 450px;
 }
 
 /* Base Styles for Markdown & Prose articles */

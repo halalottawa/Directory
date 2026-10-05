@@ -2,6 +2,9 @@
 // Can be overridden via VITE_IMAGE_CDN_HOST (client) or IMAGE_CDN_HOST (server)
 export const DEFAULT_IMAGE_HOST = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev';
 
+export const HERO_IMAGE_WIDTHS: number[] = [640, 1024, 1600];
+export const CARD_IMAGE_WIDTHS: number[] = [320, 480, 640];
+
 export const getImageHost = (): string => {
   if (typeof process !== 'undefined' && process.env && process.env.IMAGE_CDN_HOST) {
     return process.env.IMAGE_CDN_HOST.replace(/\/+$/, '');
@@ -17,44 +20,49 @@ export const getImageHost = (): string => {
 
 export const GLOBAL_HERO_IMAGE_PATH = '/uploads/global-hero-1781326553984.webp';
 
+export const getRawImageUrl = (pathOrUrl: string | null | undefined): string => {
+  return getImageUrl(pathOrUrl, 1200);
+};
+
 /**
- * Single image URL helper that takes (path, width) and returns the URL.
- * When switching to a custom domain like img.halalottawa.ca with Cloudflare image resizing,
- * resizing query parameters or path transforms can be modified here in one place.
+ * Single image URL helper that takes (path, width) and returns a resized WebP/AVIF URL
+ * from the configured image host (Cloudflare R2 / CDN).
  */
-export const getImageUrl = (pathOrUrl: string | null | undefined, width?: number): string => {
+export const getImageUrl = (pathOrUrl: string | null | undefined, width: number = 800): string => {
   if (!pathOrUrl) return '';
   const trimmed = pathOrUrl.trim();
   if (!trimmed) return '';
 
   const host = getImageHost();
 
-  // If already absolute URL
+  // If it's already an absolute R2 URL, normalize to configured host
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    // If it points to the default R2 bucket or current host, allow host rewriting
-    let normalized = trimmed.replace(
+    const normalized = trimmed.replace(
       /^https?:\/\/(?:pub-344de773fe4147898d363b9fffa2e2e4\.r2\.dev|halal-ottawa-images\.r2\.cloudflarestorage\.com)/i,
       host
     );
-
-    if (width && host.includes('img.halalottawa.ca')) {
-      try {
-        const u = new URL(normalized);
-        u.searchParams.set('w', String(width));
-        return u.toString();
-      } catch (e) {
-        return `${normalized}${normalized.includes('?') ? '&' : '?'}w=${width}`;
-      }
+    if (host.includes('img.halalottawa.ca') && normalized.startsWith(host)) {
+      const separator = normalized.includes('?') ? '&' : '?';
+      return `${normalized}${separator}width=${width}&quality=70`;
     }
     return normalized;
   }
 
-  // Relative path (like /uploads/...)
+  // Relative path (e.g. /uploads/...)
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   if (cleanPath.startsWith('/uploads/')) {
     const fullUrl = `${host}${cleanPath}`;
-    if (width && host.includes('img.halalottawa.ca')) {
-      return `${fullUrl}?w=${width}`;
+    if (host.includes('img.halalottawa.ca')) {
+      return `${fullUrl}?width=${width}&quality=70`;
+    }
+    return fullUrl;
+  }
+
+  // Fallback for local public assets like /ottawa-sunset.webp -> route to R2 global hero
+  if (cleanPath === '/ottawa-sunset.webp') {
+    const fullUrl = `${host}${GLOBAL_HERO_IMAGE_PATH}`;
+    if (host.includes('img.halalottawa.ca')) {
+      return `${fullUrl}?width=${width}&quality=70`;
     }
     return fullUrl;
   }
@@ -63,9 +71,12 @@ export const getImageUrl = (pathOrUrl: string | null | undefined, width?: number
 };
 
 /**
- * Generates srcset string with ~640, 1024, 1600 variants for any image path.
+ * Generates srcset string for responsive images (e.g. 640w, 1024w, 1600w)
  */
-export const getImageSrcSet = (pathOrUrl: string | null | undefined, widths: number[] = [640, 1024, 1600]): string => {
+export const getImageSrcSet = (
+  pathOrUrl: string | null | undefined,
+  widths: number[] = [640, 1024, 1600]
+): string => {
   if (!pathOrUrl) return '';
   return widths.map(w => `${getImageUrl(pathOrUrl, w)} ${w}w`).join(', ');
 };

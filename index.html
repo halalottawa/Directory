@@ -14,6 +14,54 @@
               }
             };
           }
+          if (typeof Element !== 'undefined' && Element.prototype && Element.prototype.attachShadow && !Element.prototype.__safeAttachShadowPatched) {
+            var origAttachShadow = Element.prototype.attachShadow;
+            var shadowMap = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+            Element.prototype.attachShadow = function(init) {
+              if (this.shadowRoot) {
+                return this.shadowRoot;
+              }
+              if (shadowMap && shadowMap.has(this)) {
+                return shadowMap.get(this);
+              }
+              try {
+                var root = origAttachShadow.call(this, init);
+                if (shadowMap && root) {
+                  shadowMap.set(this, root);
+                }
+                return root;
+              } catch (err) {
+                if (this.shadowRoot) {
+                  return this.shadowRoot;
+                }
+                if (shadowMap && shadowMap.has(this)) {
+                  return shadowMap.get(this);
+                }
+                var fallbackHost = document.createElement('div');
+                try {
+                  var fallbackRoot = origAttachShadow.call(fallbackHost, init || { mode: 'open' });
+                  if (shadowMap && fallbackRoot) {
+                    shadowMap.set(this, fallbackRoot);
+                  }
+                  return fallbackRoot;
+                } catch (e2) {
+                  return fallbackHost;
+                }
+              }
+            };
+            Element.prototype.__safeAttachShadowPatched = true;
+          }
+          if (typeof window !== 'undefined' && window.addEventListener) {
+            window.addEventListener('error', function(event) {
+              var msg = (event && event.message) ? String(event.message) : '';
+              var errName = (event && event.error && event.error.name) ? String(event.error.name) : '';
+              if (msg.indexOf('attachShadow') !== -1 || msg.indexOf('ShadowDOM') !== -1 || (errName === 'NotSupportedError' && msg.indexOf('Shadow') !== -1)) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return false;
+              }
+            }, true);
+          }
         } catch (e) {}
       })();
     </script>
@@ -42,7 +90,7 @@
         } catch (e) {}
       })();
     </script>
-    <!-- Defer Analytics & Third-Party Publisher Scripts until after window load / idle to eliminate TBT -->
+    <!-- Defer Analytics & Third-Party Publisher Scripts until first scroll or user interaction -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
@@ -52,6 +100,12 @@
       function initThirdPartyScripts() {
         if (window.__thirdPartyLoaded) return;
         window.__thirdPartyLoaded = true;
+        window.__userHasInteracted = true;
+
+        var events = ['scroll', 'pointerdown', 'touchstart', 'keydown'];
+        for (var i = 0; i < events.length; i++) {
+          window.removeEventListener(events[i], initThirdPartyScripts);
+        }
 
         var ga = document.createElement('script');
         ga.async = true;
@@ -64,20 +118,27 @@
         document.head.appendChild(swg);
       }
 
-      if (document.readyState === 'complete') {
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(initThirdPartyScripts, { timeout: 3000 });
-        } else {
-          setTimeout(initThirdPartyScripts, 2000);
+      (function() {
+        var events = ['scroll', 'pointerdown', 'touchstart', 'keydown'];
+        for (var i = 0; i < events.length; i++) {
+          window.addEventListener(events[i], initThirdPartyScripts, { once: true, passive: true });
         }
-      } else {
-        window.addEventListener('load', function() {
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(initThirdPartyScripts, { timeout: 3000 });
-          } else {
-            setTimeout(initThirdPartyScripts, 2000);
+      })();
+    </script>
+    <script type="speculationrules">
+      {
+        "prefetch": [
+          {
+            "source": "document",
+            "where": {
+              "and": [
+                { "href_matches": "/*" },
+                { "not": { "href_matches": ["/login*", "/register*", "/signup*", "/auth*", "/forgot-password*", "/admin*", "/profile*", "/saved*", "/settings*", "/listings/add*", "/news/add*", "/news/edit*", "/api/*", "/__*"] } }
+              ]
+            },
+            "eagerness": "moderate"
           }
-        });
+        ]
       }
     </script>
     <meta name="description" content="A community-driven halal discovery hub for Ottawa, featuring local listings, restaurants, mosques, and community news." />
@@ -102,15 +163,6 @@
     <link rel="preconnect" href="https://images.unsplash.com" crossorigin />
     <link rel="preconnect" href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev" crossorigin />
     <link rel="dns-prefetch" href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev" />
-    <!-- Preload LCP Hero Image with responsive srcset -->
-    <link 
-      rel="preload" 
-      as="image" 
-      fetchpriority="high"
-      href="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp"
-      imagesrcset="https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 640w, https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 1024w, https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp 1600w"
-      imagesizes="100vw"
-    />
     <link rel="preconnect" href="https://res.cloudinary.com" crossorigin />
     <link rel="preconnect" href="https://halal-ottawa-images.r2.cloudflarestorage.com" crossorigin />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />

@@ -1,20 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import { MapPin, Star, Plus, Search, ChevronLeft, UtensilsCrossed, Globe, Compass, Info, ChevronDown, ChevronUp, Utensils } from 'lucide-react';
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
-import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
-import { ListingDetail } from './ListingDetail';
 import { isAppWrapper } from '../utils/platform';
 import { getNeighborhoodFromAddress } from '../utils/geo';
+
+const ListingDetail = React.lazy(() => import('./ListingDetail').then(m => ({ default: m.ListingDetail })));
 
 const LOCATION_BOUNDARIES: Record<string, {
   headline: string;
@@ -251,79 +249,10 @@ export const CategoryListings: React.FC = () => {
 
     const fetchListings = async () => {
       try {
-        const isApprovedOnly = !user || user.role !== 'admin';
-        const targetCatTitle = formattedCategory.charAt(0).toUpperCase() + formattedCategory.slice(1);
-        const targetCatLower = formattedCategory.toLowerCase();
-
-        let firestoreListings: Listing[] = [];
-
-        try {
-          const queries: any[] = [];
-          const baseConditions = isApprovedOnly ? [where('isApproved', '==', true)] : [];
-
-          if (isLocationCategory) {
-            // Location pages are restaurants in a specific neighborhood
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', 'Restaurants')));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', 'Restaurants')));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', 'restaurants')));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', 'restaurants')));
-          } else if (isMainCategory) {
-            // Main category pages (both array and string shapes, both casing)
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', targetCatTitle)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', targetCatTitle)));
-            if (targetCatTitle !== targetCatLower) {
-              queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', 'array-contains', targetCatLower)));
-              queries.push(query(collection(db, 'listings'), ...baseConditions, where('category', '==', targetCatLower)));
-            }
-          } else {
-            // Cuisine or type pages
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', 'array-contains', targetCatTitle)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', 'array-contains', targetCatTitle)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', 'array-contains', targetCatLower)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', 'array-contains', targetCatLower)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('cuisine', '==', targetCatTitle)));
-            queries.push(query(collection(db, 'listings'), ...baseConditions, where('types', '==', targetCatTitle)));
-          }
-
-          // If a logged-in non-admin user is present, also fetch their own submitted listings
-          if (user && user.role !== 'admin') {
-            queries.push(query(collection(db, 'listings'), where('submittedBy', '==', user.uid)));
-          }
-
-          const snapshots = await Promise.all(queries.map(qItem => getDocs(qItem).catch(err => {
-            console.warn("Targeted query error, will use collected docs or fallback", err);
-            return null;
-          })));
-
-          const docsMap = new Map<string, any>();
-          for (const snap of snapshots) {
-            if (snap && snap.docs) {
-              for (const doc of snap.docs) {
-                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-              }
-            }
-          }
-
-          // If no docs found from targeted queries, fallback to query with isApproved filter
-          if (docsMap.size === 0) {
-            const fallbackQ = isApprovedOnly
-              ? query(collection(db, 'listings'), where('isApproved', '==', true))
-              : query(collection(db, 'listings'));
-            const fallbackSnap = await getDocs(fallbackQ);
-            for (const doc of fallbackSnap.docs) {
-              docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-            }
-          }
-
-          firestoreListings = Array.from(docsMap.values()) as Listing[];
-        } catch (fetchErr) {
-          console.warn("Error running filtered listing queries, falling back", fetchErr);
-          const fallbackQ = isApprovedOnly
-            ? query(collection(db, 'listings'), where('isApproved', '==', true))
-            : query(collection(db, 'listings'));
-          const fallbackSnap = await getDocs(fallbackQ);
-          firestoreListings = fallbackSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Listing[];
-        }
+        const res = await fetch(`/api/listings?category=${encodeURIComponent(formattedCategory)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const firestoreListings = (Array.isArray(data.listings) ? data.listings : []) as Listing[];
 
         if (!isMounted) return;
         
@@ -336,21 +265,18 @@ export const CategoryListings: React.FC = () => {
           if (isLocationCategory) {
             const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
             const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
-            const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === 'restaurants');
+            const matchesCategory = listingCategories.some(cat => String(cat).toLowerCase() === 'restaurants');
             if (!(matchesLocation && matchesCategory)) return false;
           } else {
-            const matchesCategory = listingCategories.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase());
-            const matchesType = listingTypes.some(t => t.toLowerCase() === formattedCategory.toLowerCase());
-            const matchesCuisine = listingCuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
+            const matchesCategory = listingCategories.some(cat => String(cat).toLowerCase() === formattedCategory.toLowerCase());
+            const matchesType = listingTypes.some(t => String(t).toLowerCase() === formattedCategory.toLowerCase());
+            const matchesCuisine = listingCuisines.some(c => String(c).toLowerCase() === formattedCategory.toLowerCase());
             
             if (!(matchesCategory || matchesType || matchesCuisine)) return false;
           }
           
-          // Admin sees everything
           if (user?.role === 'admin') return true;
-          
-          // User sees approved listings OR their own pending listings
-          return l.isApproved || (user && l.submittedBy === user.uid);
+          return l.isApproved !== false || (user && l.submittedBy === user.uid);
         });
 
         const parseTime = (val: any): number => {
@@ -368,7 +294,7 @@ export const CategoryListings: React.FC = () => {
         setRawListings(filtered);
       } catch (error) {
         if (isMounted) {
-          handleFirestoreError(error, OperationType.LIST, 'listings');
+          console.error('Error fetching category listings from /api/listings:', error);
         }
       }
     };

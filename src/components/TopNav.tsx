@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, Settings, LogIn, LogOut, ChevronLeft, MapPin, Newspaper, Calendar, Briefcase, Shield, PlusCircle, Home, Bookmark, LayoutDashboard, Clock, Check, Users, MessageSquare, Star, ChevronDown, ChevronUp, Globe, FileText, HelpCircle, Compass, Coffee } from 'lucide-react';
-import { getGeneralSettings } from '../firebase';
+import { getGeneralSettings, getInitialGeneralSettings, DEFAULT_SITE_LOGO_URL } from '../services/publicSettings';
 import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
@@ -18,7 +18,9 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const [isRestaurantsMobileExpanded, setIsRestaurantsMobileExpanded] = useState(false);
   const [isAdminMenuExpanded, setIsAdminMenuExpanded] = useState(location.pathname === '/admin');
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-  const [siteLogoUrl, setSiteLogoUrl] = useState("https://www.halalottawa.ca/wp-content/uploads/2023/07/Halal-Ottawa.png.webp");
+  const [siteLogoUrl, setSiteLogoUrl] = useState<string>(() => {
+    return getInitialGeneralSettings()?.logoUrl || DEFAULT_SITE_LOGO_URL;
+  });
   const { user, logout, loading, initAuth } = useAuth();
   const navigate = useNavigate();
   const [inApp, setInApp] = useState(false);
@@ -80,7 +82,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           role="link"
         >
           <img 
-            src={siteLogoUrl || undefined} 
+            src={siteLogoUrl || DEFAULT_SITE_LOGO_URL} 
             alt="Halal Ottawa" 
             className="h-[52px] w-[180px] object-contain"
             fetchPriority="high"
@@ -88,6 +90,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             height="52"
             decoding="async"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              if (e.currentTarget.src !== DEFAULT_SITE_LOGO_URL) {
+                e.currentTarget.src = DEFAULT_SITE_LOGO_URL;
+              }
+            }}
           />
         </div>
 
@@ -174,7 +181,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
           role="link"
         >
           <img 
-            src={siteLogoUrl || undefined} 
+            src={siteLogoUrl || DEFAULT_SITE_LOGO_URL} 
             alt="Halal Ottawa" 
             className="h-[44px] w-[152px] object-contain"
             width="152"
@@ -182,6 +189,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             fetchPriority="high"
             decoding="async"
             referrerPolicy="no-referrer"
+            onError={(e) => {
+              if (e.currentTarget.src !== DEFAULT_SITE_LOGO_URL) {
+                e.currentTarget.src = DEFAULT_SITE_LOGO_URL;
+              }
+            }}
           />
         </div>
 
@@ -291,7 +303,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             <div className="p-6 flex justify-between items-center border-b border-gray-50">
               <div className="flex items-center gap-2">
                 <img 
-                  src={siteLogoUrl || undefined} 
+                  src={siteLogoUrl || DEFAULT_SITE_LOGO_URL} 
                   alt="Halal Ottawa" 
                   className="h-[52px] w-auto"
                   width="180"
@@ -299,6 +311,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    if (e.currentTarget.src !== DEFAULT_SITE_LOGO_URL) {
+                      e.currentTarget.src = DEFAULT_SITE_LOGO_URL;
+                    }
+                  }}
                 />
               </div>
               <button onClick={() => setIsMenuOpen(false)} className="p-2 hover:bg-gray-50 rounded-full">

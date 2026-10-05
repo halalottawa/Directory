@@ -28,6 +28,7 @@ import {
   renderNotFoundSSRHtml
 } from "./src/utils/ssrTemplates";
 import { getExcerpt } from "./src/utils/textUtils";
+import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH } from "./src/config/images";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
@@ -84,74 +85,186 @@ async function ensureFirebaseDb() {
   return null;
 }
 
-async function getSettingsLogoUrl(): Promise<string | null> {
+let cachedSettingsData: any = null;
+let cachedSettingsExpiry = 0;
+
+const DEFAULT_LOGO_URL = "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/halal-ottawa-logo.webp";
+
+async function getCachedSettingsData(): Promise<any> {
+  const now = Date.now();
+  if (cachedSettingsData && now < cachedSettingsExpiry) {
+    return cachedSettingsData;
+  }
   try {
     const fb = await ensureFirebaseDb();
     if (fb) {
       const { db, utils } = fb;
       const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && data.logoUrl && data.logoUrl.trim() !== '') {
-          return data.logoUrl.trim();
-        }
+        const raw = docSnap.data() || {};
+        cachedSettingsData = {
+          logoUrl: DEFAULT_LOGO_URL,
+          ...raw,
+        };
+        cachedSettingsExpiry = now + 60000; // 60s server memory cache
+        return cachedSettingsData;
       }
     }
   } catch (err) {
-    console.error("Error retrieving settings logoUrl:", err);
+    console.error("Error retrieving settings/general:", err);
   }
-  return null;
+  cachedSettingsData = { logoUrl: DEFAULT_LOGO_URL };
+  cachedSettingsExpiry = now + 60000;
+  return cachedSettingsData;
+}
+
+async function getSettingsLogoUrl(): Promise<string | null> {
+  const data = await getCachedSettingsData();
+  if (data && data.logoUrl && data.logoUrl.trim() !== '') {
+    return data.logoUrl.trim();
+  }
+  return DEFAULT_LOGO_URL;
 }
 
 async function getSettingsFaviconUrl(): Promise<string | null> {
-  try {
-    const fb = await ensureFirebaseDb();
-    if (fb) {
-      const { db, utils } = fb;
-      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && data.faviconUrl && data.faviconUrl.trim() !== '') {
-          return data.faviconUrl.trim();
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Error retrieving settings faviconUrl:", err);
+  const data = await getCachedSettingsData();
+  if (data && data.faviconUrl && data.faviconUrl.trim() !== '') {
+    return data.faviconUrl.trim();
   }
   return "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
 }
 
 const DEFAULT_HERO_IMAGE_URL = "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/global-hero-1781326553984.webp";
 
-let cachedHeroImageUrl: string | null = null;
-let cachedHeroImageExpiry = 0;
-
 async function getHeroImageUrl(): Promise<string> {
-  const now = Date.now();
-  if (cachedHeroImageUrl && now < cachedHeroImageExpiry) {
-    return cachedHeroImageUrl;
+  const data = await getCachedSettingsData();
+  if (data && data.heroImageUrl && typeof data.heroImageUrl === 'string' && data.heroImageUrl.trim() !== '') {
+    return data.heroImageUrl.trim();
   }
-  try {
-    const fb = await ensureFirebaseDb();
-    if (fb) {
-      const { db, utils } = fb;
-      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data && data.heroImageUrl && typeof data.heroImageUrl === 'string' && data.heroImageUrl.trim() !== '') {
-          cachedHeroImageUrl = data.heroImageUrl.trim();
-          cachedHeroImageExpiry = now + 600000; // 10 min cache
-          return cachedHeroImageUrl;
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Error retrieving settings heroImageUrl:", err);
-  }
-  cachedHeroImageUrl = DEFAULT_HERO_IMAGE_URL;
-  cachedHeroImageExpiry = now + 60000;
   return DEFAULT_HERO_IMAGE_URL;
+}
+
+const HOME_CACHE_TTL_MS = 60 * 1000; // 60 seconds in server memory
+let cachedHomePayload: any = null;
+let cachedHomePayloadExpiry = 0;
+let cachedListingsPayload: any[] | null = null;
+let cachedListingsExpiry = 0;
+let cachedNewsPayload: any[] | null = null;
+let cachedNewsExpiry = 0;
+
+function parseFirestoreTimestamp(val: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val.toDate === 'function') return val.toDate().getTime();
+  if (typeof val.seconds === 'number') return val.seconds * 1000;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
+async function getCachedHomeData(): Promise<any> {
+  const now = Date.now();
+  if (cachedHomePayload && now < cachedHomePayloadExpiry) {
+    return cachedHomePayload;
+  }
+  const fb = await ensureFirebaseDb();
+  if (!fb) return null;
+  const { db, utils } = fb;
+  const { collection, getDocs, doc, getDoc, query, where, limit } = utils;
+
+  const qListings = query(collection(db, 'listings'), where('isApproved', '==', true));
+  const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
+  const settingsRef = doc(db, 'settings', 'general');
+
+  // Run homepage Firestore queries in parallel
+  const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
+    getDocs(qListings),
+    getDocs(qNews),
+    getDoc(settingsRef).catch(() => null)
+  ]);
+
+  const settingsData = settingsSnap && settingsSnap.exists() ? (settingsSnap.data() || {}) : {};
+  cachedSettingsData = settingsData;
+  cachedSettingsExpiry = now + HOME_CACHE_TTL_MS;
+
+  let listingsData = listingsSnap.docs.map((docItem: any) => {
+    const d = docItem.data() as any;
+    return {
+      id: docItem.id,
+      name: d.name || '',
+      slug: d.slug || docItem.id,
+      category: d.category || 'restaurants',
+      coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
+      photos: d.photos ? d.photos.slice(0, 1) : [],
+      averageRating: d.averageRating || 5.0,
+      address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
+      isFeatured: !!d.isFeatured,
+      description: getExcerpt(d.description, 160),
+      createdAt: d.createdAt || null
+    };
+  });
+  listingsData = listingsData.sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)).slice(0, 12);
+
+  let newsData = newsSnap.docs.map((docItem: any) => {
+    const d = docItem.data() as any;
+    return {
+      id: docItem.id,
+      title: d.title || '',
+      slug: d.slug || docItem.id,
+      excerpt: getExcerpt(d.excerpt || d.content, 160),
+      coverImage: d.coverImage || '',
+      publishDate: d.publishDate || d.createdAt || null,
+      author: d.author || 'Youssef Agrebi',
+      createdAt: d.createdAt || null
+    };
+  });
+  newsData = newsData.sort((a: any, b: any) => parseFirestoreTimestamp(b.publishDate || b.createdAt) - parseFirestoreTimestamp(a.publishDate || a.createdAt)).slice(0, 6);
+
+  cachedHomePayload = {
+    listings: listingsData,
+    news: newsData,
+    settings: settingsData,
+    timestamp: now
+  };
+  cachedHomePayloadExpiry = now + HOME_CACHE_TTL_MS;
+  return cachedHomePayload;
+}
+
+async function getCachedListingsData(): Promise<any[]> {
+  const now = Date.now();
+  if (cachedListingsPayload && now < cachedListingsExpiry) {
+    return cachedListingsPayload;
+  }
+  const fb = await ensureFirebaseDb();
+  if (!fb) return [];
+  const { db, utils } = fb;
+  const snap = await utils.getDocs(utils.query(utils.collection(db, 'listings'), utils.where('isApproved', '==', true)));
+  const items = snap.docs
+    .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+    .sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
+  cachedListingsPayload = items;
+  cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
+  return items;
+}
+
+async function getCachedNewsData(): Promise<any[]> {
+  const now = Date.now();
+  if (cachedNewsPayload && now < cachedNewsExpiry) {
+    return cachedNewsPayload;
+  }
+  const fb = await ensureFirebaseDb();
+  if (!fb) return [];
+  const { db, utils } = fb;
+  const snap = await utils.getDocs(utils.query(utils.collection(db, 'news'), utils.where('isApproved', '==', true), utils.limit(50)));
+  const items = snap.docs
+    .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+    .sort((a: any, b: any) => {
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      return parseFirestoreTimestamp(b.publishDate || b.createdAt) - parseFirestoreTimestamp(a.publishDate || a.createdAt);
+    });
+  cachedNewsPayload = items;
+  cachedNewsExpiry = now + HOME_CACHE_TTL_MS;
+  return items;
 }
 
 function isBufferHtml(buf: Buffer): boolean {
@@ -461,13 +574,11 @@ async function startServer() {
   });
 
   // Global Session and Cookie Management Middleware
-  // Ensures proxy session (__session) and cookie-check requirements are satisfied across all routes,
-  // especially within cross-site iframe preview environments (SameSite=None; Secure; Partitioned)
+  // Only sets cookies on /__cookie_check.html or when __aistudio_auth_token is present so public HTML responses do not emit Set-Cookie (allowing Vercel CDN to cache HTML with x-vercel-cache: HIT)
   app.use((req, res, next) => {
     try {
       const p = req.path || "";
-      const isStaticAsset = /\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js|map)$/i.test(p);
-      if (!isStaticAsset) {
+      if (p.includes("__cookie_check") || req.query?.__aistudio_auth_token) {
         const cookieHeader = req.headers.cookie || "";
         const hasSession = cookieHeader.includes("__session=");
         const hasCheck = cookieHeader.includes("cookie_check=");
@@ -946,6 +1057,50 @@ async function startServer() {
   // API routes can be added here
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get(["/api/settings", "/api/public/settings"], async (req, res) => {
+    try {
+      const settings = await getCachedSettingsData();
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.json(settings || { logoUrl: DEFAULT_LOGO_URL });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load settings" });
+    }
+  });
+
+  app.get("/api/home", async (req, res) => {
+    try {
+      const data = await getCachedHomeData();
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.json(data || { listings: [], news: [], settings: {}, timestamp: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load home data" });
+    }
+  });
+
+  app.get(["/api/listings", "/api/public/listings"], async (req, res) => {
+    try {
+      const listings = await getCachedListingsData();
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.json({ listings, timestamp: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load listings" });
+    }
+  });
+
+  app.get("/api/news", async (req, res) => {
+    try {
+      const news = await getCachedNewsData();
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.json({ news, timestamp: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load news" });
+    }
   });
 
   app.get("/api/admin/migrate-r2", async (req, res) => {
@@ -3416,67 +3571,14 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       const db = fb.db;
       const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = fb.utils;
       
-      // Home Page Pre-fetch
+      // Home Page Pre-fetch (parallel Firestore queries + 60-second server memory cache)
       if (pathParts.length === 0) {
         routeType = 'home';
         try {
-          const qListings = query(
-            collection(db, 'listings'), 
-            where('isApproved', '==', true)
-          );
-          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
-          
-          const [listingsSnap, newsSnap] = await Promise.all([
-            getDocs(qListings), getDocs(qNews)
-          ]);
-          
-          const parseListingTime = (val: any): number => {
-            if (!val) return 0;
-            if (typeof val === 'number') return val;
-            if (typeof val.toDate === 'function') return val.toDate().getTime();
-            if (typeof val.seconds === 'number') return val.seconds * 1000;
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? 0 : d.getTime();
-          };
-
-          let listingsData = listingsSnap.docs.map(doc => {
-            const d = doc.data() as any;
-            return {
-              id: doc.id,
-              name: d.name || '',
-              slug: d.slug || doc.id,
-              category: d.category || 'restaurants',
-              coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
-              photos: d.photos ? d.photos.slice(0, 1) : [],
-              averageRating: d.averageRating || 5.0,
-              address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
-              isFeatured: !!d.isFeatured,
-              description: getExcerpt(d.description, 160),
-              createdAt: d.createdAt || null
-            };
-          });
-          listingsData = listingsData.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)).slice(0, 12);
-          
-          let newsData = newsSnap.docs.map(doc => {
-            const d = doc.data() as any;
-            return {
-              id: doc.id,
-              title: d.title || '',
-              slug: d.slug || doc.id,
-              excerpt: getExcerpt(d.excerpt || d.content, 160),
-              coverImage: d.coverImage || '',
-              publishDate: d.publishDate || d.createdAt || null,
-              author: d.author || 'Youssef Agrebi',
-              createdAt: d.createdAt || null
-            };
-          });
-          newsData = newsData.sort((a, b) => parseListingTime(b.publishDate || b.createdAt) - parseListingTime(a.publishDate || a.createdAt)).slice(0, 6);
-          
-          initialData = {
-            listings: listingsData,
-            news: newsData,
-            timestamp: Date.now()
-          };
+          initialData = await getCachedHomeData();
+          if (initialData?.settings?.heroImageUrl) {
+            ogImage = initialData.settings.heroImageUrl;
+          }
         } catch(e) {
           console.error("Error pre-fetching home data", e);
         }
@@ -4054,10 +4156,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
     html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
-    const isHomeRoute = cleanUrlPath === '/' || cleanUrlPath === '' || routeType === 'home';
-    if (!isHomeRoute) {
-      html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
-    }
+    html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
     html = html.replace(/<script\b[^>]*>window\.__INITIAL_ROUTE_TYPE__[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<div\s+id=["']root["']>[\s\S]*?<\/div>/i, '<div id="root"></div>');
@@ -4112,6 +4211,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
 
     if (pathParts.length === 0) {
+      const heroPath = initialData?.settings?.heroImageUrl || defaultHeroImage || GLOBAL_HERO_IMAGE_PATH;
+      const heroHref = getImageUrl(heroPath, 1600);
+      const heroSrcSet = getImageSrcSet(heroPath, [640, 1024, 1600]);
+      extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="100vw" />`;
       const websiteSchema = {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -4476,6 +4579,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
   }
 
+  function applyHtmlCacheHeaders(res: express.Response, reqPath: string, isNotFound?: boolean) {
+    const cacheControl = getHtmlCacheControl(reqPath, isNotFound);
+    res.setHeader("Cache-Control", cacheControl);
+    if (cacheControl.startsWith("public")) {
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("CDN-Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
+    }
+  }
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
@@ -4501,7 +4613,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
-        res.setHeader("Cache-Control", getHtmlCacheControl(req.path, result.isNotFound));
+        applyHtmlCacheHeaders(res, req.path, result.isNotFound);
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(result.html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
@@ -4520,7 +4632,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         } else if (/\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js)$/i.test(filePath)) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
-          res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+          res.setHeader("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=86400");
+          res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
         }
       }
     }));
@@ -4535,7 +4648,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
-        res.setHeader("Cache-Control", getHtmlCacheControl(req.path, result.isNotFound));
+        applyHtmlCacheHeaders(res, req.path, result.isNotFound);
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);

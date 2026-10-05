@@ -1,9 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { safeLocalStorage } from './utils/safeStorage';
 import firebaseConfig from '../firebase-applet-config.json';
+export {
+  type GeneralSettings,
+  clearGeneralSettingsCache,
+  getGeneralSettings,
+  getInitialGeneralSettings,
+} from './utils/settings';
 
 const config = { ...firebaseConfig };
 
@@ -59,65 +64,6 @@ export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
 export const storage = getStorage(app);
-
-export interface GeneralSettings {
-  logoUrl?: string;
-  faviconUrl?: string;
-  coverImageUrl?: string;
-  heroImageUrl?: string;
-}
-
-let cachedSettingsPromise: Promise<GeneralSettings | null> | null = null;
-
-export function clearGeneralSettingsCache() {
-  if (typeof window !== 'undefined') {
-    safeLocalStorage.removeItem('halal_ottawa_general_settings');
-    safeLocalStorage.removeItem('halal_ottawa_general_settings_expiry');
-  }
-  cachedSettingsPromise = null;
-}
-
-export async function getGeneralSettings(forceFresh = false): Promise<GeneralSettings | null> {
-  const CACHE_KEY = 'halal_ottawa_general_settings';
-  const CACHE_TTL_KEY = 'halal_ottawa_general_settings_expiry';
-  const now = Date.now();
-  
-  if (typeof window !== 'undefined' && !forceFresh) {
-    const cached = safeLocalStorage.getItem(CACHE_KEY);
-    const expiry = safeLocalStorage.getItem(CACHE_TTL_KEY);
-    if (cached && expiry && now < parseInt(expiry, 10)) {
-      try {
-        return JSON.parse(cached);
-      } catch (e) {
-        // Fallback
-      }
-    }
-  }
-
-  if (!cachedSettingsPromise || forceFresh) {
-    cachedSettingsPromise = (async () => {
-      try {
-        const docSnap = await getDoc(doc(db, 'settings', 'general'));
-        if (docSnap.exists()) {
-          const data = docSnap.data() as GeneralSettings;
-          if (typeof window !== 'undefined') {
-            safeLocalStorage.setItem(CACHE_KEY, JSON.stringify(data));
-            safeLocalStorage.setItem(CACHE_TTL_KEY, (now + 3600000).toString()); // 1 hour TTL
-          }
-          return data;
-        }
-        return null;
-      } catch (err) {
-        console.error('Error fetching general settings:', err);
-        cachedSettingsPromise = null;
-        return null;
-      }
-    })();
-  }
-
-  return cachedSettingsPromise;
-}
-
 
 // Initialize Messaging conditionally (it might not be supported in some browsers/environments)
 export const getMessagingPromise = async () => {
