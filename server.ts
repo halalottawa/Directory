@@ -4866,6 +4866,35 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       server: { middlewareMode: true, hmr: false },
       appType: "custom", // Use custom mode to allow our wildcard handler to inject SSI tags before sending to client
     });
+
+    app.get("/@vite/client", async (_req, res, next) => {
+      try {
+        const result = await vite.transformRequest("/@vite/client");
+        if (result && result.code) {
+          const patchedCode = result.code
+            .replace(
+              'reject(new Error("WebSocket closed without opened."))',
+              'resolve()'
+            )
+            .replace(
+              'transport.connect(createHMRHandler(handleMessage));',
+              '// HMR WebSocket disabled in preview environment'
+            );
+          res
+            .status(200)
+            .set({
+              "Content-Type": "application/javascript; charset=utf-8",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+            })
+            .send(patchedCode);
+          return;
+        }
+      } catch {
+        // Fall through to default vite middleware
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
 
     app.get("*", async (req, res, next) => {
