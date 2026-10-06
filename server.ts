@@ -4863,7 +4863,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   if (process.env.NODE_ENV !== "production") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: { middlewareMode: true, hmr: false },
       appType: "custom", // Use custom mode to allow our wildcard handler to inject SSI tags before sending to client
     });
     app.use(vite.middlewares);
