@@ -100,8 +100,7 @@ export default defineConfig(({mode}) => {
             }
             if (
               id.includes('src/firebase.ts') ||
-              id.includes('firebase-applet-config.json') ||
-              id.includes('firestoreErrorHandler')
+              id.includes('firebase-applet-config.json')
             ) {
               return 'vendor-firebase';
             }

@@ -19,6 +19,7 @@ let _authInstance: Auth | null = null;
 export function getAuthInstance(): Auth {
   if (!_authInstance) {
     _authInstance = getAuth(app);
+    (globalThis as any).__FIREBASE_AUTH_INSTANCE__ = _authInstance;
   }
   return _authInstance;
 }

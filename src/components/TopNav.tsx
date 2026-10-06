@@ -87,6 +87,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             className="h-[52px] w-[180px] object-contain"
             width="180"
             height="52"
+            loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
             onError={(e) => {
@@ -185,6 +186,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
             className="h-[44px] w-[152px] object-contain"
             width="152"
             height="44"
+            loading="lazy"
             decoding="async"
             referrerPolicy="no-referrer"
             onError={(e) => {

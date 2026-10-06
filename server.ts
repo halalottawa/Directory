@@ -25,7 +25,8 @@ import {
   renderLoginSSRHtml,
   renderAddListingSSRHtml,
   renderAuthorSSRHtml,
-  renderNotFoundSSRHtml
+  renderNotFoundSSRHtml,
+  getOptimizedImageUrlSSR
 } from "./src/utils/ssrTemplates";
 import { getExcerpt } from "./src/utils/textUtils";
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
@@ -612,7 +613,10 @@ async function startServer() {
 
   async function verifyFirebaseAuthToken(
     req: express.Request
-  ): Promise<{ ok: true; user: VerifiedRequestUser } | { ok: false; status: 401; error: string }> {
+  ): Promise<
+    | { ok: true; user: VerifiedRequestUser; status?: number; error?: string }
+    | { ok: false; user?: undefined; status: 401; error: string }
+  > {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return { ok: false, status: 401, error: "Authorization header with Bearer token is required" };
@@ -632,7 +636,7 @@ async function startServer() {
     const uid = decoded.uid;
     const email = (decoded.email || "").toLowerCase().trim();
     let isAdmin =
-      ADMIN_EMAILS.has(email) ||
+      (decoded.email_verified === true && ADMIN_EMAILS.has(email)) ||
       (decoded as any).role === "admin" ||
       (decoded as any).admin === true;
 
@@ -4459,8 +4463,22 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
     `;
 
-    if (pathParts.length === 2 && ogImage && !ogImage.includes('default-og')) {
-      extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(ogImage)}" />`;
+    if (routeType === 'listing' && initialData) {
+      const rawHeroPhoto = (Array.isArray(initialData.photos) && initialData.photos.length > 0 && typeof initialData.photos[0] === 'string' && initialData.photos[0].trim() !== '')
+        ? initialData.photos[0]
+        : (initialData.coverImage || '/ottawa-sunset.webp');
+      const preloadHref = getOptimizedImageUrlSSR(rawHeroPhoto, 1920, 600) || rawHeroPhoto;
+      if (preloadHref) {
+        extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(preloadHref)}" fetchpriority="high" />`;
+      }
+    } else if (routeType === 'news' && initialData) {
+      const rawCover = (initialData.coverImage && typeof initialData.coverImage === 'string' && initialData.coverImage.trim() !== '')
+        ? initialData.coverImage
+        : '/ottawa-sunset.webp';
+      const preloadHref = getOptimizedImageUrlSSR(rawCover, 800, 256) || rawCover;
+      if (preloadHref) {
+        extraTags += `\n    <link rel="preload" as="image" href="${escapeHtmlAttr(preloadHref)}" fetchpriority="high" />`;
+      }
     }
 
     if (pathParts.length === 0) {

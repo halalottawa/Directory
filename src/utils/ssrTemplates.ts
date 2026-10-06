@@ -96,6 +96,118 @@ export function getOptimizedImageUrlSSR(url: string | null | undefined, width: n
   return `/api/optimize-image?${params.join('&')}`;
 }
 
+const AD_SLOT_PLACEHOLDER_HTML = `
+        <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[274px] md:min-h-[114px]">
+          <div class="mx-auto flex justify-center items-center w-[300px] max-w-full h-[250px] min-h-[250px] md:w-[728px] md:h-[90px] md:min-h-[90px]"></div>
+          <p style="text-align: center;" class="mt-2 text-xs text-gray-500 m-0">
+            <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-500 text-decoration-none">
+              Ads By Muslim Ad Network
+            </a>
+          </p>
+        </div>`;
+
+function renderSSRLayoutShell(innerHtml: string, logoUrl: string = DEFAULT_SITE_LOGO_URL): string {
+  const navCategories = [
+    { name: 'Restaurants', slug: 'restaurants', hasDropdown: true },
+    { name: 'Mosques', slug: 'mosques', hasDropdown: false },
+    { name: 'Grocery', slug: 'grocery', hasDropdown: false },
+    { name: 'Clothing', slug: 'clothing', hasDropdown: false },
+    { name: 'Schools', slug: 'schools', hasDropdown: false },
+    { name: 'Butchers', slug: 'butchers', hasDropdown: false },
+  ];
+
+  const topNavLinksHtml = navCategories
+    .map(
+      (cat) => `
+          <div class="relative group/menu py-2">
+            <a href="/${cat.slug}" class="flex items-center gap-1.5 text-sm font-semibold transition-colors whitespace-nowrap text-gray-900 hover:text-[#e90b35] text-decoration-none">
+              <span>${escapeHtmlText(cat.name)}</span>
+              ${
+                cat.hasDropdown
+                  ? '<svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"></path></svg>'
+                  : ''
+              }
+            </a>
+          </div>`
+    )
+    .join('\n');
+
+  return `
+    <div class="min-h-screen bg-gray-50 flex flex-col">
+      <header class="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 z-40 flex justify-between items-center px-4 md:px-8 lg:px-12">
+        <div class="flex items-center justify-start md:hidden">
+          <button class="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors" aria-label="Open menu">
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+          </button>
+        </div>
+        <div class="hidden md:flex items-center justify-start gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" width="180" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+        </div>
+        <nav class="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
+          ${topNavLinksHtml}
+        </nav>
+        <div class="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+        </div>
+        <div class="flex justify-end items-center gap-3 relative">
+          <a href="/login" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm" aria-label="Login or Account">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </a>
+        </div>
+      </header>
+      <main class="flex-1 pt-20 pb-12">
+${innerHtml}
+      </main>
+      <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[110] hidden items-center justify-around px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] min-h-[4.5rem]" aria-hidden="true"></nav>
+      <footer class="bg-gray-950 pt-12 md:pt-16 pb-8 border-t border-gray-850 min-h-[420px]">
+        <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
+          <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
+            <div class="lg:col-span-2 space-y-6">
+              <a href="/" class="flex items-center gap-2 text-decoration-none" aria-label="Halal Ottawa Home">
+                <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-10 w-auto brightness-0 invert" loading="lazy" width="160" height="40" decoding="async" />
+              </a>
+              <p class="text-gray-400 text-sm leading-relaxed max-w-sm m-0">
+                Supporting the Ottawa Muslim community by connecting people with halal-certified businesses, organizations, and local community news. Your trusted hub for halal life in the capital.
+              </p>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Browse</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="/listings" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">All Listings</a></li>
+                <li><a href="/news" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Community News</a></li>
+              </ul>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Support</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Donation</a></li>
+                <li><a href="/faq" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">FAQ</a></li>
+                <li><a href="/tools/qibla" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Qibla Direction</a></li>
+                <li><a href="/terms" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
+                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
+              </ul>
+            </div>
+            <div class="space-y-6">
+              <h3 class="text-white font-bold text-lg tracking-tight m-0">Locations</h3>
+              <ul class="space-y-4 list-none p-0 m-0">
+                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Orleans</a></li>
+                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Kanata</a></li>
+                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
+                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Downtown</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p class="text-gray-500 text-xs text-center md:text-left m-0">
+              © ${new Date().getFullYear()} Halal Ottawa. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  `;
+}
+
 /**
  * Static HTML for Homepage (LCP optimization)
  */
@@ -294,13 +406,13 @@ export function renderHomeSSRHtml(data: {
           </button>
         </div>
         <div class="hidden md:flex items-center justify-start gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
-          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" width="180" height="52" decoding="async" referrerpolicy="no-referrer" />
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[52px] w-[180px] object-contain" width="180" height="52" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
         </div>
         <nav class="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
           ${topNavLinksHtml}
         </nav>
         <div class="absolute left-1/2 -translate-x-1/2 flex md:hidden items-center gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
-          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" decoding="async" referrerpolicy="no-referrer" />
+          <img src="${escapeHtmlAttr(logoUrl)}" alt="Halal Ottawa" class="h-[44px] w-[152px] object-contain" width="152" height="44" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
         </div>
         <div class="flex justify-end items-center gap-3 relative">
           <a href="/login" class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 text-gray-400 hover:bg-gray-200 transition-colors shadow-sm" aria-label="Login or Account">
@@ -603,7 +715,7 @@ export function renderCategorySSRHtml(options: {
         <span class="font-semibold text-gray-900">${escapeHtmlText(formattedCategory)}</span>
       </nav>`;
 
-  return `
+  return renderSSRLayoutShell(`
     <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       ${breadcrumbsHtml}
 
@@ -641,7 +753,7 @@ export function renderCategorySSRHtml(options: {
         ${listingsCardsHtml}
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
@@ -683,21 +795,36 @@ export function renderListingDetailSSRHtml(listing: any): string {
     </div>
   ` : '';
 
-  return `
-    <div class="min-h-screen bg-gray-50 pb-20" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div class="w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto pt-6 space-y-6">
-        <!-- Hero Banner -->
-        <div class="relative h-72 sm:h-80 md:h-[420px] rounded-3xl overflow-hidden shadow-sm bg-slate-900">
-          <img 
-            src="${escapeHtmlAttr(optimizedPhoto)}" 
-            alt="${escapeHtmlAttr(listing.name)}" 
-            class="absolute inset-0 w-full h-full object-cover object-center" 
-            fetchpriority="high" 
-            loading="eager" 
-            width="1920" 
-            height="600" 
-            decoding="async" 
-          />
+  const descParagraphs = description ? String(description).split(/\r?\n\s*\r?\n/) : [];
+  const renderDescPart = (text: string) =>
+    text && text.trim()
+      ? `<p class="text-gray-600 leading-relaxed whitespace-pre-wrap m-0">${escapeHtmlText(text)}</p>`
+      : '';
+  let aboutWithAdsHtml = '';
+  if (descParagraphs.length <= 1) {
+    aboutWithAdsHtml = `${renderDescPart(description)}${AD_SLOT_PLACEHOLDER_HTML}`;
+  } else {
+    const idx1 = Math.floor(descParagraphs.length / 2);
+    const idx2 = idx1 * 2;
+    const firstPart = descParagraphs.slice(0, idx1).join('\n\n');
+    const secondPart = descParagraphs.slice(idx1, idx2).join('\n\n');
+    const thirdPart = descParagraphs.slice(idx2).join('\n\n');
+    aboutWithAdsHtml = `${renderDescPart(firstPart)}${AD_SLOT_PLACEHOLDER_HTML}${renderDescPart(secondPart)}${AD_SLOT_PLACEHOLDER_HTML}${thirdPart.trim() ? renderDescPart(thirdPart) : ''}`;
+  }
+
+  return renderSSRLayoutShell(`
+    <div class="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <!-- Hero Banner -->
+      <div class="relative h-72 bg-slate-900 overflow-hidden">
+        <img 
+          src="${escapeHtmlAttr(optimizedPhoto)}" 
+          alt="${escapeHtmlAttr(listing.name)}" 
+          class="absolute inset-0 w-full h-full object-cover object-center" 
+          fetchpriority="high" 
+          loading="eager" 
+          width="1920" 
+          height="600" 
+        />
           <div class="absolute inset-0 bg-black/70"></div>
           ${listing.isFeatured ? '<div class="absolute top-4 left-4 bg-[#e90b35] text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest shadow-md">Featured</div>' : ''}
           
@@ -792,13 +919,12 @@ export function renderListingDetailSSRHtml(listing: any): string {
               </div>
 
               <!-- About Section -->
-              ${description ? `
-              <section class="space-y-4">
-                <h2 class="text-xl font-bold m-0 text-gray-900">About</h2>
-                <div class="text-gray-600 leading-relaxed whitespace-pre-line text-sm md:text-base">
-                  ${escapeHtmlText(description)}
+              <section class="space-y-6">
+                <div class="space-y-4">
+                  <h2 class="text-xl font-bold m-0 text-gray-900">About</h2>
+                  ${aboutWithAdsHtml}
                 </div>
-              </section>` : ''}
+              </section>
 
               <!-- Menu Section (if present) -->
               ${(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) ? `
@@ -935,9 +1061,8 @@ export function renderListingDetailSSRHtml(listing: any): string {
             </div>
           </div>
         </div>
-      </div>
     </div>
-  `;
+  `);
 }
 
 /**
@@ -951,10 +1076,28 @@ export function renderNewsDetailSSRHtml(news: any): string {
 
   const sourceLink = news.sourceLink ? (news.sourceLink.startsWith('http') ? news.sourceLink : `https://${news.sourceLink}`) : null;
 
-  return `
+  const rawNewsContent = news.content || news.description || '';
+  const newsParagraphs = rawNewsContent ? String(rawNewsContent).split(/\r?\n\s*\r?\n/) : [];
+  const renderNewsArticlePart = (text: string) =>
+    text && text.trim()
+      ? `<article class="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">${escapeHtmlText(text)}</article>`
+      : '';
+  let newsContentWithAdsHtml = '';
+  if (newsParagraphs.length <= 1) {
+    newsContentWithAdsHtml = `${renderNewsArticlePart(rawNewsContent)}${AD_SLOT_PLACEHOLDER_HTML}`;
+  } else {
+    const idx1 = Math.floor(newsParagraphs.length / 2);
+    const idx2 = idx1 * 2;
+    const firstPart = newsParagraphs.slice(0, idx1).join('\n\n');
+    const secondPart = newsParagraphs.slice(idx1, idx2).join('\n\n');
+    const thirdPart = newsParagraphs.slice(idx2).join('\n\n');
+    newsContentWithAdsHtml = `${renderNewsArticlePart(firstPart)}${AD_SLOT_PLACEHOLDER_HTML}${renderNewsArticlePart(secondPart)}${AD_SLOT_PLACEHOLDER_HTML}${thirdPart.trim() ? renderNewsArticlePart(thirdPart) : ''}`;
+  }
+
+  return renderSSRLayoutShell(`
     <div class="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="relative h-64 bg-gray-100 overflow-hidden">
-        <img src="${escapeHtmlAttr(coverUrl)}" alt="${escapeHtmlAttr(news.title)}" class="w-full h-full object-cover" fetchpriority="high" width="800" height="256" decoding="async" />
+        <img src="${escapeHtmlAttr(coverUrl)}" alt="${escapeHtmlAttr(news.title)}" class="w-full h-full object-cover" fetchpriority="high" loading="eager" width="800" height="256" />
         <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         <div class="absolute bottom-6 left-6 right-6 text-white">
           <h1 class="text-2xl font-bold leading-tight m-0 text-white">${escapeHtmlText(news.title)}</h1>
@@ -976,9 +1119,7 @@ export function renderNewsDetailSSRHtml(news: any): string {
       </div>
 
       <div class="p-6 space-y-8">
-        <article class="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
-          ${escapeHtmlText(news.content || news.description || '')}
-        </article>
+        ${newsContentWithAdsHtml}
 
         ${sourceLink ? `
         <div class="flex justify-center pt-4">
@@ -993,7 +1134,7 @@ export function renderNewsDetailSSRHtml(news: any): string {
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
               <div class="w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0 shadow-xs">
-                <img src="/favicon.png" alt="Halal Ottawa" class="w-6 h-6 object-contain shrink-0" width="24" height="24" onerror="this.src='https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp'" />
+                <img src="/favicon.png" alt="Halal Ottawa" class="w-6 h-6 object-contain shrink-0" width="24" height="24" loading="lazy" decoding="async" onerror="this.src='https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp'" />
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2">
@@ -1024,7 +1165,7 @@ export function renderNewsDetailSSRHtml(news: any): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
@@ -1076,7 +1217,7 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
     `;
   }).join('\n');
 
-  return `
+  return renderSSRLayoutShell(`
     <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1119,7 +1260,7 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
         ${newsCardsHtml}
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
@@ -1165,7 +1306,7 @@ export function renderFAQSSRHtml(): string {
     </div>
   `).join('\n');
 
-  return `
+  return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
         <div class="text-center space-y-4">
@@ -1185,14 +1326,14 @@ export function renderFAQSSRHtml(): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for Privacy Policy (/privacy-policy)
  */
 export function renderPrivacyPolicySSRHtml(): string {
-  return `
+  return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
         <div class="text-center space-y-4">
@@ -1249,14 +1390,14 @@ export function renderPrivacyPolicySSRHtml(): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for Terms of Service (/terms)
  */
 export function renderTermsSSRHtml(): string {
-  return `
+  return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
         <div class="text-center space-y-4">
@@ -1300,14 +1441,14 @@ export function renderTermsSSRHtml(): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for Qibla Direction Page (/tools/qibla or /qibla)
  */
 export function renderQiblaSSRHtml(): string {
-  return `
+  return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
         <div class="flex flex-col items-center text-center space-y-8">
@@ -1356,15 +1497,15 @@ export function renderQiblaSSRHtml(): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for Saved Items Page (/saved)
  */
 export function renderSavedItemsSSRHtml(): string {
-  return `
-    <main class="min-h-screen bg-[#F9FAFB] pb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  return renderSSRLayoutShell(`
+    <div class="min-h-screen bg-[#F9FAFB] pb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="max-w-5xl mx-auto px-6 py-8 space-y-12">
         <h1 class="text-3xl font-bold m-0 text-gray-900">Saved Items</h1>
 
@@ -1389,15 +1530,15 @@ export function renderSavedItemsSSRHtml(): string {
           </div>
         </section>
       </div>
-    </main>
-  `;
+    </div>
+  `);
 }
 
 /**
  * Static HTML for Login Page (/login)
  */
 export function renderLoginSSRHtml(): string {
-  return `
+  return renderSSRLayoutShell(`
     <div class="min-h-screen bg-gray-50 flex flex-col justify-start pt-8 px-6 pb-6 max-w-md mx-auto w-full" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="text-center mb-5 space-y-1">
         <div class="w-12 h-12 bg-[#e90b35] rounded-2xl mx-auto flex items-center justify-center mb-3 shadow-lg shadow-red-200 text-white">
@@ -1441,14 +1582,14 @@ export function renderLoginSSRHtml(): string {
         By signing in, you agree to Halal Ottawa's <a href="/terms" class="text-gray-600 underline text-decoration-none">Terms of Service</a> and <a href="/privacy-policy" class="text-gray-600 underline text-decoration-none">Privacy Policy</a>.
       </p>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for Add Listing Page (/listings/add)
  */
 export function renderAddListingSSRHtml(): string {
-  return `
+  return renderSSRLayoutShell(`
     <div class="p-4 md:p-8 max-w-3xl mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="bg-white rounded-3xl border border-gray-100 p-6 md:p-10 shadow-sm space-y-6">
         <div>
@@ -1481,7 +1622,7 @@ export function renderAddListingSSRHtml(): string {
         </div>
       </div>
     </div>
-  `;
+  `);
 }
 
 /**
@@ -1532,7 +1673,7 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
     `;
   }).join('\n');
 
-  return `
+  return renderSSRLayoutShell(`
     <div class="p-4 md:p-8 space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <!-- Breadcrumb -->
       <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs text-gray-500 font-medium">
@@ -1574,15 +1715,15 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
         </div>
       </section>
     </div>
-  `;
+  `);
 }
 
 /**
  * Static HTML for 404 Not Found Pages
  */
 export function renderNotFoundSSRHtml(): string {
-  return `
-    <main class="flex-1 w-full max-w-7xl mx-auto px-4 mt-8 lg:mt-12 mb-20 flex flex-col items-center justify-center" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  return renderSSRLayoutShell(`
+    <div class="flex-1 w-full max-w-7xl mx-auto px-4 mt-8 lg:mt-12 mb-20 flex flex-col items-center justify-center" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 flex flex-col items-center justify-center min-h-[50vh]">
         <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto">
           <span class="text-3xl font-bold text-[#e90b35]">404</span>
@@ -1602,7 +1743,7 @@ export function renderNotFoundSSRHtml(): string {
           </a>
         </div>
       </div>
-    </main>
-  `;
+    </div>
+  `);
 }
 

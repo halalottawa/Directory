@@ -1,24 +1,64 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, Phone, Clock, Star, ShieldCheck, ChevronLeft, ChevronRight, MessageSquare, Edit2, Trash2, Mail, Globe, X, FileText, Send } from 'lucide-react';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, deleteDoc, updateDoc, onSnapshot, limit } from 'firebase/firestore';
-import { db, getGeneralSettings } from '../firebase';
+import { getGeneralSettings } from '../services/publicSettings';
 import { Listing, Review } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { DEMO_LISTINGS, CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
-import L from 'leaflet';
+import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
-import { OpenStreetMap } from '../components/OpenStreetMap';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
-import { toast } from 'sonner';
 import { ArticleAd } from '../components/ArticleAd';
 import { notifyContentChanged } from '../utils/revalidate';
+
+const LazyOpenStreetMap = React.lazy(() =>
+  import('../components/OpenStreetMap').then((m) => ({ default: m.OpenStreetMap }))
+);
+
+const DeferredOpenStreetMap: React.FC<{ address: string }> = ({ address }) => {
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.innerWidth < 1024) return;
+    const onInteract = () => {
+      setShouldRender(true);
+      cleanup();
+    };
+    const events = ['scroll', 'pointerdown', 'mousemove', 'touchstart', 'keydown'] as const;
+    const cleanup = () => {
+      for (const ev of events) window.removeEventListener(ev, onInteract);
+    };
+    for (const ev of events) {
+      window.addEventListener(ev, onInteract, { once: true, passive: true });
+    }
+    return cleanup;
+  }, []);
+
+  if (!shouldRender) {
+    return (
+      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+        <span className="text-gray-400 font-medium text-sm">Map</span>
+      </div>
+    );
+  }
+
+  return (
+    <React.Suspense
+      fallback={
+        <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+          <span className="text-gray-400 font-medium text-sm">Loading map...</span>
+        </div>
+      }
+    >
+      <LazyOpenStreetMap address={address} />
+    </React.Suspense>
+  );
+};
 
 // Custom inline SVG social icons for zero bundle-size cost
 const FaInstagram: React.FC<{ className?: string }> = ({ className }) => (
@@ -141,6 +181,23 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   const [editComment, setEditComment] = useState('');
   const [relatedListings, setRelatedListings] = useState<Listing[]>([]);
   const [settingsCoverUrl, setSettingsCoverUrl] = useState<string>('');
+  const [hasUserInteracted, setHasUserInteracted] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onInteract = () => {
+      setHasUserInteracted(true);
+      cleanup();
+    };
+    const events = ['scroll', 'pointerdown', 'touchstart', 'keydown'] as const;
+    const cleanup = () => {
+      for (const ev of events) window.removeEventListener(ev, onInteract);
+    };
+    for (const ev of events) {
+      window.addEventListener(ev, onInteract, { once: true, passive: true });
+    }
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     getGeneralSettings().then((data) => {
@@ -174,160 +231,199 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   });
 
   useEffect(() => {
+    let isMounted = true;
     const fetchListing = async () => {
       if (!slug) return;
-      
-      // Check demo listings first
-      const found = DEMO_LISTINGS.find(l => l.id === slug || l.slug === slug);
-      if (found) {
-        setListing(found);
+
+      if (initialSSRListingRef.current && listing && (listing.slug === slug || listing.id === slug)) {
+        initialSSRListingRef.current = false;
         setLoading(false);
         return;
       }
+      initialSSRListingRef.current = false;
 
-      // Fetch from Firestore
       try {
         let listingData: Listing | null = null;
-        
-        if (initialSSRListingRef.current && listing && (listing.slug === slug || listing.id === slug)) {
-          initialSSRListingRef.current = false;
-          listingData = listing;
-        } else {
-          initialSSRListingRef.current = false;
-          let docSnap = await getDoc(doc(db, 'listings', slug));
-          
-          if (docSnap.exists()) {
-            listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
-          } else {
-            const q = query(collection(db, 'listings'), where('slug', '==', slug));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              docSnap = querySnapshot.docs[0];
-              listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
-            }
+        try {
+          const res = await fetch('/api/listings');
+          if (res.ok) {
+            const data = await res.json();
+            const list = Array.isArray(data?.listings) ? (data.listings as Listing[]) : [];
+            listingData = list.find((l) => l.id === slug || l.slug === slug) || null;
           }
+        } catch {
+          // Fall back to dynamic Firestore / demo lookup
         }
-        
+
         if (!listingData) {
-          const redirectSnap = await getDoc(doc(db, 'slug_redirects', `listings_${slug}`));
-          if (redirectSnap.exists()) {
-            const rData = redirectSnap.data();
-            if (rData && rData.newSlug) {
-              let destination = `/listings/${rData.newSlug}`;
-              try {
-                const newDocRef = doc(db, 'listings', rData.newSlug);
-                const newDocSnap = await getDoc(newDocRef);
-                let newListing: any = null;
-                if (newDocSnap.exists()) {
-                  newListing = { id: newDocSnap.id, ...newDocSnap.data() };
-                } else {
-                  const q = query(collection(db, 'listings'), where('slug', '==', rData.newSlug), limit(1));
-                  const snap = await getDocs(q);
-                  if (!snap.empty) {
-                    newListing = { id: snap.docs[0].id, ...snap.docs[0].data() };
-                  }
-                }
-                if (newListing) {
-                  const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
-                  if (cat) {
-                    destination = `/${cat.toLowerCase()}/${rData.newSlug}`;
-                  }
-                }
-              } catch (e) {
-                console.error("Error determining navigation category", e);
+          const [{ doc, getDoc, collection, query, where, getDocs, limit }, { db }, { DEMO_LISTINGS }] =
+            await Promise.all([
+              import('firebase/firestore'),
+              import('../firebase'),
+              import('../constants'),
+            ]);
+
+          const foundDemo = DEMO_LISTINGS.find((l) => l.id === slug || l.slug === slug);
+          if (foundDemo) {
+            listingData = foundDemo;
+          } else {
+            let docSnap = await getDoc(doc(db, 'listings', slug));
+            if (docSnap.exists()) {
+              listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
+            } else {
+              const q = query(collection(db, 'listings'), where('slug', '==', slug));
+              const querySnapshot = await getDocs(q);
+              if (!querySnapshot.empty) {
+                docSnap = querySnapshot.docs[0];
+                listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
               }
-              navigate(destination, { replace: true });
-              return;
+            }
+
+            if (!listingData) {
+              const redirectSnap = await getDoc(doc(db, 'slug_redirects', `listings_${slug}`));
+              if (redirectSnap.exists()) {
+                const rData = redirectSnap.data();
+                if (rData && rData.newSlug) {
+                  let destination = `/listings/${rData.newSlug}`;
+                  try {
+                    const newDocRef = doc(db, 'listings', rData.newSlug);
+                    const newDocSnap = await getDoc(newDocRef);
+                    let newListing: any = null;
+                    if (newDocSnap.exists()) {
+                      newListing = { id: newDocSnap.id, ...newDocSnap.data() };
+                    } else {
+                      const q = query(collection(db, 'listings'), where('slug', '==', rData.newSlug), limit(1));
+                      const snap = await getDocs(q);
+                      if (!snap.empty) {
+                        newListing = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                      }
+                    }
+                    if (newListing) {
+                      const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
+                      if (cat) {
+                        destination = `/${cat.toLowerCase()}/${rData.newSlug}`;
+                      }
+                    }
+                  } catch (e) {
+                    console.error('Error determining navigation category', e);
+                  }
+                  if (isMounted) navigate(destination, { replace: true });
+                  return;
+                }
+              }
             }
           }
         }
 
-        if (listingData) {
+        if (isMounted && listingData) {
           setListing(listingData);
-          
-          // Fetch reviews with real-time updates
-          const reviewsRef = user?.role === 'admin'
-            ? query(collection(db, 'reviews'), where('listingId', '==', listingData.id))
-            : query(collection(db, 'reviews'), where('listingId', '==', listingData.id), where('isApproved', '==', true));
-
-          const unsubscribe = onSnapshot(reviewsRef, (snapshot) => {
-            const reviewsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Review));
-            // Only show approved reviews unless user is admin or the author
-            const filteredReviews = reviewsData.filter(r => 
-              r.isApproved || user?.role === 'admin' || r.userId === user?.uid
-            );
-            setReviews(filteredReviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-          }, (err) => {
-            handleFirestoreError(err, OperationType.GET, 'reviews');
-          });
-          
-          return () => unsubscribe();
         }
       } catch (err) {
         handleFirestoreError(err, OperationType.GET, `listings/${slug}`);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     fetchListing();
-  }, [slug, user]);
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
 
   useEffect(() => {
+    if (!listing?.id) return;
+    if (!user && (!hasUserInteracted || !(listing.reviewCount && listing.reviewCount > 0))) {
+      return;
+    }
+
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [{ collection, query, where, onSnapshot }, { db }] = await Promise.all([
+          import('firebase/firestore'),
+          import('../firebase'),
+        ]);
+        if (cancelled) return;
+        const reviewsRef =
+          user?.role === 'admin'
+            ? query(collection(db, 'reviews'), where('listingId', '==', listing.id))
+            : query(
+                collection(db, 'reviews'),
+                where('listingId', '==', listing.id),
+                where('isApproved', '==', true)
+              );
+
+        unsubscribe = onSnapshot(
+          reviewsRef,
+          (snapshot) => {
+            const reviewsData = snapshot.docs.map((docSnap) => ({
+              id: docSnap.id,
+              ...docSnap.data(),
+            } as Review));
+            const filteredReviews = reviewsData.filter(
+              (r) => r.isApproved || user?.role === 'admin' || r.userId === user?.uid
+            );
+            setReviews(
+              filteredReviews.sort(
+                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              )
+            );
+          },
+          (err) => {
+            handleFirestoreError(err, OperationType.GET, 'reviews');
+          }
+        );
+      } catch (err) {
+        console.error('Error loading reviews:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [listing?.id, listing?.reviewCount, user, hasUserInteracted]);
+
+  useEffect(() => {
+    let isMounted = true;
     const fetchRelatedListings = async () => {
       if (!listing) return;
 
+      const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
       try {
-        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
-        const primaryCat = currentCategories[0] || 'Restaurants';
-
-        const q = query(
-          collection(db, 'listings'),
-          where('isApproved', '==', true),
-          where('category', 'array-contains', primaryCat),
-          limit(12)
+        const res = await fetch('/api/listings');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const allListings = (Array.isArray(data?.listings) ? data.listings : []) as Listing[];
+        const uniqueListings = Array.from(
+          new Map(
+            allListings
+              .filter((l) => l.id !== listing.id && l.slug !== slug)
+              .map((item) => [item.id, item])
+          ).values()
         );
-        const querySnapshot = await getDocs(q);
-        const allFirestore = querySnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() } as Listing))
-          .filter(l => l.id !== listing.id);
 
-        const allDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug);
-
-        const allListings = [...allFirestore, ...allDemo];
-        const uniqueListings = Array.from(new Map(allListings.map(item => [item.id, item])).values());
-
-        // Find listings that share at least one category with the current listing
-        const related = uniqueListings.filter(l => {
+        const related = uniqueListings.filter((l) => {
           const lCategories = Array.isArray(l.category) ? l.category : [l.category];
-          return lCategories.some(c => currentCategories.includes(c));
+          return lCategories.some((c) => currentCategories.includes(c));
         });
 
-        // Sort by averageRating prioritizing highly rated, and take 4
-        const sortedRelated = related.sort((a, b) => {
-             const aRating = a.averageRating || 0;
-             const bRating = b.averageRating || 0;
-             return bRating - aRating;
-        }).slice(0, 4);
-
-        setRelatedListings(sortedRelated);
-      } catch(err) {
-        console.error("Error fetching related listings:", err);
-        
-        // Fallback to demo data
-        const currentCategories = Array.isArray(listing.category) ? listing.category : [listing.category];
-        const relatedDemo = DEMO_LISTINGS.filter(l => l.id !== listing.id && l.id !== slug)
-          .filter(l => {
-            const lCategories = Array.isArray(l.category) ? l.category : [l.category];
-            return lCategories.some(c => currentCategories.includes(c));
-          })
+        const sortedRelated = related
           .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
           .slice(0, 4);
-          
-        setRelatedListings(relatedDemo);
+
+        if (isMounted) setRelatedListings(sortedRelated);
+      } catch (err) {
+        console.error('Error fetching related listings:', err);
       }
     };
 
     fetchRelatedListings();
+    return () => {
+      isMounted = false;
+    };
   }, [listing?.id, listing?.category, slug]);
 
   const onClaim = () => {
@@ -360,6 +456,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   const confirmDelete = async () => {
     if (!listing) return;
     try {
+      const [{ deleteDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       await deleteDoc(doc(db, 'listings', listing.id));
       if (listing.isApproved) {
         notifyContentChanged('listing:delete', {
@@ -426,6 +526,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
 
     setIsSubmitting(true);
     try {
+      const [{ collection, addDoc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       const reviewData: any = {
         listingId: listing.id,
         userId: user.uid,
@@ -458,6 +562,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
       message: 'Are you sure you want to delete this review?',
       onConfirm: async () => {
         try {
+          const [{ deleteDoc, updateDoc, doc }, { db }] = await Promise.all([
+            import('firebase/firestore'),
+            import('../firebase'),
+          ]);
           await deleteDoc(doc(db, 'reviews', reviewId));
           setReviews(reviews.filter(r => r.id !== reviewId));
           
@@ -472,13 +580,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 newAvg = Number((newTotal / newCount).toFixed(1));
               }
               
-              const isDemo = DEMO_LISTINGS.some(l => l.id === listing.id);
-              if (!isDemo) {
-                await updateDoc(doc(db, 'listings', listing.id), {
-                  reviewCount: newCount,
-                  averageRating: newAvg
-                });
-              }
+              await updateDoc(doc(db, 'listings', listing.id), {
+                reviewCount: newCount,
+                averageRating: newAvg
+              });
               
               setListing({
                 ...listing,
@@ -498,6 +603,10 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   const handleUpdateReview = async (reviewId: string) => {
     if (!editComment.trim()) return;
     try {
+      const [{ updateDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       await updateDoc(doc(db, 'reviews', reviewId), {
         comment: editComment,
         updatedAt: new Date().toISOString()
@@ -544,7 +653,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
+      <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
         description={`Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`}
@@ -636,7 +745,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           src={
             listing.photos && listing.photos.length > 0 && listing.photos[0] && listing.photos[0].trim() !== ''
               ? getOptimizedImageUrl(listing.photos[0], 1920, 600)
-              : getOptimizedImageUrl(settingsCoverUrl || "/ottawa-sunset.webp", 1920, 600)
+              : getOptimizedImageUrl((listing as any).coverImage || settingsCoverUrl || "/ottawa-sunset.webp", 1920, 600)
           } 
           alt={listing.name}
           className="absolute inset-0 w-full h-full object-cover object-center"
@@ -644,7 +753,6 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           fetchPriority="high"
           width="1920"
           height="600"
-          decoding="async"
         />
         <div className="absolute inset-0 bg-black/70"></div>
 
@@ -947,12 +1055,17 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   <div className="flex flex-col gap-3">
                     <button 
                       onClick={async () => {
+                        const { toast } = await import('sonner');
                         const reason = (document.getElementById('claim-reason') as HTMLTextAreaElement)?.value;
                         if (!reason?.trim()) {
                           toast.error('Please provide some details to verify your ownership.');
                           return;
                         }
                         try {
+                          const [{ collection, addDoc }, { db }] = await Promise.all([
+                            import('firebase/firestore'),
+                            import('../firebase'),
+                          ]);
                           await addDoc(collection(db, 'claim_requests'), {
                             listingId: listing.id,
                             userId: user?.uid,
@@ -1244,7 +1357,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
               <div className="bg-white rounded-3xl p-4 border border-gray-100 shadow-sm space-y-4">
                 <h2 className="text-xl font-bold">Location</h2>
                 <div className="w-full h-48 rounded-2xl overflow-hidden bg-gray-100 relative z-10">
-                  <OpenStreetMap address={listing.address.replace(/(?:Unit|Apt|Suite|#|Room)\s*[A-Za-z0-9\-]+/gi, '').replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim()} />
+                  <DeferredOpenStreetMap address={listing.address.replace(/(?:Unit|Apt|Suite|#|Room)\s*[A-Za-z0-9\-]+/gi, '').replace(/,\s*,/g, ',').replace(/^,\s*/, '').trim()} />
                 </div>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
@@ -1385,7 +1498,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
 
     {/* Related Listings - Desktop Only */}
     {relatedListings.length > 0 && (
-      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
+      <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto mt-12 mb-16">
         <h2 className="text-2xl font-bold mb-6">Related Listings</h2>
         <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
           {relatedListings.map((related) => (

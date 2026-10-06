@@ -1,5 +1,3 @@
-import { auth } from '../firebase';
-
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -27,9 +25,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  let currentUser = null;
+  let currentUser: any = null;
   try {
-    currentUser = auth?.currentUser;
+    currentUser = (globalThis as any).__FIREBASE_AUTH_INSTANCE__?.currentUser ?? null;
   } catch {
     currentUser = null;
   }

@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, Send, Edit2, Trash2, User, X, Check } from 'lucide-react';
-import { collection, query, where, getDocs, addDoc, onSnapshot, orderBy, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Comment } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -22,39 +20,113 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
   const [showSuccess, setShowSuccess] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [shouldLoadComments, setShouldLoadComments] = useState<boolean>(Boolean(user));
+  const sectionRef = useRef<HTMLElement | null>(null);
   
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
   useEffect(() => {
-    // Admins see all comments, others see only approved ones
-    const q = user?.role === 'admin'
-      ? query(
-          collection(db, 'comments'),
-          where('parentId', '==', parentId)
-        )
-      : query(
-          collection(db, 'comments'),
-          where('parentId', '==', parentId),
-          where('isApproved', '==', true)
-        );
+    if (user) {
+      setShouldLoadComments(true);
+      return;
+    }
+    if (shouldLoadComments) return;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
-      // Filter to show approved comments, or unapproved ones if user is admin or author
-      const filteredDocs = docs.filter(c => 
-        c.isApproved || user?.role === 'admin' || c.userId === user?.uid
+    let interacted = false;
+    let inView = false;
+
+    const checkReady = () => {
+      if (interacted && inView) {
+        setShouldLoadComments(true);
+      }
+    };
+
+    const onInteract = () => {
+      interacted = true;
+      checkReady();
+      cleanupListeners();
+    };
+
+    const events = ['scroll', 'pointerdown', 'touchstart', 'keydown'] as const;
+    const cleanupListeners = () => {
+      for (const ev of events) {
+        window.removeEventListener(ev, onInteract);
+      }
+    };
+
+    for (const ev of events) {
+      window.addEventListener(ev, onInteract, { once: true, passive: true });
+    }
+
+    let observer: IntersectionObserver | null = null;
+    if (sectionRef.current && 'IntersectionObserver' in window) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            inView = true;
+            checkReady();
+            observer?.disconnect();
+          }
+        },
+        { rootMargin: '200px 0px' }
       );
-      // Sort client-side to avoid index requirement
-      filteredDocs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setComments(filteredDocs);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'comments');
-    });
+      observer.observe(sectionRef.current);
+    } else {
+      inView = true;
+    }
 
-    return () => unsubscribe();
-  }, [parentId, user]);
+    return () => {
+      cleanupListeners();
+      observer?.disconnect();
+    };
+  }, [user, shouldLoadComments]);
+
+  useEffect(() => {
+    if (!shouldLoadComments) return;
+
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [{ collection, query, where, onSnapshot }, { db }] = await Promise.all([
+          import('firebase/firestore'),
+          import('../firebase'),
+        ]);
+        if (cancelled) return;
+        const q = user?.role === 'admin'
+          ? query(
+              collection(db, 'comments'),
+              where('parentId', '==', parentId)
+            )
+          : query(
+              collection(db, 'comments'),
+              where('parentId', '==', parentId),
+              where('isApproved', '==', true)
+            );
+
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment));
+          const filteredDocs = docs.filter(c => 
+            c.isApproved || user?.role === 'admin' || c.userId === user?.uid
+          );
+          filteredDocs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setComments(filteredDocs);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'comments');
+        });
+      } catch (err) {
+        console.error('Error loading comments:', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
+  }, [parentId, user, shouldLoadComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +143,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
 
     setIsSubmitting(true);
     try {
+      const [{ collection, addDoc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       const commentData: any = {
         parentId,
         parentType,
@@ -103,6 +179,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
   const confirmDelete = async () => {
     if (!commentToDelete) return;
     try {
+      const [{ deleteDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       await deleteDoc(doc(db, 'comments', commentToDelete));
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `comments/${commentToDelete}`);
@@ -113,6 +193,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
 
   const handleUpdate = async (commentId: string, updates: Partial<Comment>) => {
     try {
+      const [{ updateDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       await updateDoc(doc(db, 'comments', commentId), {
         ...updates,
         updatedAt: new Date().toISOString()
@@ -125,7 +209,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ parentId, parent
   };
 
   return (
-    <section className="space-y-6">
+    <section ref={sectionRef} className="space-y-6">
       <div className="flex items-center gap-2">
         <MessageSquare className="w-6 h-6 text-[#e90b35]" />
         <h2 className="text-xl font-bold">Comments</h2>

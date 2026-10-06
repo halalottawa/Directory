@@ -1,10 +1,11 @@
 import React, { Suspense, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { isAppWrapper } from './utils/platform';
 import { getGeneralSettings } from './services/publicSettings';
+import { CATEGORIES, LISTING_TYPES, CUISINES } from './constants';
 
 const CookieCheckRedirect: React.FC = () => {
   useEffect(() => {
@@ -55,13 +56,105 @@ const CookieCheckRedirect: React.FC = () => {
 // Direct load for main landing page to eliminate render delay
 import { Home } from './pages/Home';
 
+const RESTAURANT_CATEGORY_NAMES = new Set([
+  'restaurants',
+  'orleans',
+  'kanata',
+  'barrhaven',
+  'downtown',
+  ...CATEGORIES.map((c) => c.toLowerCase()),
+  ...LISTING_TYPES.map((t) => t.toLowerCase()),
+  ...CUISINES.map((c) => c.toLowerCase()),
+]);
+
+export function isRestaurantSubcategorySlug(rawSlug: string | undefined): boolean {
+  if (!rawSlug) return true;
+  const normalized = decodeURIComponent(rawSlug).replace(/-/g, ' ').toLowerCase().trim();
+  return RESTAURANT_CATEGORY_NAMES.has(normalized);
+}
+
+let PreloadedListingDetail: React.ComponentType<any> | null = null;
+let PreloadedNewsDetail: React.ComponentType<any> | null = null;
+let PreloadedCategoryListings: React.ComponentType<any> | null = null;
+let PreloadedListings: React.ComponentType<any> | null = null;
+let PreloadedNews: React.ComponentType<any> | null = null;
+
+export async function preloadInitialRoute(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const routeType = (window as any).__INITIAL_ROUTE_TYPE__;
+  const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+  const parts = pathname.split('/').filter(Boolean);
+
+  try {
+    if (
+      routeType === 'listing' ||
+      parts[0] === 'listings' && parts.length === 2 && parts[1] !== 'add' ||
+      (parts[0] === 'restaurants' && parts.length === 2 && !isRestaurantSubcategorySlug(parts[1])) ||
+      (parts.length === 2 && !['restaurants', 'news', 'author', 'authors', 'listings', 'profile', 'tools', 'go'].includes(parts[0]))
+    ) {
+      const m = await import('./pages/ListingDetail');
+      PreloadedListingDetail = m.ListingDetail;
+    } else if (
+      routeType === 'news' ||
+      (parts[0] === 'news' && parts.length === 2 && parts[1] !== 'add')
+    ) {
+      const m = await import('./pages/NewsDetail');
+      PreloadedNewsDetail = m.NewsDetail;
+    } else if (routeType === 'news_list' || pathname === '/news') {
+      const m = await import('./pages/News');
+      PreloadedNews = m.News;
+    } else if (pathname === '/listings') {
+      const m = await import('./pages/Listings');
+      PreloadedListings = m.Listings;
+    } else if (
+      routeType === 'category' ||
+      routeType === 'location' ||
+      (parts.length >= 1 && isRestaurantSubcategorySlug(parts[parts.length - 1]))
+    ) {
+      const m = await import('./pages/CategoryListings');
+      PreloadedCategoryListings = m.CategoryListings;
+    }
+  } catch {
+    // Fallback to normal lazy loading
+  }
+}
+
 // Lazy load secondary pages
-const Listings = React.lazy(() => import('./pages/Listings').then(module => ({ default: module.Listings })));
-const CategoryListings = React.lazy(() => import('./pages/CategoryListings').then(module => ({ default: module.CategoryListings })));
-const ListingDetail = React.lazy(() => import('./pages/ListingDetail').then(module => ({ default: module.ListingDetail })));
+const LazyListings = React.lazy(() => import('./pages/Listings').then(module => ({ default: module.Listings })));
+const LazyCategoryListings = React.lazy(() => import('./pages/CategoryListings').then(module => ({ default: module.CategoryListings })));
+const LazyListingDetail = React.lazy(() => import('./pages/ListingDetail').then(module => ({ default: module.ListingDetail })));
 const AddListing = React.lazy(() => import('./pages/AddListing').then(module => ({ default: module.AddListing })));
-const News = React.lazy(() => import('./pages/News').then(module => ({ default: module.News })));
-const NewsDetail = React.lazy(() => import('./pages/NewsDetail').then(module => ({ default: module.NewsDetail })));
+const LazyNews = React.lazy(() => import('./pages/News').then(module => ({ default: module.News })));
+const LazyNewsDetail = React.lazy(() => import('./pages/NewsDetail').then(module => ({ default: module.NewsDetail })));
+
+const Listings: React.FC = (props) => {
+  const Comp = PreloadedListings || LazyListings;
+  return <Comp {...props} />;
+};
+const CategoryListings: React.FC = (props) => {
+  const Comp = PreloadedCategoryListings || LazyCategoryListings;
+  return <Comp {...props} />;
+};
+const ListingDetail: React.FC<{ overrideSlug?: string }> = (props) => {
+  const Comp = PreloadedListingDetail || LazyListingDetail;
+  return <Comp {...props} />;
+};
+const News: React.FC = (props) => {
+  const Comp = PreloadedNews || LazyNews;
+  return <Comp {...props} />;
+};
+const NewsDetail: React.FC = (props) => {
+  const Comp = PreloadedNewsDetail || LazyNewsDetail;
+  return <Comp {...props} />;
+};
+
+const RestaurantCategoryOrDetail: React.FC = () => {
+  const { category } = useParams<{ category: string }>();
+  if (category && !isRestaurantSubcategorySlug(category)) {
+    return <ListingDetail overrideSlug={category} />;
+  }
+  return <CategoryListings />;
+};
 const AddNews = React.lazy(() => import('./pages/AddNews').then(module => ({ default: module.AddNews })));
 const EditListing = React.lazy(() => import('./pages/EditListing').then(module => ({ default: module.EditListing })));
 const EditNews = React.lazy(() => import('./pages/EditNews').then(module => ({ default: module.EditNews })));
@@ -240,7 +333,7 @@ const AppContent: React.FC = () => {
             <Route path="/" element={<Home />} />
             <Route path="/listings" element={<Listings />} />
           <Route path="/restaurants" element={<CategoryListings />} />
-          <Route path="/restaurants/:category" element={<CategoryListings />} />
+          <Route path="/restaurants/:category" element={<RestaurantCategoryOrDetail />} />
           <Route path="/mosques" element={<CategoryListings />} />
           <Route path="/organizations" element={<CategoryListings />} />
           <Route path="/grocery" element={<CategoryListings />} />

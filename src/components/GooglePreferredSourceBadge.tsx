@@ -35,6 +35,7 @@ export const GooglePreferredSourceBadge: React.FC<GooglePreferredSourceBadgeProp
       width="24"
       height="24"
       loading="lazy"
+      decoding="async"
       onError={(e) => {
         (e.target as HTMLImageElement).src = 'https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp';
       }}

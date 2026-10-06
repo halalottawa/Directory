@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark } from 'lucide-react';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
-import { db, auth } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -20,29 +18,53 @@ export const SaveButton: React.FC<SaveButtonProps> = ({ id, type, variant = 'def
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user || !auth.currentUser || auth.currentUser.uid !== user.uid) {
+    if (!user) {
       setSavedDocId(null);
       return;
     }
 
-    const q = query(
-      collection(db, 'saved_items'),
-      where('userId', '==', user.uid),
-      where('itemId', '==', id),
-      where('itemType', '==', type)
-    );
+    let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setSavedDocId(snapshot.docs[0].id);
-      } else {
-        setSavedDocId(null);
+    (async () => {
+      try {
+        const [{ collection, query, where, onSnapshot }, { db, auth }] = await Promise.all([
+          import('firebase/firestore'),
+          import('../firebase'),
+        ]);
+        if (cancelled) return;
+        if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+          setSavedDocId(null);
+          return;
+        }
+        const q = query(
+          collection(db, 'saved_items'),
+          where('userId', '==', user.uid),
+          where('itemId', '==', id),
+          where('itemType', '==', type)
+        );
+        unsubscribe = onSnapshot(
+          q,
+          (snapshot) => {
+            if (!snapshot.empty) {
+              setSavedDocId(snapshot.docs[0].id);
+            } else {
+              setSavedDocId(null);
+            }
+          },
+          (err) => {
+            handleFirestoreError(err, OperationType.LIST, 'saved_items');
+          }
+        );
+      } catch (err) {
+        console.error('Error subscribing to saved_items:', err);
       }
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'saved_items');
-    });
+    })();
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+      if (unsubscribe) unsubscribe();
+    };
   }, [user, id, type]);
 
   const isSaved = !!savedDocId;
@@ -60,6 +82,10 @@ export const SaveButton: React.FC<SaveButtonProps> = ({ id, type, variant = 'def
 
     setLoading(true);
     try {
+      const [{ collection, addDoc, deleteDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       if (isSaved && savedDocId) {
         await deleteDoc(doc(db, 'saved_items', savedDocId));
       } else {

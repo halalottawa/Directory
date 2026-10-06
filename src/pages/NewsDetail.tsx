@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Clock, User, ChevronLeft, ChevronRight, ExternalLink, Edit2, Trash2, ArrowRight } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { doc, getDoc, deleteDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../firebase';
 import { NewsArticle } from '../types';
-import { DEMO_NEWS } from '../constants';
 import { CommentSection } from '../components/CommentSection';
 import { useAuth } from '../context/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -20,6 +16,107 @@ import { ArticleAd } from '../components/ArticleAd';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
 import { notifyContentChanged } from '../utils/revalidate';
 
+function renderInlineMarkdown(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const tokenRegex = /(!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let keyIdx = 0;
+
+  while ((match = tokenRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1].startsWith('![')) {
+      const alt = match[2] || 'Article Photo';
+      const rawSrc = match[3] || '';
+      const [cleanSrc, hash] = rawSrc.split('#');
+      const hashParts = (hash || '').split('-');
+      const alignment = hashParts[0] || 'center';
+      const posX = hashParts[1] !== undefined ? `${hashParts[1]}%` : '50%';
+      const posY = hashParts[2] !== undefined ? `${hashParts[2]}%` : '50%';
+
+      let imgClass =
+        'rounded-2xl my-6 mx-auto shadow-md border border-gray-100 max-h-[480px] object-cover w-full md:max-w-[100%] block clear-both';
+      if (alignment === 'left') {
+        imgClass =
+          'rounded-2xl my-3 mr-6 md:float-left shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none';
+      } else if (alignment === 'right') {
+        imgClass =
+          'rounded-2xl my-3 ml-6 md:float-right shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none';
+      }
+      nodes.push(
+        <img
+          key={`img-${keyIdx++}`}
+          src={cleanSrc}
+          alt={alt}
+          className={imgClass}
+          style={{ objectPosition: `${posX} ${posY}` }}
+          referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
+        />
+      );
+    } else if (match[4] !== undefined && match[5] !== undefined) {
+      nodes.push(
+        <a
+          key={`a-${keyIdx++}`}
+          href={match[5]}
+          target={match[5].startsWith('http') ? '_blank' : undefined}
+          rel={match[5].startsWith('http') ? 'noopener noreferrer' : undefined}
+          className="text-[#e90b35] hover:underline font-medium"
+        >
+          {match[4]}
+        </a>
+      );
+    } else if (match[6] !== undefined) {
+      nodes.push(<strong key={`b-${keyIdx++}`}>{match[6]}</strong>);
+    } else if (match[7] !== undefined) {
+      nodes.push(<em key={`i-${keyIdx++}`}>{match[7]}</em>);
+    }
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+  return nodes;
+}
+
+function renderMarkdownBlocks(content: string): React.ReactNode {
+  const blocks = content.split(/\r?\n\s*\r?\n/);
+  return blocks.map((block, idx) => {
+    const trimmed = block.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('### ')) {
+      return (
+        <h3 key={idx} className="text-lg font-bold text-gray-900 mt-4 mb-2">
+          {renderInlineMarkdown(trimmed.slice(4))}
+        </h3>
+      );
+    }
+    if (trimmed.startsWith('## ')) {
+      return (
+        <h2 key={idx} className="text-xl font-bold text-gray-900 mt-6 mb-2">
+          {renderInlineMarkdown(trimmed.slice(3))}
+        </h2>
+      );
+    }
+    if (trimmed.startsWith('# ')) {
+      return (
+        <h1 key={idx} className="text-2xl font-bold text-gray-900 mt-6 mb-3">
+          {renderInlineMarkdown(trimmed.slice(2))}
+        </h1>
+      );
+    }
+    return (
+      <p key={idx} className="mb-4 last:mb-0">
+        {renderInlineMarkdown(trimmed)}
+      </p>
+    );
+  });
+}
+
 export const NewsDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -28,93 +125,120 @@ export const NewsDetail: React.FC = () => {
     if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'news') {
       const initData = (window as any).__INITIAL_DATA__ as NewsArticle;
       if (initData && (initData.slug === slug || initData.id === slug)) {
+        delete (window as any).__INITIAL_DATA__;
+        delete (window as any).__INITIAL_ROUTE_TYPE__;
         return initData;
       }
     }
     return null;
   });
+  const initialSSRArticleRef = useRef<boolean>(
+    Boolean(article && (article.slug === slug || article.id === slug))
+  );
   const [loading, setLoading] = useState(article === null);
   const [modalOpen, setModalOpen] = useState(false);
   const [relatedNews, setRelatedNews] = useState<NewsArticle[]>([]);
 
   useEffect(() => {
-    const fetchArticle = async () => {
+    let isMounted = true;
+    const parseNewsDate = (item: any): number => {
+      const val = item.publishDate || item.createdAt;
+      if (!val) return 0;
+      if (typeof val === 'number') return val;
+      if (typeof val.toDate === 'function') return val.toDate().getTime();
+      if (typeof val.seconds === 'number') return val.seconds * 1000;
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    const fetchArticleAndRelated = async () => {
       if (!slug) return;
-      
-      let fetchedArticle: NewsArticle | null = null;
-      // Check demo news first
-      const found = DEMO_NEWS.find(n => n.id === slug || n.slug === slug);
-      if (found) {
-        fetchedArticle = found;
-        setArticle(found);
-      } else {
-        // Fetch from Firestore
-        try {
-          let docSnap = await getDoc(doc(db, 'news', slug));
-          let articleData: NewsArticle | null = null;
-          
-          if (docSnap.exists()) {
-            articleData = { id: docSnap.id, ...docSnap.data() } as NewsArticle;
-          } else {
-            const q = query(collection(db, 'news'), where('slug', '==', slug));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-              docSnap = querySnapshot.docs[0];
-              articleData = { id: docSnap.id, ...docSnap.data() } as NewsArticle;
+
+      let fetchedArticle: NewsArticle | null =
+        initialSSRArticleRef.current && article && (article.slug === slug || article.id === slug)
+          ? article
+          : null;
+      initialSSRArticleRef.current = false;
+
+      let apiNewsList: NewsArticle[] = [];
+      try {
+        const res = await fetch('/api/news');
+        if (res.ok) {
+          const data = await res.json();
+          apiNewsList = Array.isArray(data?.news) ? (data.news as NewsArticle[]) : [];
+          if (!fetchedArticle) {
+            fetchedArticle = apiNewsList.find((n) => n.id === slug || n.slug === slug) || null;
+            if (fetchedArticle && isMounted) {
+              setArticle(fetchedArticle);
             }
           }
-          
-          if (!articleData) {
-            const redirectSnap = await getDoc(doc(db, 'slug_redirects', `news_${slug}`));
-            if (redirectSnap.exists()) {
-              const rData = redirectSnap.data();
-              if (rData && rData.newSlug) {
-                navigate(`/news/${rData.newSlug}`, { replace: true });
-                return;
+        }
+      } catch {
+        // Fallback handled below
+      }
+
+      if (!fetchedArticle) {
+        try {
+          const [{ doc, getDoc, collection, query, where, getDocs }, { db }, { DEMO_NEWS }] =
+            await Promise.all([
+              import('firebase/firestore'),
+              import('../firebase'),
+              import('../constants'),
+            ]);
+          const foundDemo = DEMO_NEWS.find((n) => n.id === slug || n.slug === slug);
+          if (foundDemo) {
+            fetchedArticle = foundDemo;
+            if (isMounted) setArticle(foundDemo);
+          } else {
+            let docSnap = await getDoc(doc(db, 'news', slug));
+            let articleData: NewsArticle | null = null;
+            if (docSnap.exists()) {
+              articleData = { id: docSnap.id, ...docSnap.data() } as NewsArticle;
+            } else {
+              const q = query(collection(db, 'news'), where('slug', '==', slug));
+              const querySnapshot = await getDocs(q);
+              if (!querySnapshot.empty) {
+                docSnap = querySnapshot.docs[0];
+                articleData = { id: docSnap.id, ...docSnap.data() } as NewsArticle;
               }
             }
-          }
 
-          if (articleData) {
-            fetchedArticle = articleData;
-            setArticle(articleData);
+            if (!articleData) {
+              const redirectSnap = await getDoc(doc(db, 'slug_redirects', `news_${slug}`));
+              if (redirectSnap.exists()) {
+                const rData = redirectSnap.data();
+                if (rData && rData.newSlug) {
+                  if (isMounted) navigate(`/news/${rData.newSlug}`, { replace: true });
+                  return;
+                }
+              }
+            }
+
+            if (articleData) {
+              fetchedArticle = articleData;
+              if (isMounted) setArticle(articleData);
+            }
           }
         } catch (err) {
           handleFirestoreError(err, OperationType.GET, `news/${slug}`);
         }
       }
 
-      setLoading(false);
+      if (isMounted) setLoading(false);
 
-      if (fetchedArticle) {
-        try {
-          const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(5));
-          const snap = await getDocs(qNews);
-          const parseNewsDate = (item: any): number => {
-            const val = item.publishDate || item.createdAt;
-            if (!val) return 0;
-            if (typeof val === 'number') return val;
-            if (typeof val.toDate === 'function') return val.toDate().getTime();
-            if (typeof val.seconds === 'number') return val.seconds * 1000;
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? 0 : d.getTime();
-          };
-          const relatedFs = snap.docs
-            .map(d => ({ id: d.id, ...d.data() } as NewsArticle))
-            .filter(n => n.id !== fetchedArticle!.id && n.slug !== fetchedArticle!.slug)
-            .sort((a, b) => parseNewsDate(b) - parseNewsDate(a));
-            
-          const relatedDemo = DEMO_NEWS.filter(n => n.id !== fetchedArticle!.id && n.id !== slug);
-          const combined = [...relatedFs, ...relatedDemo].slice(0, 3);
-          setRelatedNews(combined);
-        } catch (err) {
-          const relatedDemo = DEMO_NEWS.filter(n => n.id !== fetchedArticle!.id && n.id !== slug).slice(0, 3);
-          setRelatedNews(relatedDemo);
-        }
+      if (fetchedArticle && apiNewsList.length > 0 && isMounted) {
+        const related = apiNewsList
+          .filter((n) => n.id !== fetchedArticle!.id && n.slug !== fetchedArticle!.slug)
+          .sort((a, b) => parseNewsDate(b) - parseNewsDate(a))
+          .slice(0, 3);
+        setRelatedNews(related);
       }
     };
 
-    fetchArticle();
+    fetchArticleAndRelated();
+    return () => {
+      isMounted = false;
+    };
   }, [slug]);
 
   const onEdit = () => {
@@ -129,6 +253,10 @@ export const NewsDetail: React.FC = () => {
   const confirmDelete = async () => {
     if (!article) return;
     try {
+      const [{ deleteDoc, doc }, { db }] = await Promise.all([
+        import('firebase/firestore'),
+        import('../firebase'),
+      ]);
       await deleteDoc(doc(db, 'news', article.id));
       if (article.isApproved) {
         notifyContentChanged('news:delete', {
@@ -152,7 +280,7 @@ export const NewsDetail: React.FC = () => {
 
   return (
     <>
-      <div className="animate-in fade-in duration-500 md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
+      <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
         <SEO
         title={article.title}
         description={article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content}
@@ -206,22 +334,16 @@ export const NewsDetail: React.FC = () => {
         ]}
       />
 
-      <div className="relative h-64 bg-gray-100">
-        {article.coverImage && article.coverImage.trim() !== '' ? (
-          <img 
-            src={getOptimizedImageUrl(article.coverImage, 800, 256)} 
-            alt={article.title} 
-            className="w-full h-full object-cover" 
-            fetchPriority="high"
-            width="800"
-            height="256"
-            decoding="async"
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-400 font-medium">No Image Available</span>
-          </div>
-        )}
+      <div className="relative h-64 bg-gray-100 overflow-hidden">
+        <img 
+          src={getOptimizedImageUrl(article.coverImage && article.coverImage.trim() !== '' ? article.coverImage : '/ottawa-sunset.webp', 800, 256)} 
+          alt={article.title} 
+          className="w-full h-full object-cover" 
+          fetchPriority="high"
+          loading="eager"
+          width="800"
+          height="256"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         <div className="absolute top-6 right-6 flex gap-2">
           <SaveButton id={article.id} type="news" variant="glass" />
@@ -257,34 +379,6 @@ export const NewsDetail: React.FC = () => {
 
       <div className="p-6 space-y-8">
         {(() => {
-          const markdownComponents = {
-            img: ({ src, alt }: { src?: string; alt?: string }) => {
-              const [cleanSrc, hash] = (src || '').split('#');
-              const hashParts = (hash || '').split('-');
-              const alignment = hashParts[0] || 'center';
-              const posX = hashParts[1] !== undefined ? `${hashParts[1]}%` : '50%';
-              const posY = hashParts[2] !== undefined ? `${hashParts[2]}%` : '50%';
-
-              let imgClass = "rounded-2xl my-6 mx-auto shadow-md border border-gray-100 max-h-[480px] object-cover w-full md:max-w-[100%] block clear-both";
-              
-              if (alignment === 'left') {
-                imgClass = "rounded-2xl my-3 mr-6 md:float-left shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
-              } else if (alignment === 'right') {
-                imgClass = "rounded-2xl my-3 ml-6 md:float-right shadow-md border border-gray-100 max-h-[350px] object-cover w-full md:max-w-[45%] block md:inline clear-none";
-              }
-              
-              return (
-                <img 
-                  src={cleanSrc} 
-                  alt={alt || "Article Photo"} 
-                  className={imgClass}
-                  style={{ objectPosition: `${posX} ${posY}` }}
-                  referrerPolicy="no-referrer"
-                />
-              );
-            }
-          };
-
           const paragraphs = article.content ? article.content.split(/\r?\n\s*\r?\n/) : [];
           const numParagraphs = paragraphs.length;
 
@@ -292,9 +386,7 @@ export const NewsDetail: React.FC = () => {
             if (!content || !content.trim()) return null;
             return (
               <article className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-wrap flow-root overflow-hidden">
-                <ReactMarkdown components={markdownComponents}>
-                  {content}
-                </ReactMarkdown>
+                {renderMarkdownBlocks(content)}
               </article>
             );
           };
@@ -360,7 +452,7 @@ export const NewsDetail: React.FC = () => {
 
       {/* Related News - Desktop Only */}
       {relatedNews.length > 0 && (
-        <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto mt-12 mb-16 animate-in fade-in duration-500">
+        <div className="hidden md:block w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] max-w-[76rem] xl:max-w-[1336px] mx-auto mt-12 mb-16">
           <h2 className="text-2xl font-bold mb-6">More News</h2>
           <div className="grid grid-cols-3 lg:grid-cols-4 gap-6">
             {relatedNews.map((related) => (
