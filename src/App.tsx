@@ -302,6 +302,7 @@ const AppContent: React.FC = () => {
     }
 
     getGeneralSettings().then((data) => {
+      if (!data || !data.faviconUrl) return;
       let favUrl = (data && data.faviconUrl) || "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/favicon.webp";
       let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
       if (!link) {
@@ -321,72 +322,88 @@ const AppContent: React.FC = () => {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
+  const routesElement = (
+    <Routes>
+      <Route element={<Layout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/listings" element={<Listings />} />
+        <Route path="/restaurants" element={<CategoryListings />} />
+        <Route path="/restaurants/:category" element={<RestaurantCategoryOrDetail />} />
+        <Route path="/mosques" element={<CategoryListings />} />
+        <Route path="/organizations" element={<CategoryListings />} />
+        <Route path="/grocery" element={<CategoryListings />} />
+        <Route path="/clothing" element={<CategoryListings />} />
+        <Route path="/schools" element={<CategoryListings />} />
+        <Route path="/butchers" element={<CategoryListings />} />
+        <Route path="/:category" element={<CategoryListings />} />
+        <Route path="/listings/:slug" element={<ListingDetail />} />
+        <Route path="/news" element={<News />} />
+        <Route path="/news/:slug" element={<NewsDetail />} />
+        <Route path="/author/:slug" element={<AuthorPage />} />
+        <Route path="/author" element={<Navigate to="/author/youssef-agrebi" replace />} />
+        <Route path="/authors/:slug" element={<AuthorPage />} />
+        <Route path="/authors" element={<Navigate to="/author/youssef-agrebi" replace />} />
+        <Route path="/events" element={<Navigate to="/" replace />} />
+        <Route path="/events/*" element={<Navigate to="/" replace />} />
+        <Route path="/jobs" element={<Navigate to="/" replace />} />
+        <Route path="/jobs/*" element={<Navigate to="/" replace />} />
+        <Route path="/:category/:slug" element={<ListingDetail />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/tools/qibla" element={<QiblaDirection />} />
+        
+        {/* Protected Routes */}
+        <Route path="/profile" element={<ProtectedRoute message="Sign in to view and manage your profile."><Profile /></ProtectedRoute>} />
+        <Route path="/profile/edit" element={<ProtectedRoute message="Sign in to edit your profile."><EditProfile /></ProtectedRoute>} />
+        <Route path="/saved" element={<ProtectedRoute message="Sign in to access your saved listings and news."><SavedItems /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute message="Sign in to manage your account settings."><Settings /></ProtectedRoute>} />
+        <Route path="/listings/add" element={<ProtectedRoute message="Sign in to add a new listing to the community."><AddListing /></ProtectedRoute>} />
+        <Route path="/listings/edit/:id" element={<ProtectedRoute message="Sign in to edit your listing."><EditListing /></ProtectedRoute>} />
+        <Route path="/news/add" element={<ProtectedRoute requireAdmin message="Admin access required to publish news articles."><AddNews /></ProtectedRoute>} />
+        <Route path="/news/edit/:id" element={<ProtectedRoute requireAdmin message="Admin access required to edit news articles."><EditNews /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute requireAdmin message="Admin access required for the dashboard."><AdminDashboard /></ProtectedRoute>} />
+        <Route path="*" element={<NotFound />} />
+      </Route>
+      
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Login />} />
+      <Route path="/go/:slug" element={<ShortLinkRedirect />} />
+      <Route path="/__cookie_check.html" element={<CookieCheckRedirect />} />
+    </Routes>
+  );
+
   return (
     <ErrorBoundary>
-      <Suspense fallback={
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
-          <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      }>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/listings" element={<Listings />} />
-          <Route path="/restaurants" element={<CategoryListings />} />
-          <Route path="/restaurants/:category" element={<RestaurantCategoryOrDetail />} />
-          <Route path="/mosques" element={<CategoryListings />} />
-          <Route path="/organizations" element={<CategoryListings />} />
-          <Route path="/grocery" element={<CategoryListings />} />
-          <Route path="/clothing" element={<CategoryListings />} />
-          <Route path="/schools" element={<CategoryListings />} />
-          <Route path="/butchers" element={<CategoryListings />} />
-          <Route path="/:category" element={<CategoryListings />} />
-          <Route path="/listings/:slug" element={<ListingDetail />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/news/:slug" element={<NewsDetail />} />
-          <Route path="/author/:slug" element={<AuthorPage />} />
-          <Route path="/author" element={<Navigate to="/author/youssef-agrebi" replace />} />
-          <Route path="/authors/:slug" element={<AuthorPage />} />
-          <Route path="/authors" element={<Navigate to="/author/youssef-agrebi" replace />} />
-          <Route path="/events" element={<Navigate to="/" replace />} />
-          <Route path="/events/*" element={<Navigate to="/" replace />} />
-          <Route path="/jobs" element={<Navigate to="/" replace />} />
-          <Route path="/jobs/*" element={<Navigate to="/" replace />} />
-          <Route path="/:category/:slug" element={<ListingDetail />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/tools/qibla" element={<QiblaDirection />} />
-          
-          {/* Protected Routes */}
-          <Route path="/profile" element={<ProtectedRoute message="Sign in to view and manage your profile."><Profile /></ProtectedRoute>} />
-          <Route path="/profile/edit" element={<ProtectedRoute message="Sign in to edit your profile."><EditProfile /></ProtectedRoute>} />
-          <Route path="/saved" element={<ProtectedRoute message="Sign in to access your saved listings and news."><SavedItems /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute message="Sign in to manage your account settings."><Settings /></ProtectedRoute>} />
-          <Route path="/listings/add" element={<ProtectedRoute message="Sign in to add a new listing to the community."><AddListing /></ProtectedRoute>} />
-          <Route path="/listings/edit/:id" element={<ProtectedRoute message="Sign in to edit your listing."><EditListing /></ProtectedRoute>} />
-          <Route path="/news/add" element={<ProtectedRoute requireAdmin message="Admin access required to publish news articles."><AddNews /></ProtectedRoute>} />
-          <Route path="/news/edit/:id" element={<ProtectedRoute requireAdmin message="Admin access required to edit news articles."><EditNews /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute requireAdmin message="Admin access required for the dashboard."><AdminDashboard /></ProtectedRoute>} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-        
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Login />} />
-        <Route path="/go/:slug" element={<ShortLinkRedirect />} />
-        <Route path="/__cookie_check.html" element={<CookieCheckRedirect />} />
-      </Routes>
-      </Suspense>
+      {location.pathname === '/' ? (
+        routesElement
+      ) : (
+        <Suspense fallback={
+          <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+            <div className="w-12 h-12 border-4 border-[#e90b35] border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        }>
+          {routesElement}
+        </Suspense>
+      )}
     </ErrorBoundary>
   );
 };
 
 export default function App() {
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   return (
     <HelmetProvider>
-      <Suspense fallback={null}>
-        <Toaster position="top-center" richColors />
-      </Suspense>
+      {hasMounted && (
+        <Suspense fallback={null}>
+          <Toaster position="top-center" richColors />
+        </Suspense>
+      )}
       <BrowserRouter>
         <AuthProvider>
           <AppContent />

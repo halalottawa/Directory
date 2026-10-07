@@ -63,6 +63,25 @@ const FAQItem: React.FC<{ question: string, answer: string, isOpen: boolean, onT
   );
 };
 
+let cachedInitialHomeData: any = undefined;
+function consumeInitialHomeData(): any {
+  if (cachedInitialHomeData !== undefined) {
+    return cachedInitialHomeData;
+  }
+  if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home') {
+    const data = (window as any).__INITIAL_DATA__ || null;
+    if (data?.settings) {
+      (window as any).__INITIAL_SETTINGS__ = data.settings;
+    }
+    delete (window as any).__INITIAL_DATA__;
+    delete (window as any).__INITIAL_ROUTE_TYPE__;
+    cachedInitialHomeData = data;
+    return data;
+  }
+  cachedInitialHomeData = null;
+  return null;
+}
+
 export const Home: React.FC = () => {
   const currentDate = new Date();
   const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
@@ -87,34 +106,16 @@ export const Home: React.FC = () => {
     }
   };
 
-  const [initData] = useState(() => {
-    if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home') {
-      const data = (window as any).__INITIAL_DATA__;
-      if (data?.settings) {
-        (window as any).__INITIAL_SETTINGS__ = data.settings;
-      }
-      delete (window as any).__INITIAL_DATA__;
-      delete (window as any).__INITIAL_ROUTE_TYPE__;
-      return data;
-    }
-    return null;
-  });
+  const [initData] = useState(() => consumeInitialHomeData());
 
   const [loading, setLoading] = useState(!initData);
   const initialSSRGuardRef = useRef(Boolean(initData && (initData.listings || initData.news)));
-  const parseInitTime = (val: any): number => {
-    if (!val) return 0;
-    if (typeof val.toDate === 'function') return val.toDate().getTime();
-    if (typeof val.seconds === 'number') return val.seconds * 1000;
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? 0 : d.getTime();
-  };
   const [featuredListings, setFeaturedListings] = useState<Listing[]>(
-    initData?.listings
-      ? [...initData.listings].sort((a, b) => parseInitTime(b.createdAt) - parseInitTime(a.createdAt)).slice(0, 8)
-      : []
+    initData?.listings ? initData.listings.slice(0, 8) : []
   );
-  const [latestNews, setLatestNews] = useState<NewsArticle[]>(initData?.news || []);
+  const [latestNews, setLatestNews] = useState<NewsArticle[]>(
+    initData?.news ? initData.news.slice(0, 6) : []
+  );
   const [heroImageUrl, setHeroImageUrl] = useState<string>(initData?.settings?.heroImageUrl || '');
   const navigate = useNavigate();
 
@@ -398,7 +399,7 @@ export const Home: React.FC = () => {
                   )}
                   <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg flex items-center gap-1 text-xs font-bold">
                     <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                    {listing.averageRating}
+                    <span>{listing.averageRating ? Number(listing.averageRating).toFixed(1) : '5.0'}</span>
                   </div>
                 </div>
                 <div className="p-4">
@@ -406,7 +407,7 @@ export const Home: React.FC = () => {
                   <div className="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
                     <span className="flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
-                      {listing.address.split(',')[0]}
+                      <span>{listing.address ? listing.address.split(',')[0] : 'Ottawa, ON'}</span>
                     </span>
                   </div>
                 </div>
@@ -490,7 +491,7 @@ export const Home: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /> {formatDate(news.publishDate)}</span>
+                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /><span>{formatDate(news.publishDate || news.createdAt)}</span></span>
                     {(news.author || 'Youssef Agrebi') && (
                       <span 
                         onClick={(e) => {
@@ -502,7 +503,7 @@ export const Home: React.FC = () => {
                         title="View author profile"
                       >
                         <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
-                        <span className="hover:underline">By {news.author || 'Youssef Agrebi'}</span>
+                        <span className="hover:underline">{`By ${news.author || 'Youssef Agrebi'}`}</span>
                       </span>
                     )}
                   </div>

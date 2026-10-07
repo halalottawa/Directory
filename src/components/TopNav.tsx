@@ -24,12 +24,15 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
   const { user, logout, loading, initAuth } = useAuth();
   const navigate = useNavigate();
   const [inApp, setInApp] = useState(false);
+  const [isInteractive, setIsInteractive] = useState(false);
 
   useEffect(() => {
     setInApp(isAppWrapper());
+    setIsInteractive(true);
   }, []);
 
   useEffect(() => {
+    if (getInitialGeneralSettings()?.logoUrl) return;
     getGeneralSettings().then((data) => {
       if (data && data.logoUrl) {
         setSiteLogoUrl(data.logoUrl);
@@ -119,7 +122,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   )}
                 </Link>
 
-                {cat === 'Restaurants' && (
+                {cat === 'Restaurants' && isInteractive && (
                   <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-[600px] bg-white border border-gray-100 shadow-2xl rounded-2xl p-5 grid grid-cols-2 gap-6 opacity-0 translate-y-2 pointer-events-none group-hover/menu:opacity-100 group-hover/menu:translate-y-0 group-hover/menu:pointer-events-auto transition-all duration-300 z-50">
                     {/* Food Types column */}
                     <div>
@@ -201,11 +204,11 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         <div className="flex justify-end items-center gap-3 relative">
 
 
-          {loading ? (
+          {isInteractive && loading ? (
             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center animate-pulse border border-gray-200">
               <User className="w-4 h-4 text-gray-300" />
             </div>
-          ) : user ? (
+          ) : isInteractive && user ? (
             <div className="relative">
               <button 
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}

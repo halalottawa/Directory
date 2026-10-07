@@ -106,7 +106,7 @@ async function uploadToR2(url: string, name: string): Promise<string> {
   const isVersionedKey = /-\d{10,}\.[a-z0-9]+$/i.test(finalName);
   const cacheControl = isVersionedKey
     ? "public, max-age=31536000, immutable"
-    : "public, max-age=86400, stale-while-revalidate=604800";
+    : "public, max-age=604800, stale-while-revalidate=86400";
 
   // Send object to R2
   await s3.send(

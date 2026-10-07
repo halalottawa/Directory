@@ -266,7 +266,7 @@ export function renderHomeSSRHtml(data: {
     { 
       name: 'Organizations', 
       slug: 'organizations', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg>'
     },
     { 
       name: 'Grocery', 
@@ -286,7 +286,7 @@ export function renderHomeSSRHtml(data: {
     { 
       name: 'Butchers', 
       slug: 'butchers', 
-      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12.5" cy="8.5" r="2.5"></circle><path d="M12.5 2a6.5 6.5 0 0 0-6.22 4.6c-1.1 3.13-.78 3.9-3.18 6.08A3 3 0 0 0 5 18c4 0 8.4-1.8 11.4-4.3A6.5 6.5 0 0 0 12.5 2Z"></path><path d="m18.5 6 2.19 4.5a6.48 6.48 0 0 1 .31 2 6.49 6.49 0 0 1-2.6 5.2C15.4 20.2 11 22 7 22a3 3 0 0 1-2.68-1.66L2.4 16.5"></path></svg>'
+      svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16.4 13.7A6.5 6.5 0 1 0 6.28 6.6c-1.1 3.13-.78 3.9-3.18 6.08A3 3 0 0 0 5 18c4 0 8.4-1.8 11.4-4.3"></path><path d="m18.5 6 2.19 4.5a6.48 6.48 0 0 1-2.29 7.2C15.4 20.2 11 22 7 22a3 3 0 0 1-2.68-1.66L2.4 16.5"></path><circle cx="12.5" cy="8.5" r="2.5"></circle></svg>'
     },
   ];
 
@@ -341,7 +341,7 @@ export function renderHomeSSRHtml(data: {
           <h3 class="font-bold leading-tight line-clamp-1 m-0 text-gray-900">${escapeHtmlText(l.name)}</h3>
           <div class="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
             <span class="flex items-center gap-2">
-              <svg class="w-3.5 h-3.5 text-[#e90b35]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <svg class="w-3.5 h-3.5 text-[#e90b35]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
               <span>${escapeHtmlText(rawAddress)}</span>
             </span>
           </div>
@@ -356,7 +356,7 @@ export function renderHomeSSRHtml(data: {
     const coverUrl = getImageUrl(rawCover, 480) || rawCover;
     const coverSrcSet = getImageSrcSet(rawCover, CARD_IMAGE_WIDTHS);
     const coverRawFallback = getUntransformedImageUrl(rawCover) || rawCover;
-    const dateStr = item.publishDate || item.createdAt ? new Date(item.publishDate || item.createdAt).toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const dateStr = item.publishDate || item.createdAt ? new Date(item.publishDate || item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     const authorName = item.author || 'Youssef Agrebi';
 
     return `
@@ -373,11 +373,11 @@ export function renderHomeSSRHtml(data: {
           </div>
           <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
             <span class="flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="10"></circle></svg>
               <span>${dateStr}</span>
             </span>
             <span class="flex items-center gap-1.5 text-gray-500 font-medium">
-              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
               <span>By ${escapeHtmlText(authorName)}</span>
             </span>
           </div>
@@ -396,12 +396,44 @@ export function renderHomeSSRHtml(data: {
           </p>
         </div>`;
 
+  const ssrFaqs = [
+    {
+      question: 'How do I add my business to the directory?',
+      answer: 'You can add your business by clicking the "Add Listing" button or the "+" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval.',
+    },
+    {
+      question: 'Is it free to list my business?',
+      answer: 'Yes! Basic listings are completely free. We also offer premium features to stand out and attract more customers, which you can explore in your dashboard.',
+    },
+    {
+      question: 'How are listings approved?',
+      answer: 'Our community moderators review all submitted listings within 24-48 hours. They verify the information to ensure quality standards our community expects.',
+    },
+  ];
+
+  const faqItemsHtml = ssrFaqs
+    .map(
+      (f) => `
+                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition-all duration-300">
+                  <button aria-expanded="false" class="w-full text-left p-6 flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-[#e90b35] focus:ring-inset">
+                    <h3 class="font-bold text-lg text-gray-900 m-0">${escapeHtmlText(f.question)}</h3>
+                    <svg class="w-5 h-5 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
+                  </button>
+                  <div class="transition-all duration-300 ease-in-out" style="max-height:0;opacity:0">
+                    <div class="p-6 pt-0 text-gray-500 text-sm leading-relaxed">
+                      ${escapeHtmlText(f.answer)}
+                    </div>
+                  </div>
+                </div>`
+    )
+    .join('\n');
+
   return `
     <div class="min-h-screen bg-gray-50 flex flex-col">
       <header class="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 z-40 flex justify-between items-center px-4 md:px-8 lg:px-12">
         <div class="flex items-center justify-start md:hidden">
           <button class="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors" aria-label="Open menu">
-            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg>
+            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 12h16"></path><path d="M4 18h16"></path><path d="M4 6h16"></path></svg>
           </button>
         </div>
         <div class="hidden md:flex items-center justify-start gap-2 cursor-pointer" aria-label="Halal Ottawa Home" role="link">
@@ -449,12 +481,13 @@ export function renderHomeSSRHtml(data: {
               </p>
               <div class="w-full max-w-2xl mx-auto">
                 <form action="/listings" method="GET" class="relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden focus-within:ring-2 focus-within:ring-[#e90b35] transition-all flex items-center">
-                  <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"></path><circle cx="11" cy="11" r="8"></circle></svg>
                   <input 
                     type="text" 
                     name="search" 
                     placeholder="Search halal restaurants, mosques, or places in Ottawa..." 
                     class="w-full pl-12 pr-4 py-4 md:py-5 bg-white border-none text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 text-sm md:text-base outline-none"
+                    value=""
                   />
                 </form>
               </div>
@@ -467,18 +500,24 @@ export function renderHomeSSRHtml(data: {
 
             <!-- Categories - Merged Single Responsive Component -->
             <section class="relative group mb-8">
+              <button aria-label="Scroll categories left" class="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
+                <svg class="w-4 h-4 transition-transform hover:-translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+              </button>
               <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
                 <div class="grid grid-cols-3 md:flex gap-3">
                   ${categoryCardsHtml}
                 </div>
               </div>
+              <button aria-label="Scroll categories right" class="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
+                <svg class="w-4 h-4 transition-transform hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+              </button>
             </section>
 
             <!-- Latest Listings Section -->
             <section class="space-y-4 content-visibility-auto">
               <div class="flex justify-between items-end">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest Listings</h2>
-                <a href="/listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                <a href="/listings" aria-label="View all latest listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
                   View all
                 </a>
               </div>
@@ -494,7 +533,7 @@ export function renderHomeSSRHtml(data: {
             <section class="space-y-4 content-visibility-auto">
               <div class="flex justify-between items-end">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest News</h2>
-                <a href="/news" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                <a href="/news" aria-label="View all news articles" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
                   View all
                 </a>
               </div>
@@ -510,24 +549,12 @@ export function renderHomeSSRHtml(data: {
                 <p class="text-gray-500 m-0">Everything you need to know about Halal Ottawa</p>
               </div>
               <div class="space-y-4">
-                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-                  <h3 class="font-bold text-lg text-gray-900 m-0">How do I add my business to the directory?</h3>
-                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">You can add your business by clicking the "Add Listing" button or the "+" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval.</p>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-                  <h3 class="font-bold text-lg text-gray-900 m-0">Is it free to list my business?</h3>
-                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Yes! Basic listings are completely free. We also offer premium features to stand out and attract more customers, which you can explore in your dashboard.</p>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm p-6">
-                  <h3 class="font-bold text-lg text-gray-900 m-0">How are listings approved?</h3>
-                  <p class="text-gray-500 text-sm leading-relaxed mt-2 m-0">Our community moderators review all submitted listings within 24-48 hours. They verify the information to ensure quality standards our community expects.</p>
-                </div>
+${faqItemsHtml}
               </div>
             </section>
           </div>
         </div>
       </main>
-      <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-[110] hidden items-center justify-around px-2 pt-2 pb-[calc(env(safe-area-inset-bottom)+1rem)] min-h-[4.5rem]" aria-hidden="true"></nav>
       <footer class="bg-gray-950 pt-12 md:pt-16 pb-8 border-t border-gray-850 min-h-[420px]">
         <div class="max-w-7xl xl:max-w-[1400px] mx-auto px-4 md:px-8 lg:px-12">
           <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-12 lg:gap-8">
@@ -538,6 +565,12 @@ export function renderHomeSSRHtml(data: {
               <p class="text-gray-400 text-sm leading-relaxed max-w-sm m-0">
                 Supporting the Ottawa Muslim community by connecting people with halal-certified businesses, organizations, and local community news. Your trusted hub for halal life in the capital.
               </p>
+              <div class="pt-1 flex justify-start">
+                <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" title="Add Halal Ottawa as preferred source on Google" class="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-700 text-gray-300 hover:text-white text-xs font-medium transition-all duration-200 group select-none">
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"></path><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.27 21.41 7.33 24 12 24z"></path><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"></path><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.27 2.59 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"></path></svg>
+                  <span>Add Halal Ottawa as a preferred source on Google</span>
+                </a>
+              </div>
             </div>
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Browse</h3>
@@ -551,7 +584,6 @@ export function renderHomeSSRHtml(data: {
               <ul class="space-y-4 list-none p-0 m-0">
                 <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Donation</a></li>
                 <li><a href="/faq" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">FAQ</a></li>
-                <li><a href="/tools/qibla" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Qibla Direction</a></li>
                 <li><a href="/terms" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
                 <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
               </ul>

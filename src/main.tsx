@@ -1,5 +1,5 @@
 import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
+import {createRoot, hydrateRoot} from 'react-dom/client';
 import App, { preloadInitialRoute } from './App.tsx';
 import './index.css';
 
@@ -37,15 +37,29 @@ if (typeof document !== 'undefined') {
   document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
 }
 
+const currentPathname = typeof window !== 'undefined' ? (window.location.pathname.replace(/\/+$/, '') || '/') : '/';
+const canHydrateHome =
+  currentPathname === '/' &&
+  typeof window !== 'undefined' &&
+  (window as any).__INITIAL_ROUTE_TYPE__ === 'home';
+
 const mountApp = () => {
-  createRoot(document.getElementById('root')!).render(
+  const rootEl = document.getElementById('root')!;
+  const appElement = (
     <StrictMode>
       <App />
-    </StrictMode>,
+    </StrictMode>
   );
+
+  if (canHydrateHome && rootEl.firstElementChild) {
+    hydrateRoot(rootEl, appElement, {
+      onRecoverableError: () => {},
+    });
+  } else {
+    createRoot(rootEl).render(appElement);
+  }
 };
 
-const currentPathname = typeof window !== 'undefined' ? (window.location.pathname.replace(/\/+$/, '') || '/') : '/';
 if (currentPathname === '/') {
   mountApp();
 } else {

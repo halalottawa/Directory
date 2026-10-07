@@ -918,7 +918,7 @@ async function startServer() {
       const isVersionedKey = /-\d{10,}\.[a-z0-9]+$/i.test(finalName);
       const cacheControl = isVersionedKey
         ? "public, max-age=31536000, immutable"
-        : "public, max-age=86400, stale-while-revalidate=604800";
+        : "public, max-age=604800, stale-while-revalidate=86400";
 
       await s3.send(new PutObjectCommand({
         Bucket: bucketName,
@@ -1437,11 +1437,17 @@ async function startServer() {
           console.warn("Sharp fallback:", err);
         }
 
+        const isVersionedKey = /-\d{10,}\.[a-z0-9]+$/i.test(finalName);
+        const cacheControl = isVersionedKey
+          ? "public, max-age=31536000, immutable"
+          : "public, max-age=604800, stale-while-revalidate=86400";
+
         await s3.send(new PutObjectCommand({
           Bucket: r2BucketName,
           Key: `uploads/${finalName}`,
           Body: procBuffer,
           ContentType: "image/webp",
+          CacheControl: cacheControl,
         }));
 
         const baseUrl = r2PublicUrl || `https://${r2BucketName}.${r2AccountId}.r2.cloudflarestorage.com`;

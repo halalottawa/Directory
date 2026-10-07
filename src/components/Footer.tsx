@@ -136,7 +136,7 @@ export const Footer: React.FC = () => {
         {/* Footer Bottom */}
         <div className="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-xs text-center md:text-left">
-            © {new Date().getFullYear()} Halal Ottawa. All rights reserved.
+            {`© ${new Date().getFullYear()} Halal Ottawa. All rights reserved.`}
           </p>
         </div>
       </div>

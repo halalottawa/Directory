@@ -34,8 +34,15 @@ export function getInitialGeneralSettings(): GeneralSettings | null {
     win.INITIAL_DATA?.settings ||
     win.__INITIAL_DATA__?.settings ||
     win.__INITIAL_SETTINGS__;
-  if (initSettings && typeof initSettings === 'object' && initSettings.logoUrl) {
-    return initSettings as GeneralSettings;
+  if (initSettings && typeof initSettings === 'object') {
+    const resolvedLogo =
+      initSettings.logoUrl && !initSettings.logoUrl.includes('/wp-content/')
+        ? initSettings.logoUrl
+        : DEFAULT_SITE_LOGO_URL;
+    return {
+      ...initSettings,
+      logoUrl: resolvedLogo,
+    } as GeneralSettings;
   }
 
   const now = Date.now();
