@@ -49,10 +49,34 @@ function bundleAnalyzerPlugin(): Plugin {
   };
 }
 
+function inlineCssPlugin(): Plugin {
+  return {
+    name: 'halal-ottawa-inline-css',
+    enforce: 'post',
+    transformIndexHtml(html, ctx) {
+      if (!ctx.bundle) return html;
+      let result = html;
+      for (const [fileName, asset] of Object.entries(ctx.bundle)) {
+        if (asset.type === 'asset' && fileName.endsWith('.css') && typeof asset.source === 'string') {
+          const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const linkRegex = new RegExp(
+            `<link[^>]+rel=["']stylesheet["'][^>]+href=["']/?${escapedFileName}["'][^>]*>`,
+            'i'
+          );
+          if (linkRegex.test(result)) {
+            result = result.replace(linkRegex, () => `<style data-inlined-css="${fileName}">${asset.source}</style>`);
+          }
+        }
+      }
+      return result;
+    },
+  };
+}
+
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    plugins: [react(), tailwindcss(), bundleAnalyzerPlugin()],
+    plugins: [react(), tailwindcss(), inlineCssPlugin(), bundleAnalyzerPlugin()],
     resolve: {
       alias: [
         { find: '@', replacement: path.resolve(__dirname, '.') },
@@ -111,7 +135,7 @@ export default defineConfig(({mode}) => {
               if (id.includes('@google/genai')) {
                 return 'vendor-genai';
               }
-              if (id.includes('marked') || id.includes('dompurify')) {
+              if (id.includes('/marked/') || id.includes('/dompurify/')) {
                 return 'vendor-markdown';
               }
               if (id.includes('qrcode') || id.includes('html-to-image')) {

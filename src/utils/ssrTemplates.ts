@@ -315,7 +315,6 @@ export function renderHomeSSRHtml(data: {
     const cardRawFallback = getUntransformedImageUrl(photoUrl) || photoUrl;
     const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
     const rawAddress = l.address ? l.address.split(',')[0] : 'Ottawa, ON';
-    const isEager = idx < 2;
 
     return `
       <a href="${escapeHtmlAttr(listingUrl)}" class="min-w-[240px] md:min-w-0 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-50 group hover:shadow-md transition-all text-decoration-none text-inherit block">
@@ -326,7 +325,7 @@ export function renderHomeSSRHtml(data: {
             sizes="${escapeHtmlAttr(CARD_IMAGE_SIZES)}"
             alt="${escapeHtmlAttr(l.name)}" 
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-            loading="${isEager ? 'eager' : 'lazy'}" 
+            loading="lazy" 
             width="480" 
             height="240" 
             decoding="async"
@@ -435,7 +434,7 @@ export function renderHomeSSRHtml(data: {
                 loading="eager"
                 width="750" 
                 height="564"
-                decoding="async"
+                decoding="sync"
                 onerror="this.onerror=null;this.removeAttribute('srcset');this.src='${escapeHtmlAttr(heroUntransformedUrl)}';"
               />
               <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/65 to-transparent"></div>

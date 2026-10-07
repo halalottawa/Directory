@@ -37,10 +37,17 @@ if (typeof document !== 'undefined') {
   document.querySelectorAll('script[type="application/ld+json"]').forEach((el) => el.remove());
 }
 
-preloadInitialRoute().finally(() => {
+const mountApp = () => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />
     </StrictMode>,
   );
-});
+};
+
+const currentPathname = typeof window !== 'undefined' ? (window.location.pathname.replace(/\/+$/, '') || '/') : '/';
+if (currentPathname === '/') {
+  mountApp();
+} else {
+  preloadInitialRoute().finally(mountApp);
+}

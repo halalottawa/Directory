@@ -90,6 +90,9 @@ export const Home: React.FC = () => {
   const [initData] = useState(() => {
     if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'home') {
       const data = (window as any).__INITIAL_DATA__;
+      if (data?.settings) {
+        (window as any).__INITIAL_SETTINGS__ = data.settings;
+      }
       delete (window as any).__INITIAL_DATA__;
       delete (window as any).__INITIAL_ROUTE_TYPE__;
       return data;
@@ -251,7 +254,7 @@ export const Home: React.FC = () => {
               className="w-full h-full object-cover brightness-[0.45] saturate-[1.2]"
               fetchPriority="high"
               loading="eager"
-              decoding="async"
+              decoding="sync"
               width="750"
               height="564"
               onError={(e) => {

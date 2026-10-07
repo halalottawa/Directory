@@ -915,11 +915,17 @@ async function startServer() {
         }
       }
 
+      const isVersionedKey = /-\d{10,}\.[a-z0-9]+$/i.test(finalName);
+      const cacheControl = isVersionedKey
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=86400, stale-while-revalidate=604800";
+
       await s3.send(new PutObjectCommand({
         Bucket: bucketName,
         Key: `uploads/${finalName}`,
         Body: procBuffer,
         ContentType: contentType, // Use original or force type
+        CacheControl: cacheControl,
       }));
 
       // 2. Generate Public URL
