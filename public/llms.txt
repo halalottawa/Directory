@@ -1,21 +1,30 @@
 # Halal Ottawa
 
-Halal Ottawa is a comprehensive directory for the Muslim community in Ottawa.
-Browse mosques, restaurants, organizations, groceries, clothing stores, butchers, and schools.
+> Halal Ottawa is a public directory and community news hub connecting residents and visitors with halal restaurants, mosques, grocery stores, butchers, Islamic schools, clothing stores, and Muslim organizations across Ottawa, Ontario.
 
-## Main features
-- Halal Restaurants: /restaurants
-- Mosques: /mosques
-- Organizations: /organizations
-- Grocery: /grocery
-- Islamic Clothing: /clothing
-- Islamic Schools: /schools
-- Butchers: /butchers
+## Directory Categories
+- [Halal Ottawa Homepage](https://www.halalottawa.ca/): Main directory search, featured halal businesses, and latest Ottawa Muslim community news.
+- [Halal Restaurants](https://www.halalottawa.ca/restaurants): Halal-certified and Muslim-friendly restaurants, cafes, bakeries, and eateries across Ottawa.
+- [Mosques](https://www.halalottawa.ca/mosques): Mosques, masjids, and prayer locations across the National Capital Region.
+- [Muslim Organizations](https://www.halalottawa.ca/organizations): Local Islamic associations, community centers, and non-profit organizations in Ottawa.
+- [Halal Grocery Stores](https://www.halalottawa.ca/grocery): Supermarkets, international food markets, and halal grocers in Ottawa.
+- [Islamic Clothing Stores](https://www.halalottawa.ca/clothing): Modest fashion, hijabs, abayas, thobes, and Islamic apparel stores in Ottawa.
+- [Islamic Schools](https://www.halalottawa.ca/schools): Full-time Islamic schools, weekend programs, and educational institutions in Ottawa.
+- [Halal Butchers](https://www.halalottawa.ca/butchers): Halal meat shops and butcheries across Ottawa.
 
-- Local Events: /events
-- Local Jobs: /jobs
-- Community News: /news
+## Restaurants by Ottawa Neighborhood
+- [Halal Restaurants in Orleans](https://www.halalottawa.ca/restaurants/orleans): Halal dining options in Ottawa's east end.
+- [Halal Restaurants in Kanata](https://www.halalottawa.ca/restaurants/kanata): Halal dining options in Ottawa's west end.
+- [Halal Restaurants in Barrhaven](https://www.halalottawa.ca/restaurants/barrhaven): Halal dining options in Ottawa's south end.
+- [Halal Restaurants in Downtown Ottawa](https://www.halalottawa.ca/restaurants/downtown): Halal dining options in central Ottawa, Centretown, and ByWard Market.
 
-## Guidelines
-- Please respect the privacy of listed businesses.
-- Listing are updated regularly.
+## News, Tools, and Information
+- [Community News](https://www.halalottawa.ca/news): Local announcements, halal food updates, and community stories in Ottawa.
+- [Qibla Direction Finder](https://www.halalottawa.ca/tools/qibla): Online tool to determine the Qibla direction from Ottawa.
+- [Frequently Asked Questions](https://www.halalottawa.ca/faq): Answers to common questions about directory listings, verification, and using Halal Ottawa.
+- [Terms of Service](https://www.halalottawa.ca/terms): Terms and conditions for using the Halal Ottawa website.
+- [Privacy Policy](https://www.halalottawa.ca/privacy-policy): Privacy practices and data handling policies for Halal Ottawa.
+
+## Sitemaps
+- [Main XML Sitemap](https://www.halalottawa.ca/sitemap.xml): Complete index of public pages, business listings, and news articles.
+- [Google News Sitemap](https://www.halalottawa.ca/sitemap-news.xml): Feed of recent community news articles.
