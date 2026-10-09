@@ -634,32 +634,11 @@ export function renderCategorySSRHtml(options: {
   ];
 
   const categoryPillsHtml = categories.map(cat => {
-    const isActive = !isUnderRestaurants && formattedCategory.toLowerCase() === cat.name.toLowerCase();
+    const isActive = formattedCategory.toLowerCase() === cat.name.toLowerCase();
     const activeClass = isActive 
       ? 'bg-[#e90b35] text-white shadow-md shadow-red-100' 
       : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50';
     return `<a href="/${cat.slug}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all text-decoration-none ${activeClass}">${escapeHtmlText(cat.name)}</a>`;
-  }).join('\n');
-
-  const locations = [
-    { name: 'All Ottawa', path: '/restaurants' },
-    { name: 'Orleans', path: '/restaurants/orleans' },
-    { name: 'Kanata', path: '/restaurants/kanata' },
-    { name: 'Barrhaven', path: '/restaurants/barrhaven' },
-    { name: 'Downtown', path: '/restaurants/downtown' }
-  ];
-
-  const locationPillsHtml = locations.map(loc => {
-    const isActive = cleanUrlPath === loc.path;
-    const activeClass = isActive 
-      ? 'bg-gray-900 text-white' 
-      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50';
-    return `
-      <a href="${loc.path}" class="px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 text-decoration-none ${activeClass}">
-        <svg class="w-3.5 h-3.5 text-[#e90b35]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-        ${escapeHtmlText(loc.name)}
-      </a>
-    `;
   }).join('\n');
 
   const listingsCardsHtml = listings.length > 0 ? listings.map((l, idx) => {
@@ -770,14 +749,6 @@ export function renderCategorySSRHtml(options: {
           <a href="/listings" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all text-decoration-none ${cleanUrlPath === '/listings' ? 'bg-[#e90b35] text-white shadow-md shadow-red-100' : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50'}">All</a>
           ${categoryPillsHtml}
         </div>
-
-        ${isUnderRestaurants ? `
-        <div class="pt-2">
-          <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <span class="text-xs font-bold uppercase tracking-wider text-gray-400 shrink-0 mr-1">Locations:</span>
-            ${locationPillsHtml}
-          </div>
-        </div>` : ''}
       </div>
 
       <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">

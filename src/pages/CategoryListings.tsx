@@ -673,7 +673,7 @@ export const CategoryListings: React.FC = () => {
             All
           </Link>
           {CATEGORIES.map((cat) => {
-            const isCatActive = !isUnderRestaurants && formattedCategory.toLowerCase() === cat.toLowerCase();
+            const isCatActive = formattedCategory.toLowerCase() === cat.toLowerCase();
             return (
               <Link
                 key={cat}
@@ -688,42 +688,6 @@ export const CategoryListings: React.FC = () => {
             );
           })}
         </div>
-
-        {/* Ottawa Locations Bar (Shown on all /restaurants routes) */}
-        {isUnderRestaurants && (
-          <div className="pt-2">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-400 shrink-0 mr-1">Locations:</span>
-              <Link
-                to="/restaurants"
-                className={`px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all ${
-                  pathname === '/restaurants'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                All Ottawa
-              </Link>
-              {['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].map((loc) => {
-                const isLocActive = formattedCategory.toLowerCase() === loc.toLowerCase();
-                return (
-                  <Link
-                    key={loc}
-                    to={`/restaurants/${loc.toLowerCase()}`}
-                    className={`px-3.5 py-1.5 rounded-full text-xs md:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                      isLocActive
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
-                    {loc}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Listings Grid */}

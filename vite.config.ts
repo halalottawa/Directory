@@ -122,6 +122,9 @@ export default defineConfig(({mode}) => {
             ) {
               return 'vendor';
             }
+            if (id.includes('src/utils/firestoreErrorHandler')) {
+              return 'firestore-diagnostics';
+            }
             if (
               id.includes('src/firebase.ts') ||
               id.includes('firebase-applet-config.json')
