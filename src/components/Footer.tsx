@@ -92,8 +92,8 @@ export const Footer: React.FC = () => {
           <div className="space-y-6">
             <h3 className="text-white font-bold text-lg tracking-tight">Browse</h3>
             <ul className="space-y-4">
-              <li><Link to="/listings" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">All Listings</Link></li>
-              <li><Link to="/news" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Community News</Link></li>
+              <li><Link to="/listings" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">All Listings</Link></li>
+              <li><Link to="/news" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Community News</Link></li>
             </ul>
             <div className="pt-2">
               <GooglePreferredSourceBadge variant="footer" theme="dark" />
@@ -109,15 +109,15 @@ export const Footer: React.FC = () => {
                   href="https://buymeacoffee.com/halalottawa.ca"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline"
+                  className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline"
                 >
                   Donation
                 </a>
               </li>
-              <li><Link to="/faq" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">FAQ</Link></li>
-              <li><Link to="/tools/qibla" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Qibla Direction</Link></li>
-              <li><Link to="/terms" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Terms of Service</Link></li>
-              <li><Link to="/privacy-policy" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Privacy Policy</Link></li>
+              <li><Link to="/faq" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">FAQ</Link></li>
+              <li><Link to="/tools/qibla" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Qibla Direction</Link></li>
+              <li><Link to="/terms" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Terms of Service</Link></li>
+              <li><Link to="/privacy-policy" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Privacy Policy</Link></li>
             </ul>
           </div>
 
@@ -125,17 +125,17 @@ export const Footer: React.FC = () => {
           <div className="space-y-6">
             <h3 className="text-white font-bold text-lg tracking-tight">Locations</h3>
             <ul className="space-y-4">
-              <li><Link to="/restaurants/orleans" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Orleans</Link></li>
-              <li><Link to="/restaurants/kanata" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Kanata</Link></li>
-              <li><Link to="/restaurants/barrhaven" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Barrhaven</Link></li>
-              <li><Link to="/restaurants/downtown" className="text-gray-400 hover:text-[#e90b35] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Downtown</Link></li>
+              <li><Link to="/restaurants/orleans" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Orleans</Link></li>
+              <li><Link to="/restaurants/kanata" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Kanata</Link></li>
+              <li><Link to="/restaurants/barrhaven" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Barrhaven</Link></li>
+              <li><Link to="/restaurants/downtown" className="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors flex items-center gap-2 underline-offset-4 hover:underline">Downtown</Link></li>
             </ul>
           </div>
         </div>
 
         {/* Footer Bottom */}
         <div className="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-gray-500 text-xs text-center md:text-left">
+          <p className="text-gray-400 text-xs text-center md:text-left">
             {`© ${new Date().getFullYear()} Halal Ottawa. All rights reserved.`}
           </p>
         </div>

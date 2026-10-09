@@ -27,6 +27,18 @@ import {
 
 const faqs = [
   {
+    question: "How is halal status represented on listings?",
+    answer: "Listings are submitted by business owners and community members and reviewed by our moderators using available information such as community reporting, certification details where provided, and direct business details. Because menus, suppliers, and ownership can change, visitors are encouraged to confirm specific halal practices directly with the business."
+  },
+  {
+    question: "How can I browse by category or neighbourhood?",
+    answer: "You can use the category icons or top navigation to browse Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Within the Restaurants directory and footer, you can also browse neighbourhood pages for Orléans, Kanata, Barrhaven, and Downtown Ottawa, or use the search bar to look up a specific place."
+  },
+  {
+    question: "How is listing information updated?",
+    answer: "Registered users can submit new listings from their account, and business owners or community members can report outdated details or request updates by emailing info@halalottawa.ca. All submitted listings and updates are reviewed by moderators before appearing in the public directory."
+  },
+  {
     question: "How do I add my business to the directory?",
     answer: "You can add your business by clicking the \"Add Listing\" button or the \"+\" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval."
   },
@@ -49,13 +61,13 @@ const FAQItem: React.FC<{ question: string, answer: string, isOpen: boolean, onT
         className="w-full text-left p-6 flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-[#e90b35] focus:ring-inset"
       >
         <h3 className="font-bold text-lg text-gray-900">{question}</h3>
-        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       <div 
         className="transition-all duration-300 ease-in-out"
         style={{ maxHeight: isOpen ? '500px' : '0', opacity: isOpen ? 1 : 0 }}
       >
-        <div className="p-6 pt-0 text-gray-500 text-sm leading-relaxed">
+        <div className="p-6 pt-0 text-gray-600 text-sm leading-relaxed">
           {answer}
         </div>
       </div>
@@ -304,39 +316,44 @@ export const Home: React.FC = () => {
         <ArticleAd />
 
         {/* Categories - Merged Single Responsive Component */}
-        <section className="relative group mb-8">
-          <button 
-            onClick={scrollPrevCategories}
-            aria-label="Scroll categories left"
-            className="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
-          >
-            <ChevronLeft className="w-4 h-4 transition-transform hover:-translate-x-0.5" />
-          </button>
-          <div className="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide" ref={categoryScrollRef}>
-            <div className="grid grid-cols-3 md:flex gap-3">
-              {CATEGORIES.map((cat, i) => (
-                <div key={cat} className={`flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}`}>
-                  <Link
-                    to={`/${cat.toLowerCase()}`}
-                    aria-label={`Browse ${cat} category`}
-                    className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35] active:scale-95"
-                  >
-                    <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
-                      <CategoryIcon category={cat as any} className="w-5 h-5" />
-                    </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">{cat}</span>
-                  </Link>
-                </div>
-              ))}
+        <section className="space-y-4 mb-8">
+          <p className="text-gray-600 text-sm md:text-base leading-relaxed max-w-3xl mx-auto text-center">
+            Explore Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Browse by category or neighbourhood to find local options and community updates.
+          </p>
+          <div className="relative group">
+            <button 
+              onClick={scrollPrevCategories}
+              aria-label="Scroll categories left"
+              className="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#c4082c] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
+            >
+              <ChevronLeft className="w-4 h-4 transition-transform hover:-translate-x-0.5" />
+            </button>
+            <div className="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide" ref={categoryScrollRef}>
+              <div className="grid grid-cols-3 md:flex gap-3">
+                {CATEGORIES.map((cat, i) => (
+                  <div key={cat} className={`flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}`}>
+                    <Link
+                      to={`/${cat.toLowerCase()}`}
+                      aria-label={`Browse ${cat} category`}
+                      className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35] active:scale-95"
+                    >
+                      <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35]">
+                        <CategoryIcon category={cat as any} className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 text-center leading-tight">{cat}</span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
+            <button 
+              onClick={scrollNextCategories}
+              aria-label="Scroll categories right"
+              className="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#c4082c] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
+            >
+              <ChevronRight className="w-4 h-4 transition-transform hover:translate-x-0.5" />
+            </button>
           </div>
-          <button 
-            onClick={scrollNextCategories}
-            aria-label="Scroll categories right"
-            className="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10"
-          >
-            <ChevronRight className="w-4 h-4 transition-transform hover:translate-x-0.5" />
-          </button>
         </section>
 
       {/* Latest Listings */}
@@ -345,7 +362,7 @@ export const Home: React.FC = () => {
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest Listings</h2>
           <Link 
             to="/listings" 
-            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+            className="text-gray-500 hover:text-[#e90b35] text-sm md:text-base font-medium transition-colors hover:underline cursor-pointer shrink-0"
             aria-label="View all latest listings"
           >
             View all
@@ -391,7 +408,7 @@ export const Home: React.FC = () => {
                      />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-400 text-xs font-medium">No Image</span>
+                      <span className="text-gray-600 text-xs font-medium">No Image</span>
                     </div>
                   )}
                   {listing.isFeatured && (
@@ -404,7 +421,7 @@ export const Home: React.FC = () => {
                 </div>
                 <div className="p-4">
                   <h3 className="font-bold leading-tight line-clamp-1">{listing.name}</h3>
-                  <div className="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
+                  <div className="text-gray-600 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
                     <span className="flex items-center gap-2">
                       <MapPin className="w-3.5 h-3.5 text-[#e90b35]" />
                       <span>{listing.address ? listing.address.split(',')[0] : 'Ottawa, ON'}</span>
@@ -415,8 +432,8 @@ export const Home: React.FC = () => {
             ))
           ) : (
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
-              <Utensils className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm font-medium">No listings at the moment.</p>
+              <Utensils className="w-8 h-8 text-gray-400 mb-2" />
+              <p className="text-gray-600 text-sm font-medium">No listings at the moment.</p>
             </div>
           )}
         </div>
@@ -430,7 +447,7 @@ export const Home: React.FC = () => {
           <h2 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">Latest News</h2>
           <Link 
             to="/news" 
-            className="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
+            className="text-[#c4082c] hover:text-[#9e0623] focus:text-[#9e0623] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4"
             aria-label="View all news articles"
           >
             View all
@@ -479,7 +496,7 @@ export const Home: React.FC = () => {
                     />
                   ) : (
                     <div className="w-full h-full bg-gray-200 flex items-center justify-center rounded-xl md:rounded-none">
-                      <span className="text-gray-400 text-[10px] md:text-xs font-medium">No Image</span>
+                      <span className="text-gray-600 text-[10px] md:text-xs font-medium">No Image</span>
                     </div>
                   )}
                 </div>
@@ -487,11 +504,11 @@ export const Home: React.FC = () => {
                   <div>
                     <h3 className="font-bold leading-tight">{news.title}</h3>
                     <div className="hidden md:block">
-                      <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2">{news.excerpt || getExcerpt(news.content, 160)}</p>
+                      <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed mt-2">{news.excerpt || getExcerpt(news.content, 160)}</p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
-                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" strokeWidth={2.5} /><span>{formatDate(news.publishDate || news.createdAt)}</span></span>
+                  <div className="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-600 font-semibold">
+                    <span className="flex items-center gap-1.5"><Clock className="w-3 h-3 text-gray-600" strokeWidth={2.5} /><span>{formatDate(news.publishDate || news.createdAt)}</span></span>
                     {(news.author || 'Youssef Agrebi') && (
                       <span 
                         onClick={(e) => {
@@ -499,10 +516,10 @@ export const Home: React.FC = () => {
                           e.stopPropagation();
                           navigate('/author/youssef-agrebi');
                         }}
-                        className="flex items-center gap-1.5 text-gray-500 hover:text-[#e90b35] font-medium transition-colors cursor-pointer"
+                        className="flex items-center gap-1.5 text-gray-600 hover:text-[#c4082c] focus:text-[#c4082c] font-medium transition-colors cursor-pointer"
                         title="View author profile"
                       >
-                        <User className="w-3 h-3 text-gray-400" strokeWidth={2.5} />
+                        <User className="w-3 h-3 text-gray-600" strokeWidth={2.5} />
                         <span className="hover:underline">{`By ${news.author || 'Youssef Agrebi'}`}</span>
                       </span>
                     )}
@@ -512,18 +529,18 @@ export const Home: React.FC = () => {
             ))
           ) : (
             <div className="w-full col-span-full bg-gray-50 border border-gray-100 rounded-3xl p-8 flex flex-col items-center justify-center text-center">
-              <Newspaper className="w-8 h-8 text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm font-medium">No news articles published recently.</p>
+              <Newspaper className="w-8 h-8 text-gray-400 mb-2" />
+              <p className="text-gray-600 text-sm font-medium">No news articles published recently.</p>
             </div>
           )}
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
+      <section className="space-y-8 pt-8 pb-4 content-visibility-auto">
         <div className="text-center space-y-2">
           <h2 className="text-2xl font-bold">Frequently Asked Questions</h2>
-          <p className="text-gray-500">Everything you need to know about Halal Ottawa</p>
+          <p className="text-gray-600">Everything you need to know about Halal Ottawa</p>
         </div>
         <div className="space-y-4">
           {faqs.map((faq, index) => (

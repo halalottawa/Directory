@@ -285,6 +285,7 @@ export const NewsDetail: React.FC = () => {
         title={article.title}
         description={article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content}
         canonicalUrl={getAbsoluteUrl(`news/${article.slug || article.id}`)}
+        noindex={article.isApproved === false}
         ogImage={article.coverImage ? getAbsoluteUrl(article.coverImage) : undefined}
         ogType="article"
         structuredData={[

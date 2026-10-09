@@ -5,9 +5,11 @@ Allow: /
 Disallow: /admin
 Disallow: /login
 Disallow: /register
+Disallow: /signup
 Disallow: /profile
 Disallow: /settings
 Disallow: /saved
+Disallow: /go/
 
 # Block crawling of forms and action routes to prevent indexing of add or edit pages (news, listing, job, event)
 Disallow: /listings/add
@@ -19,11 +21,12 @@ Disallow: /events/edit/*
 Disallow: /jobs/add
 Disallow: /jobs/edit/*
 Disallow: /profile/edit
-Disallow: /listings
-Allow: /listings/
 
 # Ensure public listings and content are explicitly allowed
+Allow: /listings
 Allow: /news
+Allow: /author
+Allow: /tools/qibla
 Allow: /restaurants
 Allow: /mosques
 Allow: /organizations

@@ -74,10 +74,6 @@ const staticUrls = [
   "/terms",
   "/privacy-policy",
   "/tools/qibla",
-  "/qibla",
-  "/saved",
-  "/login",
-  "/listings/add",
   "/author/youssef-agrebi"
 ];
 
@@ -507,30 +503,17 @@ async function prerender() {
           };
         }
 
-        // News Articles SSG: generate static HTML for every news article
+        // News Articles SSG: generate static HTML only for canonical URL (/news/:slug or /news/:id if no slug)
         allNewsData.forEach((data) => {
           const title = `${data.title} | Halal Ottawa`;
           const description = data.content ? truncateDescription(data.content) : "Read latest updates and news regarding the Ottawa halal and Muslim community.";
           const ogImage = getAbsoluteUrl(data.coverImage || "");
+          const canonicalSegment = data.slug || data.id;
 
-          // 1. Slug URL
-          if (data.slug) {
+          if (canonicalSegment) {
             pagesToPrerender.push({
-              urlPath: `/news/${data.slug}`,
-              filePath: path.join(distPath, "news", data.slug, "index.html"),
-              routeType: "news",
-              initialData: data,
-              title,
-              description,
-              ogImage
-            });
-          }
-
-          // 2. ID URL (if distinct from slug)
-          if (data.id && data.id !== data.slug) {
-            pagesToPrerender.push({
-              urlPath: `/news/${data.id}`,
-              filePath: path.join(distPath, "news", data.id, "index.html"),
+              urlPath: `/news/${canonicalSegment}`,
+              filePath: path.join(distPath, "news", canonicalSegment, "index.html"),
               routeType: "news",
               initialData: data,
               title,
@@ -566,17 +549,6 @@ async function prerender() {
         pagesToPrerender.push({
           urlPath: url,
           filePath: path.join(distPath, categoryPath, idPath, "index.html"),
-          routeType: "listing",
-          initialData: { id: doc.id, ...data },
-          title,
-          description,
-          ogImage
-        });
-
-        // Also duplicate to /listings/[slug] so that it resolves gracefully in both route patterns!
-        pagesToPrerender.push({
-          urlPath: `/listings/${idPath}`,
-          filePath: path.join(distPath, "listings", idPath, "index.html"),
           routeType: "listing",
           initialData: { id: doc.id, ...data },
           title,
@@ -657,6 +629,9 @@ async function prerender() {
       }
 
       // Restaurant Subcategories (Food Types and Cuisines) SSG
+      const normalizeCompare = (val: any): string =>
+        String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
       const subcategoriesSSG = [
         'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine', 
         'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos',
@@ -667,16 +642,16 @@ async function prerender() {
       for (const sub of subcategoriesSSG) {
         const subPage = pagesToPrerender.find(p => p.urlPath === `/restaurants/${sub}`);
         if (subPage) {
-          const cleanSub = sub.replace(/-/g, ' ').toLowerCase();
+          const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
           const filtered = allApprovedListings
             .filter((l: any) => {
               const catArray = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
               const typesArray = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
               const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
 
-              const matchesCat = catArray.some((c: any) => String(c).toLowerCase().trim() === cleanSub);
-              const matchesType = typesArray.some((t: any) => String(t).toLowerCase().trim() === cleanSub);
-              const matchesCuisine = cuisinesArray.some((c: any) => String(c).toLowerCase().trim() === cleanSub);
+              const matchesCat = catArray.some((c: any) => normalizeCompare(c) === cleanSub);
+              const matchesType = typesArray.some((t: any) => normalizeCompare(t) === cleanSub);
+              const matchesCuisine = cuisinesArray.some((c: any) => normalizeCompare(c) === cleanSub);
 
               return matchesCat || matchesType || matchesCuisine;
             })
@@ -741,6 +716,20 @@ async function prerender() {
     <meta name="twitter:image" content="${escapeHtmlAttr(page.ogImage)}" />
     <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
       `;
+
+      const isSubcategoryEmpty =
+        page.urlPath.startsWith("/restaurants/") &&
+        !["/restaurants/orleans", "/restaurants/kanata", "/restaurants/barrhaven", "/restaurants/downtown"].includes(page.urlPath) &&
+        Array.isArray(page.initialData?.listings) &&
+        page.initialData.listings.length === 0;
+
+      if (page.urlPath === "/listings" || isSubcategoryEmpty) {
+        extraTags += `\n    <meta name="robots" content="noindex, follow" />`;
+      } else if (["/saved", "/login", "/listings/add"].includes(page.urlPath)) {
+        extraTags += `\n    <meta name="robots" content="noindex, nofollow" />`;
+      } else {
+        extraTags += `\n    <meta name="robots" content="index, follow" />`;
+      }
 
       // Dynamic LCP image preloads
       if (page.routeType === "home" || page.urlPath === "/") {

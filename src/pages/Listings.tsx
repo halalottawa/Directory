@@ -241,6 +241,8 @@ export const Listings: React.FC = () => {
         title="Listings" 
         description="Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community." 
         canonicalUrl="https://www.halalottawa.ca/listings" 
+        noindex={true}
+        robots="noindex, follow"
         structuredData={[
           {
             "@context": "https://schema.org",

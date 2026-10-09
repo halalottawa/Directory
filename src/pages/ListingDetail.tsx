@@ -658,6 +658,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
         title={listing.name}
         description={`Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`}
         canonicalUrl={getAbsoluteUrl(getListingUrl(listing))}
+        noindex={listing.isApproved === false}
         ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
         structuredData={[
           {

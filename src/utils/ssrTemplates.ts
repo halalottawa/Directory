@@ -173,32 +173,32 @@ ${innerHtml}
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Browse</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="/listings" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">All Listings</a></li>
-                <li><a href="/news" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Community News</a></li>
+                <li><a href="/listings" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">All Listings</a></li>
+                <li><a href="/news" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Community News</a></li>
               </ul>
             </div>
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Support</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Donation</a></li>
-                <li><a href="/faq" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">FAQ</a></li>
-                <li><a href="/tools/qibla" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Qibla Direction</a></li>
-                <li><a href="/terms" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
-                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
+                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Donation</a></li>
+                <li><a href="/faq" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">FAQ</a></li>
+                <li><a href="/tools/qibla" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Qibla Direction</a></li>
+                <li><a href="/terms" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
+                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
               </ul>
             </div>
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Locations</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Orleans</a></li>
-                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Kanata</a></li>
-                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
-                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Downtown</a></li>
+                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Orleans</a></li>
+                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Kanata</a></li>
+                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
+                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Downtown</a></li>
               </ul>
             </div>
           </div>
           <div class="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p class="text-gray-500 text-xs text-center md:text-left m-0">
+            <p class="text-gray-400 text-xs text-center md:text-left m-0">
               © ${new Date().getFullYear()} Halal Ottawa. All rights reserved.
             </p>
           </div>
@@ -339,7 +339,7 @@ export function renderHomeSSRHtml(data: {
         </div>
         <div class="p-4">
           <h3 class="font-bold leading-tight line-clamp-1 m-0 text-gray-900">${escapeHtmlText(l.name)}</h3>
-          <div class="text-gray-500 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
+          <div class="text-gray-600 text-xs font-semibold mt-2 flex items-center justify-between flex-wrap gap-2">
             <span class="flex items-center gap-2">
               <svg class="w-3.5 h-3.5 text-[#e90b35]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
               <span>${escapeHtmlText(rawAddress)}</span>
@@ -368,17 +368,17 @@ export function renderHomeSSRHtml(data: {
           <div>
             <h3 class="font-bold leading-tight m-0 text-gray-900 group-hover:text-[#e90b35] transition-colors">${escapeHtmlText(item.title)}</h3>
             <div class="hidden md:block">
-              <p class="text-gray-500 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(item.excerpt || getExcerpt(item.content || '', 160))}</p>
+              <p class="text-gray-600 text-sm line-clamp-2 leading-relaxed mt-2 m-0">${escapeHtmlText(item.excerpt || getExcerpt(item.content || '', 160))}</p>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-400 font-semibold">
+          <div class="flex flex-wrap items-center gap-3 mt-3 md:mt-4 text-xs text-gray-600 font-semibold">
             <span class="flex items-center gap-1.5">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="10"></circle></svg>
+              <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="10"></circle></svg>
               <span>${dateStr}</span>
             </span>
-            <span class="flex items-center gap-1.5 text-gray-500 font-medium">
-              <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              <span>By ${escapeHtmlText(authorName)}</span>
+            <span class="flex items-center gap-1.5 text-gray-600 hover:text-[#c4082c] focus:text-[#c4082c] font-medium transition-colors cursor-pointer" title="View author profile">
+              <svg class="w-3 h-3 text-gray-600" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span class="hover:underline">By ${escapeHtmlText(authorName)}</span>
             </span>
           </div>
         </div>
@@ -389,14 +389,26 @@ export function renderHomeSSRHtml(data: {
   const adSlotPlaceholderHtml = `
         <div class="my-8 w-full flex flex-col items-center justify-center overflow-hidden min-h-[274px] md:min-h-[114px]">
           <div class="mx-auto flex justify-center items-center w-[300px] max-w-full h-[250px] min-h-[250px] md:w-[728px] md:h-[90px] md:min-h-[90px]"></div>
-          <p style="text-align: center;" class="mt-2 text-xs text-gray-500 m-0">
-            <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-500 text-decoration-none">
+          <p style="text-align: center;" class="mt-2 text-xs text-gray-600 m-0">
+            <a href="https://muslimadnetwork.com/?pub=halalottawa.ca" title="Ads By Muslim Ad Network" target="_blank" rel="noopener noreferrer" class="hover:underline text-gray-600 hover:text-gray-900 focus:text-gray-900 text-decoration-none">
               Ads By Muslim Ad Network
             </a>
           </p>
         </div>`;
 
   const ssrFaqs = [
+    {
+      question: 'How is halal status represented on listings?',
+      answer: 'Listings are submitted by business owners and community members and reviewed by our moderators using available information such as community reporting, certification details where provided, and direct business details. Because menus, suppliers, and ownership can change, visitors are encouraged to confirm specific halal practices directly with the business.',
+    },
+    {
+      question: 'How can I browse by category or neighbourhood?',
+      answer: 'You can use the category icons or top navigation to browse Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Within the Restaurants directory and footer, you can also browse neighbourhood pages for Orléans, Kanata, Barrhaven, and Downtown Ottawa, or use the search bar to look up a specific place.',
+    },
+    {
+      question: 'How is listing information updated?',
+      answer: 'Registered users can submit new listings from their account, and business owners or community members can report outdated details or request updates by emailing info@halalottawa.ca. All submitted listings and updates are reviewed by moderators before appearing in the public directory.',
+    },
     {
       question: 'How do I add my business to the directory?',
       answer: 'You can add your business by clicking the "Add Listing" button or the "+" icon in the top right corner. Ensure you have an account and are logged in to submit your business details for approval.',
@@ -417,10 +429,10 @@ export function renderHomeSSRHtml(data: {
                 <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm transition-all duration-300">
                   <button aria-expanded="false" class="w-full text-left p-6 flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-[#e90b35] focus:ring-inset">
                     <h3 class="font-bold text-lg text-gray-900 m-0">${escapeHtmlText(f.question)}</h3>
-                    <svg class="w-5 h-5 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
+                    <svg class="w-5 h-5 text-gray-500 transition-transform duration-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"></path></svg>
                   </button>
                   <div class="transition-all duration-300 ease-in-out" style="max-height:0;opacity:0">
-                    <div class="p-6 pt-0 text-gray-500 text-sm leading-relaxed">
+                    <div class="p-6 pt-0 text-gray-600 text-sm leading-relaxed">
                       ${escapeHtmlText(f.answer)}
                     </div>
                   </div>
@@ -499,25 +511,30 @@ export function renderHomeSSRHtml(data: {
             ${adSlotPlaceholderHtml}
 
             <!-- Categories - Merged Single Responsive Component -->
-            <section class="relative group mb-8">
-              <button aria-label="Scroll categories left" class="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
-                <svg class="w-4 h-4 transition-transform hover:-translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
-              </button>
-              <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
-                <div class="grid grid-cols-3 md:flex gap-3">
-                  ${categoryCardsHtml}
+            <section class="space-y-4 mb-8">
+              <p class="text-gray-600 text-sm md:text-base leading-relaxed max-w-3xl mx-auto text-center m-0">
+                Explore Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Browse by category or neighbourhood to find local options and community updates.
+              </p>
+              <div class="relative group">
+                <button aria-label="Scroll categories left" class="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#c4082c] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
+                  <svg class="w-4 h-4 transition-transform hover:-translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+                </button>
+                <div class="md:overflow-x-auto md:py-2 scroll-smooth scrollbar-hide">
+                  <div class="grid grid-cols-3 md:flex gap-3">
+                    ${categoryCardsHtml}
+                  </div>
                 </div>
+                <button aria-label="Scroll categories right" class="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#c4082c] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
+                  <svg class="w-4 h-4 transition-transform hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+                </button>
               </div>
-              <button aria-label="Scroll categories right" class="hidden md:flex absolute -right-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#e90b35] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
-                <svg class="w-4 h-4 transition-transform hover:translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
-              </button>
             </section>
 
             <!-- Latest Listings Section -->
             <section class="space-y-4 content-visibility-auto">
               <div class="flex justify-between items-end">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest Listings</h2>
-                <a href="/listings" aria-label="View all latest listings" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                <a href="/listings" aria-label="View all latest listings" class="text-gray-500 hover:text-[#e90b35] text-sm md:text-base font-medium transition-colors hover:underline cursor-pointer shrink-0 text-decoration-none">
                   View all
                 </a>
               </div>
@@ -533,7 +550,7 @@ export function renderHomeSSRHtml(data: {
             <section class="space-y-4 content-visibility-auto">
               <div class="flex justify-between items-end">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-900 leading-tight m-0">Latest News</h2>
-                <a href="/news" aria-label="View all news articles" class="text-[#e90b35] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
+                <a href="/news" aria-label="View all news articles" class="text-[#c4082c] hover:text-[#9e0623] focus:text-[#9e0623] text-sm md:text-base font-semibold hover:underline decoration-2 underline-offset-4 text-decoration-none">
                   View all
                 </a>
               </div>
@@ -543,10 +560,10 @@ export function renderHomeSSRHtml(data: {
             </section>` : ''}
 
             <!-- FAQ Section -->
-            <section class="hidden md:block space-y-8 pt-8 pb-4 content-visibility-auto">
+            <section class="space-y-8 pt-8 pb-4 content-visibility-auto">
               <div class="text-center space-y-2">
                 <h2 class="text-2xl font-bold text-gray-900 m-0">Frequently Asked Questions</h2>
-                <p class="text-gray-500 m-0">Everything you need to know about Halal Ottawa</p>
+                <p class="text-gray-600 m-0">Everything you need to know about Halal Ottawa</p>
               </div>
               <div class="space-y-4">
 ${faqItemsHtml}
@@ -575,31 +592,31 @@ ${faqItemsHtml}
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Browse</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="/listings" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">All Listings</a></li>
-                <li><a href="/news" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Community News</a></li>
+                <li><a href="/listings" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">All Listings</a></li>
+                <li><a href="/news" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Community News</a></li>
               </ul>
             </div>
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Support</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Donation</a></li>
-                <li><a href="/faq" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">FAQ</a></li>
-                <li><a href="/terms" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
-                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
+                <li><a href="https://buymeacoffee.com/halalottawa.ca" target="_blank" rel="noopener noreferrer" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Donation</a></li>
+                <li><a href="/faq" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">FAQ</a></li>
+                <li><a href="/terms" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Terms of Service</a></li>
+                <li><a href="/privacy-policy" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Privacy Policy</a></li>
               </ul>
             </div>
             <div class="space-y-6">
               <h3 class="text-white font-bold text-lg tracking-tight m-0">Locations</h3>
               <ul class="space-y-4 list-none p-0 m-0">
-                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Orleans</a></li>
-                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Kanata</a></li>
-                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
-                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#e90b35] text-sm transition-colors text-decoration-none">Downtown</a></li>
+                <li><a href="/restaurants/orleans" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Orleans</a></li>
+                <li><a href="/restaurants/kanata" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Kanata</a></li>
+                <li><a href="/restaurants/barrhaven" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Barrhaven</a></li>
+                <li><a href="/restaurants/downtown" class="text-gray-400 hover:text-[#ff4d6d] focus:text-[#ff4d6d] text-sm transition-colors text-decoration-none">Downtown</a></li>
               </ul>
             </div>
           </div>
           <div class="mt-16 pt-8 border-t border-gray-800 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p class="text-gray-500 text-xs text-center md:text-left m-0">
+            <p class="text-gray-400 text-xs text-center md:text-left m-0">
               © ${new Date().getFullYear()} Halal Ottawa. All rights reserved.
             </p>
           </div>

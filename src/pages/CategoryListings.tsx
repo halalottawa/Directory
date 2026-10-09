@@ -61,10 +61,13 @@ const LOCATION_BOUNDARIES: Record<string, {
   }
 };
 
+const normalizeCompare = (val: string): string =>
+  String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 const getCleanCategoriesAndTags = (listing: any) => {
   const findCanonical = (val: string, list: readonly any[]): string | undefined => {
-    const lower = val.toLowerCase().trim();
-    return list.find(item => String(item).toLowerCase().trim() === lower);
+    const lower = normalizeCompare(val);
+    return list.find(item => normalizeCompare(String(item)) === lower);
   };
 
   const rawCategories = Array.isArray(listing.category) 
@@ -123,21 +126,21 @@ export const CategoryListings: React.FC = () => {
     ? cleanCategorySlug.charAt(0).toUpperCase() + cleanCategorySlug.slice(1).toLowerCase()
     : '';
     
-  const isMainCategory = CATEGORIES.map(c => c.toLowerCase()).includes(rawFormattedCategory.toLowerCase());
-  const matchedType = LISTING_TYPES.find(t => t.toLowerCase() === rawFormattedCategory.toLowerCase());
-  const matchedCuisine = CUISINES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase());
-  const matchedLocation = ['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].find(l => l.toLowerCase() === rawFormattedCategory.toLowerCase());
+  const isMainCategory = CATEGORIES.map(c => normalizeCompare(c)).includes(normalizeCompare(rawFormattedCategory));
+  const matchedType = LISTING_TYPES.find(t => normalizeCompare(t) === normalizeCompare(rawFormattedCategory));
+  const matchedCuisine = CUISINES.find(c => normalizeCompare(c) === normalizeCompare(rawFormattedCategory));
+  const matchedLocation = ['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].find(l => normalizeCompare(l) === normalizeCompare(rawFormattedCategory));
   const isLocationCategory = !!matchedLocation;
 
   // Validate if it's a real category, listing type, cuisine, or location
   // Subcategories are only valid off /restaurants/ path, not root / path
   const isUnderRestaurants = pathname.startsWith('/restaurants') || pathname.startsWith('/restaurants/');
   const isValidCategory = isUnderRestaurants 
-    ? (rawFormattedCategory.toLowerCase() === 'restaurants' || !!matchedType || !!matchedCuisine || isLocationCategory) 
+    ? (normalizeCompare(rawFormattedCategory) === 'restaurants' || !!matchedType || !!matchedCuisine || isLocationCategory) 
     : isMainCategory;
 
   const formattedCategory = isMainCategory 
-    ? (CATEGORIES.find(c => c.toLowerCase() === rawFormattedCategory.toLowerCase()) || rawFormattedCategory)
+    ? (CATEGORIES.find(c => normalizeCompare(c) === normalizeCompare(rawFormattedCategory)) || rawFormattedCategory)
     : (matchedType || matchedCuisine || matchedLocation || rawFormattedCategory);
     
   // Calculate current month and year for SEO titles
@@ -264,13 +267,14 @@ export const CategoryListings: React.FC = () => {
 
           if (isLocationCategory) {
             const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
-            const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
-            const matchesCategory = listingCategories.some(cat => String(cat).toLowerCase() === 'restaurants');
+            const matchesLocation = normalizeCompare(computedNeighborhood || '') === normalizeCompare(formattedCategory);
+            const matchesCategory = listingCategories.some(cat => normalizeCompare(String(cat)) === 'restaurants');
             if (!(matchesLocation && matchesCategory)) return false;
           } else {
-            const matchesCategory = listingCategories.some(cat => String(cat).toLowerCase() === formattedCategory.toLowerCase());
-            const matchesType = listingTypes.some(t => String(t).toLowerCase() === formattedCategory.toLowerCase());
-            const matchesCuisine = listingCuisines.some(c => String(c).toLowerCase() === formattedCategory.toLowerCase());
+            const targetNorm = normalizeCompare(formattedCategory);
+            const matchesCategory = listingCategories.some(cat => normalizeCompare(String(cat)) === targetNorm);
+            const matchesType = listingTypes.some(t => normalizeCompare(String(t)) === targetNorm);
+            const matchesCuisine = listingCuisines.some(c => normalizeCompare(String(c)) === targetNorm);
             
             if (!(matchesCategory || matchesType || matchesCuisine)) return false;
           }
@@ -315,14 +319,15 @@ export const CategoryListings: React.FC = () => {
 
         if (isLocationCategory) {
           const computedNeighborhood = getNeighborhoodFromAddress(l.address || '', l.suburb || '');
-          const matchesLocation = computedNeighborhood === formattedCategory.toLowerCase();
-          const matchesCategory = cats.some(cat => cat.toLowerCase() === 'restaurants');
+          const matchesLocation = normalizeCompare(computedNeighborhood || '') === normalizeCompare(formattedCategory);
+          const matchesCategory = cats.some(cat => normalizeCompare(cat) === 'restaurants');
           return matchesLocation && matchesCategory;
         }
 
-        return cats.some(cat => cat.toLowerCase() === formattedCategory.toLowerCase()) || 
-               types.some(t => t.toLowerCase() === formattedCategory.toLowerCase()) ||
-               cuisines.some(c => c.toLowerCase() === formattedCategory.toLowerCase());
+        const targetNorm = normalizeCompare(formattedCategory);
+        return cats.some(cat => normalizeCompare(cat) === targetNorm) || 
+               types.some(t => normalizeCompare(t) === targetNorm) ||
+               cuisines.some(c => normalizeCompare(c) === targetNorm);
     })];
     
     const parseTime = (val: any): number => {
@@ -599,6 +604,8 @@ export const CategoryListings: React.FC = () => {
         description={seoDescription} 
         canonicalUrl={`https://www.halalottawa.ca${pathname}`} 
         disableSuffix={true}
+        noindex={filteredListings.length === 0 || searchParams.toString().length > 0}
+        robots={filteredListings.length === 0 || searchParams.toString().length > 0 ? 'noindex, follow' : undefined}
         structuredData={structuredDataList}
       />
 
@@ -766,11 +773,17 @@ export const CategoryListings: React.FC = () => {
             </Link>
           ))
         ) : (
-          <div className="text-center py-12 space-y-4">
+          <div className="col-span-full text-center py-12 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200 space-y-4">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto text-gray-400">
               <Search className="w-8 h-8" />
             </div>
-            <p className="text-gray-500">No {formattedCategory.toLowerCase()} found matching your criteria.</p>
+            <p className="text-gray-900 font-semibold">No verified {formattedCategory.toLowerCase()} listings found right now.</p>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">Explore all verified halal restaurants and community places across Ottawa, or submit a business to our directory.</p>
+            <div className="pt-2">
+              <Link to="/restaurants" className="inline-block bg-[#e90b35] text-white px-5 py-2.5 rounded-full font-bold text-sm shadow-sm hover:bg-[#d00a2f] transition-colors">
+                Browse All Halal Restaurants
+              </Link>
+            </div>
           </div>
         )}
       </div>
@@ -917,7 +930,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/restaurants/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                    to={`/restaurants/${normalizeCompare(item).replace(/\s+/g, '-')}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">
@@ -946,7 +959,7 @@ export const CategoryListings: React.FC = () => {
                 return (
                   <Link
                     key={item}
-                    to={`/restaurants/${item.toLowerCase().replace(/\s+/g, '-')}`}
+                    to={`/restaurants/${normalizeCompare(item).replace(/\s+/g, '-')}`}
                     className="group flex flex-col items-center justify-center gap-3 py-8 px-4 bg-white border border-gray-100 rounded-2xl hover:border-[#e90b35]/20 hover:shadow-md transition-all duration-300"
                   >
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] transition-colors">

@@ -14,6 +14,10 @@ const staticUrls = [
   "/",
   "/news",
   "/restaurants",
+  "/restaurants/orleans",
+  "/restaurants/kanata",
+  "/restaurants/barrhaven",
+  "/restaurants/downtown",
   "/mosques",
   "/organizations",
   "/grocery",
@@ -23,7 +27,32 @@ const staticUrls = [
   "/faq",
   "/terms",
   "/privacy-policy",
-  "/tools/qibla"
+  "/tools/qibla",
+  "/author/youssef-agrebi"
+];
+
+function normalizeCategoryToSlug(cat: string): string {
+  if (!cat) return 'listings';
+  const c = cat.toLowerCase().trim();
+  if (c.includes('restaurant')) return 'restaurants';
+  if (c.includes('mosque') || c.includes('masjid')) return 'mosques';
+  if (c.includes('organization')) return 'organizations';
+  if (c.includes('grocery')) return 'grocery';
+  if (c.includes('clothing')) return 'clothing';
+  if (c.includes('school')) return 'schools';
+  if (c.includes('butcher')) return 'butchers';
+  return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
+}
+
+const normalizeCompare = (val: any): string =>
+  String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+const subcategoriesList = [
+  'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine',
+  'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos',
+  'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani',
+  'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean',
+  'italian', 'bangladeshi', 'mexican', 'ethiopian'
 ];
 
 async function generateSitemap() {
@@ -74,15 +103,17 @@ async function generateSitemap() {
       // 1. Listings
       const listingsQuery = query(collection(db, 'listings'), where('isApproved', '==', true));
       const listingsSnap = await getDocs(listingsQuery);
+      const allApprovedListings: any[] = [];
       listingsSnap.forEach((doc) => {
         const data = doc.data();
+        allApprovedListings.push({ id: doc.id, ...data });
         const idPath = data.slug || doc.id;
         
         let categoryPath = 'listings';
         if (Array.isArray(data.category) && data.category.length > 0) {
-          categoryPath = encodeURIComponent(data.category[0].toLowerCase());
+          categoryPath = normalizeCategoryToSlug(data.category[0]);
         } else if (typeof data.category === 'string') {
-          categoryPath = encodeURIComponent(data.category.toLowerCase());
+          categoryPath = normalizeCategoryToSlug(data.category);
         }
 
         const imageUrl = data.photos?.[0] || data.coverImage || null;
@@ -95,6 +126,29 @@ async function generateSitemap() {
           name: data.name || data.title || null
         });
       });
+
+      // 1b. Populated Restaurant Subcategories
+      for (const sub of subcategoriesList) {
+        const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
+        const hasMatch = allApprovedListings.some((l: any) => {
+          const catArray = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
+          const typesArray = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
+          const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
+          return (
+            catArray.some((c: any) => normalizeCompare(c) === cleanSub) ||
+            typesArray.some((t: any) => normalizeCompare(t) === cleanSub) ||
+            cuisinesArray.some((c: any) => normalizeCompare(c) === cleanSub)
+          );
+        });
+        if (hasMatch) {
+          urls.push({
+            loc: `${BASE_URL}/restaurants/${sub}`,
+            lastmod: today,
+            changefreq: "weekly",
+            priority: "0.75"
+          });
+        }
+      }
 
       // 2. News
       const newsQuery = query(collection(db, 'news'), where('isApproved', '==', true));

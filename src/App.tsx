@@ -56,21 +56,34 @@ const CookieCheckRedirect: React.FC = () => {
 // Direct load for main landing page to eliminate render delay
 import { Home } from './pages/Home';
 
-const RESTAURANT_CATEGORY_NAMES = new Set([
-  'restaurants',
+const normalizeComparisonSlug = (val: string): string =>
+  val.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+const MAIN_CATEGORY_NAMES = new Set(CATEGORIES.map((c) => normalizeComparisonSlug(c)));
+
+const RESTAURANT_SUBCATEGORY_NAMES = new Set([
   'orleans',
   'kanata',
   'barrhaven',
   'downtown',
-  ...CATEGORIES.map((c) => c.toLowerCase()),
-  ...LISTING_TYPES.map((t) => t.toLowerCase()),
-  ...CUISINES.map((c) => c.toLowerCase()),
+  ...LISTING_TYPES.map((t) => normalizeComparisonSlug(t)),
+  ...CUISINES.map((c) => normalizeComparisonSlug(c)),
+]);
+
+const RESTAURANT_CATEGORY_NAMES = new Set([
+  'restaurants',
+  ...MAIN_CATEGORY_NAMES,
+  ...RESTAURANT_SUBCATEGORY_NAMES,
 ]);
 
 export function isRestaurantSubcategorySlug(rawSlug: string | undefined): boolean {
   if (!rawSlug) return true;
-  const normalized = decodeURIComponent(rawSlug).replace(/-/g, ' ').toLowerCase().trim();
-  return RESTAURANT_CATEGORY_NAMES.has(normalized);
+  try {
+    const normalized = normalizeComparisonSlug(decodeURIComponent(rawSlug).replace(/-/g, ' '));
+    return RESTAURANT_CATEGORY_NAMES.has(normalized);
+  } catch {
+    return false;
+  }
 }
 
 let PreloadedListingDetail: React.ComponentType<any> | null = null;
@@ -150,8 +163,35 @@ const NewsDetail: React.FC = (props) => {
 
 const RestaurantCategoryOrDetail: React.FC = () => {
   const { category } = useParams<{ category: string }>();
-  if (category && !isRestaurantSubcategorySlug(category)) {
-    return <ListingDetail overrideSlug={category} />;
+  if (category) {
+    try {
+      const decoded = decodeURIComponent(category);
+      const cleanAsciiSlug = normalizeComparisonSlug(decoded).replace(/\s+/g, '-');
+      if (isRestaurantSubcategorySlug(category) && decoded !== cleanAsciiSlug) {
+        return <Navigate to={`/restaurants/${cleanAsciiSlug}`} replace />;
+      }
+    } catch {
+      // ignore malformed URI
+    }
+    if (!isRestaurantSubcategorySlug(category)) {
+      return <ListingDetail overrideSlug={category} />;
+    }
+  }
+  return <CategoryListings />;
+};
+
+const TopLevelCategoryOrRedirect: React.FC = () => {
+  const { category } = useParams<{ category: string }>();
+  if (category) {
+    try {
+      const normalized = normalizeComparisonSlug(decodeURIComponent(category).replace(/-/g, ' '));
+      if (!MAIN_CATEGORY_NAMES.has(normalized) && RESTAURANT_SUBCATEGORY_NAMES.has(normalized)) {
+        const cleanSlug = normalized.replace(/\s+/g, '-');
+        return <Navigate to={`/restaurants/${cleanSlug}`} replace />;
+      }
+    } catch {
+      // ignore malformed URI
+    }
   }
   return <CategoryListings />;
 };
@@ -335,13 +375,14 @@ const AppContent: React.FC = () => {
         <Route path="/clothing" element={<CategoryListings />} />
         <Route path="/schools" element={<CategoryListings />} />
         <Route path="/butchers" element={<CategoryListings />} />
-        <Route path="/:category" element={<CategoryListings />} />
+        <Route path="/qibla" element={<Navigate to="/tools/qibla" replace />} />
+        <Route path="/:category" element={<TopLevelCategoryOrRedirect />} />
         <Route path="/listings/:slug" element={<ListingDetail />} />
         <Route path="/news" element={<News />} />
         <Route path="/news/:slug" element={<NewsDetail />} />
         <Route path="/author/:slug" element={<AuthorPage />} />
         <Route path="/author" element={<Navigate to="/author/youssef-agrebi" replace />} />
-        <Route path="/authors/:slug" element={<AuthorPage />} />
+        <Route path="/authors/:slug" element={<Navigate to="/author/youssef-agrebi" replace />} />
         <Route path="/authors" element={<Navigate to="/author/youssef-agrebi" replace />} />
         <Route path="/events" element={<Navigate to="/" replace />} />
         <Route path="/events/*" element={<Navigate to="/" replace />} />

@@ -129,13 +129,13 @@ export const ArticleAd: React.FC<ArticleAdProps> = ({ variant = 'auto', classNam
   return (
     <div className={`my-8 w-full flex flex-col items-center justify-center overflow-hidden ${outerHeightClass} ${className}`}>
       <div ref={containerRef} className={`mx-auto flex justify-center items-center ${innerSizeClass}`} />
-      <p style={{ textAlign: 'center' }} className="mt-2 text-xs text-gray-500">
+      <p style={{ textAlign: 'center' }} className="mt-2 text-xs text-gray-600">
         <a 
           href="https://muslimadnetwork.com/?pub=halalottawa.ca" 
           title="Ads By Muslim Ad Network" 
           target="_blank" 
           rel="noopener noreferrer" 
-          className="hover:underline"
+          className="hover:underline text-gray-600 hover:text-gray-900 focus:text-gray-900"
         >
           Ads By Muslim Ad Network
         </a>

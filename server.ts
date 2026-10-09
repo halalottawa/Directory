@@ -3736,7 +3736,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return null;
   }
 
-  async function getInjectedHTML(template: string, urlPath: string, req?: express.Request): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string }> {
+  const normalizeCompare = (val: any): string =>
+    String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  async function getInjectedHTML(template: string, urlPath: string, req?: express.Request): Promise<{ html: string; isNotFound: boolean; redirectUrl?: string; robotsHeader?: string }> {
     let html = template;
     
     // Resolve cleanUrlPath by inspecting urlPath and req query parameter return_url
@@ -3807,24 +3810,29 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     };
 
     const isRestaurantSubcategory = (segment: string): boolean => {
-      const s = segment.toLowerCase().replace(/-/g, ' ');
+      let decoded = segment;
+      try { decoded = decodeURIComponent(segment); } catch {}
+      const s = normalizeCompare(decoded.replace(/-/g, ' '));
+      const rawNorm = normalizeCompare(decoded);
       const knownTypes = new Set([
-        'bakery', 'pizza', 'burgers', 'cafes', 'cafés', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos'
+        'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine', 'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'fried chicken', 'buffet', 'tacos'
       ]);
       const knownCuisines = new Set([
         'turkish', 'middle-eastern', 'middle eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 'italian', 'bangladeshi', 'mexican', 'ethiopian'
       ]);
-      return knownTypes.has(s) || knownTypes.has(segment.toLowerCase()) || knownCuisines.has(s) || knownCuisines.has(segment.toLowerCase());
+      return knownTypes.has(s) || knownTypes.has(rawNorm) || knownCuisines.has(s) || knownCuisines.has(rawNorm);
     };
 
     const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
       const p1 = part1.toLowerCase();
-      const p2 = part2.toLowerCase();
+      let decodedP2 = part2;
+      try { decodedP2 = decodeURIComponent(part2); } catch {}
+      const p2 = normalizeCompare(decodedP2);
       if (p1 === "profile" && p2 === "edit") return true;
       if (p1 === "listings" && p2 === "add") return true;
       if (p1 === "news" && p2 === "add") return true;
       if (p1 === "tools" && p2 === "qibla") return true;
-      if (p1 === "restaurants" && (["orleans", "kanata", "barrhaven", "downtown"].includes(p2) || isRestaurantSubcategory(p2))) return true;
+      if (p1 === "restaurants" && (["orleans", "kanata", "barrhaven", "downtown"].includes(p2) || isRestaurantSubcategory(part2))) return true;
       return false;
     };
 
@@ -3954,11 +3962,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           routeType = 'terms';
           initialData = { page: 'terms' };
         } else if (p0 === 'qibla') {
-          title = "Ottawa Qibla Direction - Compass & Kaaba Bearing | Halal Ottawa";
-          description = "Find the accurate Qibla direction from Ottawa, Ontario towards the Kaaba in Makkah (approx 55.8° North-East). Accurate online compass and guidance.";
-          ogImage = defaultHeroImage;
-          routeType = 'qibla';
-          initialData = { page: 'qibla' };
+          return { html: '', isNotFound: false, redirectUrl: '/tools/qibla' };
         } else if (p0 === 'saved') {
           title = "Saved Places & Articles | Halal Ottawa";
           description = "View your bookmarked halal restaurants, mosques, groceries, and articles on Halal Ottawa.";
@@ -4054,72 +4058,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           } catch (e) {
             console.error(`Error pre-fetching category listings for ${p0}`, e);
           }
-        } else if (cuisineMap[p0] || typeMap[p0]) {
-          routeType = 'category';
-          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-          const currentYear = new Date().getFullYear();
-          const formattedName = cuisineMap[p0] || typeMap[p0];
-          title = `Halal ${formattedName} in Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
-          description = `Discover verified halal ${formattedName.toLowerCase()} restaurants and food spots in Ottawa. Search, read verified reviews, and get directions.`;
-
-          try {
-            const targetSub = (cuisineMap[p0] || typeMap[p0]).toLowerCase();
-            const targetSubTitle = (cuisineMap[p0] || typeMap[p0]);
-            const queries = [
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSubTitle)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSubTitle)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSub)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSub)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', '==', targetSubTitle)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('types', '==', targetSubTitle))
-            ];
-
-            const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
-            const docsMap = new Map<string, any>();
-            for (const snap of snaps) {
-              if (snap && snap.docs) {
-                for (const doc of snap.docs) {
-                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-                }
-              }
-            }
-
-            if (docsMap.size === 0) {
-              const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
-              for (const doc of fallbackSnap.docs) {
-                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-              }
-            }
-
-            let filteredListings = Array.from(docsMap.values())
-              .filter((data: any) => {
-                const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
-                const isRestaurant = listingCategories.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
-                if (!isRestaurant) return false;
-
-                const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
-                const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
-                const matchesType = listingTypes.some((t: any) => String(t).toLowerCase() === targetSub);
-                const matchesCuisine = listingCuisines.some((c: any) => String(c).toLowerCase() === targetSub);
-                return matchesType || matchesCuisine;
-              });
-
-            const parseListingTime = (val: any): number => {
-              if (!val) return 0;
-              if (typeof val.toDate === 'function') return val.toDate().getTime();
-              if (typeof val.seconds === 'number') return val.seconds * 1000;
-              const d = new Date(val);
-              return isNaN(d.getTime()) ? 0 : d.getTime();
-            };
-            filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
-
-            initialData = {
-              listings: filteredListings,
-              timestamp: Date.now()
-            };
-          } catch (e) {
-            console.error(`Error pre-fetching cuisine/type listings for ${p0}`, e);
-          }
+        } else if (cuisineMap[p0] || typeMap[p0] || isRestaurantSubcategory(pathParts[0])) {
+          let decodedSeg = pathParts[0];
+          try { decodedSeg = decodeURIComponent(pathParts[0]); } catch {}
+          const canonicalSubSlug = normalizeCompare(decodedSeg).replace(/\s+/g, '-');
+          return { html: '', isNotFound: false, redirectUrl: `/restaurants/${canonicalSubSlug}` };
         } else if (p0 === 'listings') {
           title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
           description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
@@ -4159,12 +4102,19 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         if (isStaticTwoSegmentValid(pathParts[0], pathParts[1])) {
           isNotFound = false;
           if (p0 === 'restaurants') {
+            let decodedP1 = p1;
+            try { decodedP1 = decodeURIComponent(p1); } catch {}
+            const canonicalSubSlug = normalizeCompare(decodedP1).replace(/\s+/g, '-');
+            if (p1 !== canonicalSubSlug) {
+              return { html: '', isNotFound: false, redirectUrl: `/restaurants/${canonicalSubSlug}` };
+            }
+
             const currentMonth = new Date().toLocaleString('default', { month: 'long' });
             const currentYear = new Date().getFullYear();
-            const locName = p1.toLowerCase().replace(/-/g, ' ');
+            const locName = canonicalSubSlug.replace(/-/g, ' ');
             const formattedSub = locName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
             
-            if (['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase())) {
+            if (['orleans', 'kanata', 'barrhaven', 'downtown'].includes(canonicalSubSlug)) {
               title = `Halal Restaurants in ${formattedSub}, Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
               description = `Find the best verified halal restaurants and food spots in ${formattedSub}, Ottawa. Search by cuisine or food type, read verified reviews, and get directions.`;
               routeType = 'location';
@@ -4175,7 +4125,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
 
             try {
-              const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(p1.toLowerCase());
+              const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(canonicalSubSlug);
               const queries: any[] = [];
               if (isLoc) {
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'Restaurants')));
@@ -4183,8 +4133,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'restaurants')));
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', 'restaurants')));
               } else {
-                const targetSub = p1.toLowerCase().replace(/-/g, ' ');
-                const targetSubTitle = formattedSub;
+                const targetSub = canonicalSubSlug.replace(/-/g, ' ');
+                const targetSubTitle = canonicalSubSlug === 'cafes' ? 'Cafés' : formattedSub;
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSubTitle)));
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSubTitle)));
                 queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSub)));
@@ -4213,18 +4163,18 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               let filteredListings = Array.from(docsMap.values())
                 .filter((data: any) => {
                   const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
-                  const isRestaurant = listingCategories.some((cat: any) => String(cat).toLowerCase() === 'restaurants');
+                  const isRestaurant = listingCategories.some((cat: any) => normalizeCompare(cat) === 'restaurants');
                   if (!isRestaurant) return false;
 
                   if (isLoc) {
                     const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
-                    return neighborhood === p1.toLowerCase();
+                    return neighborhood === canonicalSubSlug;
                   } else {
                     const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
                     const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
-                    const targetSub = p1.toLowerCase().replace(/-/g, ' ');
-                    const matchesType = listingTypes.some((t: any) => String(t).toLowerCase() === targetSub || String(t).toLowerCase() === p1.toLowerCase());
-                    const matchesCuisine = listingCuisines.some((c: any) => String(c).toLowerCase() === targetSub || String(c).toLowerCase() === p1.toLowerCase());
+                    const targetSub = normalizeCompare(canonicalSubSlug.replace(/-/g, ' '));
+                    const matchesType = listingTypes.some((t: any) => normalizeCompare(t) === targetSub || normalizeCompare(t) === canonicalSubSlug);
+                    const matchesCuisine = listingCuisines.some((c: any) => normalizeCompare(c) === targetSub || normalizeCompare(c) === canonicalSubSlug);
                     return matchesType || matchesCuisine;
                   }
                 });
@@ -4297,6 +4247,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
               isNotFound = true;
             } else {
+              if (data.slug && p1 !== data.slug) {
+                return { html: '', isNotFound: false, redirectUrl: `/news/${data.slug}` };
+              }
               title = `${data.title} | Halal Ottawa`;
               description = data.content?.substring(0, 160) || description;
               if (data.coverImage && data.coverImage.trim() !== '') {
@@ -4311,25 +4264,31 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           } catch (e) {
             console.error("Error fetching news details", e);
           }
-        } else if (p0 === 'author' || p0 === 'authors') {
-          title = "Youssef Agrebi - Editor & Journalist | Halal Ottawa";
-          description = "Read all verified Ottawa Muslim community announcements, news, and investigative reports published by Youssef Agrebi on Halal Ottawa.";
-          ogImage = defaultHeroImage;
-          routeType = 'author';
-          try {
-            const qNews = query(collection(db, 'news'), where('isApproved', '==', true));
-            const newsSnap = await getDocs(qNews);
-            let authorArticles = newsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            authorArticles = authorArticles.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
-            initialData = {
-              name: 'Youssef Agrebi',
-              articles: authorArticles
-            };
-          } catch (e) {
-            initialData = {
-              name: 'Youssef Agrebi',
-              articles: []
-            };
+        } else if (p0 === 'authors') {
+          return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
+        } else if (p0 === 'author') {
+          if (p1.toLowerCase() !== 'youssef-agrebi') {
+            isNotFound = true;
+          } else {
+            title = "Youssef Agrebi - Editor & Journalist | Halal Ottawa";
+            description = "Read all verified Ottawa Muslim community announcements, news, and investigative reports published by Youssef Agrebi on Halal Ottawa.";
+            ogImage = defaultHeroImage;
+            routeType = 'author';
+            try {
+              const qNews = query(collection(db, 'news'), where('isApproved', '==', true));
+              const newsSnap = await getDocs(qNews);
+              let authorArticles = newsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+              authorArticles = authorArticles.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
+              initialData = {
+                name: 'Youssef Agrebi',
+                articles: authorArticles
+              };
+            } catch (e) {
+              initialData = {
+                name: 'Youssef Agrebi',
+                articles: []
+              };
+            }
           }
         } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
           try {
@@ -4383,6 +4342,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
               isNotFound = true;
             } else {
+              const cat = Array.isArray(data.category) && data.category.length > 0
+                ? data.category[0]
+                : typeof data.category === 'string' ? data.category : 'listings';
+              const canonicalCatSlug = normalizeCategoryToSlug(cat);
+              const canonicalItemSlug = data.slug || data.id;
+              const expectedCanonicalPath = `/${canonicalCatSlug}/${canonicalItemSlug}`;
+              if (cleanUrlPath !== expectedCanonicalPath) {
+                return { html: '', isNotFound: false, redirectUrl: expectedCanonicalPath };
+              }
+
               title = `${data.name} | Halal Ottawa`;
               description = data.description?.substring(0, 160) || description;
               const photoCandidate = (Array.isArray(data.photos) ? data.photos.find((p: any) => typeof p === 'string' && p.trim() !== '') : null) || data.photo || data.coverImage || data.image || '';
@@ -4429,6 +4398,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     html = html.replace(/<script\b[^>]*>window\.__INITIAL_ROUTE_TYPE__[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<script\s+type=["']application\/ld\+json["']>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<div\s+id=["']root["']>[\s\S]*?<\/div>/i, '<div id="root"></div>');
+
+    if (isNotFound) {
+      title = "Page Not Found (404) | Halal Ottawa";
+      description = "Sorry, we couldn't find the page you're looking for on Halal Ottawa.";
+    }
 
     // Robust HTML tag replacements for title and description
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(title)}</title>`);
@@ -4822,15 +4796,47 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
       html = html.replace('</head>', `${extraTags}\n  </head>`);
 
-    if (isNotFound) {
-      if (html.includes('</head>')) {
-        html = html.replace('</head>', '  <meta name="robots" content="noindex, nofollow" />\n  </head>');
-      } else {
-        html = `<meta name="robots" content="noindex, nofollow" />\n${html}`;
-      }
-    }
+      const hasFilterOrSessionQuery = Boolean(
+        req?.query &&
+        Object.keys(req.query).some((k) =>
+          ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
+        )
+      );
 
-    return { html, isNotFound };
+      const isSubcategoryEmpty =
+        routeType === 'category' &&
+        pathParts.length === 2 &&
+        pathParts[0].toLowerCase() === 'restaurants' &&
+        !['orleans', 'kanata', 'barrhaven', 'downtown'].includes(pathParts[1].toLowerCase()) &&
+        Array.isArray(initialData?.listings) &&
+        initialData.listings.length === 0;
+
+      const isUnapprovedContent =
+        (routeType === 'listing' || routeType === 'news') &&
+        initialData &&
+        initialData.isApproved === false;
+
+      const isPrivateOrActionRoute =
+        ['/saved', '/login', '/register', '/signup', '/listings/add', '/news/add', '/profile', '/profile/edit', '/admin', '/settings'].includes(cleanUrlPath.toLowerCase()) ||
+        pathParts[0]?.toLowerCase() === 'go' ||
+        (pathParts.length === 3 && pathParts[1]?.toLowerCase() === 'edit');
+
+      let robotsDirective = 'index, follow';
+      if (isNotFound || isPrivateOrActionRoute || isUnapprovedContent) {
+        robotsDirective = 'noindex, nofollow';
+      } else if (cleanUrlPath.toLowerCase() === '/listings' || isSubcategoryEmpty || hasFilterOrSessionQuery) {
+        robotsDirective = 'noindex, follow';
+      }
+
+      if (html.includes('</head>')) {
+        html = html.replace('</head>', `  <meta name="robots" content="${robotsDirective}" />\n  </head>`);
+      } else {
+        html = `<meta name="robots" content="${robotsDirective}" />\n${html}`;
+      }
+
+      const robotsHeader = robotsDirective.startsWith('noindex') ? robotsDirective : undefined;
+
+    return { html, isNotFound, robotsHeader };
   }
 
   function getHtmlCacheControl(reqPath: string, isNotFound?: boolean): string {
@@ -4844,14 +4850,19 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     if (
       cleanPath.startsWith('/admin') ||
       cleanPath.startsWith('/account') ||
+      cleanPath.startsWith('/profile') ||
+      cleanPath.startsWith('/settings') ||
       cleanPath.startsWith('/saved') ||
       cleanPath.startsWith('/login') ||
+      cleanPath.startsWith('/register') ||
       cleanPath.startsWith('/signup') ||
       cleanPath.startsWith('/auth') ||
       cleanPath.startsWith('/forgot-password') ||
       cleanPath.startsWith('/listings/add') ||
+      cleanPath.startsWith('/listings/edit') ||
       cleanPath.startsWith('/news/add') ||
       cleanPath.startsWith('/news/edit') ||
+      cleanPath.startsWith('/go/') ||
       cleanPath.includes('__cookie_check')
     ) {
       return "private, no-cache, no-store, must-revalidate";
@@ -4862,7 +4873,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     return "public, max-age=0, s-maxage=300, stale-while-revalidate=86400";
   }
 
-  function applyHtmlCacheHeaders(res: express.Response, reqPath: string, isNotFound?: boolean) {
+  function applyHtmlCacheHeaders(res: express.Response, reqPath: string, isNotFound?: boolean, robotsHeader?: string) {
+    const cleanPath = reqPath.toLowerCase().replace(/\/+$/, '') || '/';
+    if (robotsHeader) {
+      res.setHeader("X-Robots-Tag", robotsHeader);
+    } else if (cleanPath === '/listings') {
+      res.setHeader("X-Robots-Tag", "noindex, follow");
+    }
     const cacheControl = getHtmlCacheControl(reqPath, isNotFound);
     res.setHeader("Cache-Control", cacheControl);
     if (cacheControl.startsWith("public")) {
@@ -4925,7 +4942,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
-        applyHtmlCacheHeaders(res, req.path, result.isNotFound);
+        applyHtmlCacheHeaders(res, req.path, result.isNotFound, result.robotsHeader);
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).end(result.html);
       } catch (e) {
         vite.ssrFixStacktrace(e as Error);
@@ -4944,6 +4961,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         } else if (/\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js)$/i.test(filePath)) {
           res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
         } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
+          if (filePath.replace(/\\/g, '/').endsWith('/listings/index.html')) {
+            res.setHeader("X-Robots-Tag", "noindex, follow");
+          }
           res.setHeader("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=86400");
           res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
         }
@@ -4960,7 +4980,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           res.redirect(301, result.redirectUrl);
           return;
         }
-        applyHtmlCacheHeaders(res, req.path, result.isNotFound);
+        applyHtmlCacheHeaders(res, req.path, result.isNotFound, result.robotsHeader);
         res.status(result.isNotFound ? 404 : 200).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);

@@ -15,6 +15,7 @@ interface SEOProps {
   structuredData?: Record<string, any> | Record<string, any>[];
   disableSuffix?: boolean;
   noindex?: boolean;
+  robots?: string;
 }
 
 export const SEO: React.FC<SEOProps> = ({
@@ -27,6 +28,7 @@ export const SEO: React.FC<SEOProps> = ({
   structuredData,
   disableSuffix = false,
   noindex = false,
+  robots,
 }) => {
   const [resolvedOgImage, setResolvedOgImage] = React.useState<string>(() => {
     if (ogImage && ogImage.trim() !== '' && !ogImage.includes('default-og.jpg')) {
@@ -129,11 +131,10 @@ export const SEO: React.FC<SEOProps> = ({
     <Helmet>
       {/* Standard SEO */}
       <title>{siteTitle}</title>
-      {noindex ? (
-        <meta name="robots" content="noindex, nofollow" />
-      ) : (
-        <meta name="description" content={description} />
+      {(noindex || robots) && (
+        <meta name="robots" content={robots || 'noindex, nofollow'} />
       )}
+      <meta name="description" content={description} />
       {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
 
       {/* Open Graph / Facebook */}
