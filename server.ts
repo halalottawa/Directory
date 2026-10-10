@@ -30,6 +30,17 @@ import {
 } from "./src/utils/ssrTemplates";
 import { getExcerpt } from "./src/utils/textUtils";
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
+import { buildMainSitemapXml, buildNewsSitemapXml } from "./src/utils/sitemapBuilder";
+import { getCanonicalUrl, deduplicateListingsByCanonicalUrl } from "./src/utils/url";
+import {
+  buildHomeStructuredData,
+  buildCategoryStructuredData,
+  buildListingStructuredData,
+  buildNewsArticleStructuredData,
+  buildNewsListStructuredData,
+  buildAuthorStructuredData,
+  buildStaticPageStructuredData,
+} from "./src/utils/structuredData";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
 let cachedFirebaseConfig: any = null;
@@ -200,10 +211,13 @@ async function getCachedHomeData(): Promise<any> {
       address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
       isFeatured: !!d.isFeatured,
       description: getExcerpt(d.description, 160),
-      createdAt: d.createdAt || null
+      createdAt: d.createdAt || null,
+      updatedAt: d.updatedAt || null
     };
   });
-  listingsData = listingsData.sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)).slice(0, 12);
+  listingsData = deduplicateListingsByCanonicalUrl(listingsData)
+    .sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt))
+    .slice(0, 12);
 
   let newsData = newsSnap.docs.map((docItem: any) => {
     const d = docItem.data() as any;
@@ -239,9 +253,9 @@ async function getCachedListingsData(): Promise<any[]> {
   if (!fb) return [];
   const { db, utils } = fb;
   const snap = await utils.getDocs(utils.query(utils.collection(db, 'listings'), utils.where('isApproved', '==', true)));
-  const items = snap.docs
-    .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
-    .sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
+  const items = deduplicateListingsByCanonicalUrl(
+    snap.docs.map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+  ).sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
   cachedListingsPayload = items;
   cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
   return items;
@@ -694,20 +708,34 @@ async function startServer() {
     return authResult.user;
   }
 
-  // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
+  // Canonical apex domain, HTTP->HTTPS, and removed legacy routes redirect
   app.use((req, res, next) => {
     const host = String(req.headers.host || "").toLowerCase();
     const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
-    
-    // Canonical apex domain redirect: halalottawa.ca -> www.halalottawa.ca
-    if (host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca') {
-      return res.redirect(301, `https://www.halalottawa.ca${req.url}`);
+    const xForwardedProto = String(req.headers['x-forwarded-proto'] || "").toLowerCase().split(',')[0].trim();
+    const requestPath = (req.path || '').toLowerCase();
+
+    // 301 redirect removed /events and /jobs paths directly to homepage in a single hop
+    if (requestPath === '/events' || requestPath.startsWith('/events/') || requestPath === '/jobs' || requestPath.startsWith('/jobs/')) {
+      const targetOrigin = (host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca' || host === 'www.halalottawa.ca' || xForwardedHost === 'www.halalottawa.ca')
+        ? 'https://www.halalottawa.ca'
+        : '';
+      return res.redirect(301, `${targetOrigin}/`);
     }
 
-    // 301 redirect removed /events and /jobs paths directly to homepage
-    const requestPath = (req.path || '').toLowerCase();
-    if (requestPath === '/events' || requestPath.startsWith('/events/') || requestPath === '/jobs' || requestPath.startsWith('/jobs/')) {
-      return res.redirect(301, '/');
+    // Canonical apex domain / HTTP redirect: halalottawa.ca or http://www.halalottawa.ca -> https://www.halalottawa.ca
+    const isApex = host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca';
+    const isHttpProd = (host === 'www.halalottawa.ca' || xForwardedHost === 'www.halalottawa.ca') && xForwardedProto === 'http';
+    if (isApex || isHttpProd) {
+      let cleanPath = req.path || '/';
+      if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
+        cleanPath = cleanPath.slice(0, -1);
+      }
+      const lowerClean = cleanPath.toLowerCase();
+      if (lowerClean === '/qibla') cleanPath = '/tools/qibla';
+      else if (lowerClean === '/author' || lowerClean === '/authors' || lowerClean.startsWith('/authors/')) cleanPath = '/author/youssef-agrebi';
+      const queryPart = req.url.includes('?') ? '?' + req.url.split('?').slice(1).join('?') : '';
+      return res.redirect(301, `https://www.halalottawa.ca${cleanPath}${queryPart}`);
     }
 
     next();
@@ -2200,254 +2228,84 @@ async function startServer() {
 
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const fs = await import("fs");
-      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
-      
-      let fbApp;
-      let db;
-      
-      if (fs.existsSync(configPath)) {
-        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const { initializeApp, getApps } = await import("firebase/app");
-        const { getFirestore, collection, getDocs, query, where } = await import("firebase/firestore");
-        
-        fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
-        db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
-      }
+      const fb = await ensureFirebaseDb();
+      const allApprovedListings: any[] = [];
+      const allApprovedNews: any[] = [];
 
-      const BASE_URL = 'https://www.halalottawa.ca';
-      const staticUrls = [
-        "/", "/news", "/restaurants", "/mosques", 
-        "/organizations", "/grocery", "/clothing", "/schools", "/butchers",
-        "/faq", "/terms", "/privacy-policy", "/tools/qibla"
-      ];
-      
-      const escapeXml = (str: string): string => {
-        if (!str) return '';
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      };
-
-      const urls: { loc: string; lastmod: string; changefreq: string; priority: string; imageUrl?: string | null; name?: string | null }[] = [];
-      const today = new Date().toISOString().split('T')[0];
-
-      for (const url of staticUrls) {
-        let priority = "0.8";
-        if (url === "/") priority = "1.0";
-        else if (url === "/news") priority = "0.9";
-        else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
-
-        urls.push({
-          loc: `${BASE_URL}${url}`,
-          lastmod: today,
-          changefreq: priority === "0.3" ? "monthly" : "daily",
-          priority: priority,
+      if (fb) {
+        const { db, utils } = fb;
+        const { collection, getDocs, query, where } = utils;
+        const [listingsSnap, newsSnap] = await Promise.all([
+          getDocs(query(collection(db, "listings"), where("isApproved", "==", true))),
+          getDocs(query(collection(db, "news"), where("isApproved", "==", true))),
+        ]);
+        listingsSnap.forEach((docSnap: any) => {
+          allApprovedListings.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        newsSnap.forEach((docSnap: any) => {
+          allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
         });
       }
 
-      const getDocLastmod = (data: any): string => {
-        const rawDate = data.updatedAt || data.createdAt;
-        if (!rawDate) return today;
-        if (typeof rawDate.toDate === 'function') {
-          return rawDate.toDate().toISOString().split('T')[0];
-        }
-        const d = new Date(rawDate);
-        return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
-      };
-
-      if (db) {
-        const { collection, getDocs, query, where } = await import("firebase/firestore");
-        
-        const fetchUrls = async (collectionName: string, pathPrefix: string | null = null) => {
-          try {
-            let q = query(collection(db, collectionName));
-            if (collectionName === 'listings') {
-              q = query(collection(db, 'listings'), where('isApproved', '==', true));
-            }
-            const snap = await getDocs(q);
-            snap.forEach((doc) => {
-              const data = doc.data();
-              const idPath = data.slug || doc.id;
-              
-              let locPrefix = pathPrefix;
-              if (locPrefix === null) {
-                // For listings, infer category
-                locPrefix = 'listings';
-                if (Array.isArray(data.category) && data.category.length > 0) {
-                  locPrefix = encodeURIComponent(data.category[0].toLowerCase());
-                } else if (typeof data.category === 'string') {
-                  locPrefix = encodeURIComponent(data.category.toLowerCase());
-                }
-              }
-
-              const imageUrl = data.photos?.[0] || data.coverImage || null;
-              urls.push({
-                loc: `${BASE_URL}/${locPrefix}/${idPath}`,
-                lastmod: getDocLastmod(data),
-                changefreq: "weekly",
-                priority: "0.7",
-                imageUrl,
-                name: data.name || data.title || null
-              });
-            });
-          } catch (e) {
-            console.error(`Error fetching dynamic URLs for ${collectionName}:`, e);
-          }
-        };
-
-        await Promise.all([
-          fetchUrls('listings', null),
-          fetchUrls('news', 'news')
-        ]);
-      }
-
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
-      xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
-      
-      for (const url of urls) {
-        xml += `  <url>\n`;
-        xml += `    <loc>${url.loc}</loc>\n`;
-        xml += `    <lastmod>${url.lastmod}</lastmod>\n`;
-        xml += `    <changefreq>${url.changefreq}</changefreq>\n`;
-        xml += `    <priority>${url.priority}</priority>\n`;
-        if (url.imageUrl) {
-          xml += `    <image:image>\n`;
-          xml += `      <image:loc>${escapeXml(url.imageUrl)}</image:loc>\n`;
-          xml += `      <image:title>${escapeXml(url.name || '')}</image:title>\n`;
-          xml += `    </image:image>\n`;
-        }
-        xml += `  </url>\n`;
-      }
-      
-      xml += `</urlset>\n`;
-
-      res.header('Content-Type', 'application/xml');
+      const { xml } = buildMainSitemapXml(allApprovedListings, allApprovedNews);
+      res.header("Content-Type", "application/xml; charset=utf-8");
+      res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
     } catch (e: any) {
       console.error("Error generating dynamic sitemap, serving static build file fallback:", e);
       try {
         const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap.xml");
         if (fs.existsSync(distStaticPath)) {
-          res.header('Content-Type', 'application/xml');
+          res.header("Content-Type", "application/xml; charset=utf-8");
           return res.sendFile(distStaticPath);
         }
         const publicStaticPath = path.resolve(process.cwd(), "public", "sitemap.xml");
         if (fs.existsSync(publicStaticPath)) {
-          res.header('Content-Type', 'application/xml');
+          res.header("Content-Type", "application/xml; charset=utf-8");
           return res.sendFile(publicStaticPath);
         }
       } catch (fallbackError) {
         console.error("Static sitemap fallback serve failed:", fallbackError);
       }
-      res.status(500).send('Error generating sitemap');
+      res.status(500).send("Error generating sitemap");
     }
   });
 
   app.get("/sitemap-news.xml", async (req, res) => {
     try {
-      const fs = await import("fs");
-      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      const fb = await ensureFirebaseDb();
+      const allApprovedNews: any[] = [];
 
-      let fbApp;
-      let db;
-
-      if (fs.existsSync(configPath)) {
-        const firebaseConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        const { initializeApp, getApps } = await import("firebase/app");
-        const { getFirestore } = await import("firebase/firestore");
-
-        fbApp = getApps().find(app => app.name === 'server-app') || initializeApp(firebaseConfig, 'server-app');
-        db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
+      if (fb) {
+        const { db, utils } = fb;
+        const { collection, getDocs, query, where } = utils;
+        const snap = await getDocs(query(collection(db, "news"), where("isApproved", "==", true)));
+        snap.forEach((docSnap: any) => {
+          allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
+        });
       }
 
-      const BASE_URL = 'https://www.halalottawa.ca';
-      const today = new Date().toISOString().split('T')[0];
-
-      const escapeXml = (str: string): string => {
-        if (!str) return '';
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      };
-
-      const getDocPubDate = (data: any): string => {
-        const rawDate = data.publishDate || data.createdAt;
-        if (!rawDate) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-        if (typeof rawDate.toDate === 'function') {
-          return rawDate.toDate().toISOString().replace(/\.\d{3}Z$/, 'Z');
-        }
-        const d = new Date(rawDate);
-        return isNaN(d.getTime()) ? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') : d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-      };
-
-      const newsUrls: { loc: string; title: string; pubDate: string }[] = [];
-
-      if (db) {
-        const { collection, getDocs, query, where } = await import("firebase/firestore");
-        try {
-          // Google News spec: only include articles from the last 2 days
-          const twoDaysAgo = new Date();
-          twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-          twoDaysAgo.setHours(0, 0, 0, 0);
-          const cutoffStr = twoDaysAgo.toISOString().split('T')[0]; // "YYYY-MM-DD"
-
-          const q = query(collection(db, 'news'), where('isApproved', '==', true));
-          const snap = await getDocs(q);
-          snap.forEach((doc) => {
-            const data = doc.data();
-            const pubDateStr = data.publishDate || data.createdAt || '';
-            // Filter to last 2 days in JS (publishDate is stored as "YYYY-MM-DD" string)
-            if (pubDateStr < cutoffStr) return;
-            const idPath = data.slug || doc.id;
-            newsUrls.push({
-              loc: `${BASE_URL}/news/${idPath}`,
-              title: data.title || '',
-              pubDate: pubDateStr
-            });
-          });
-        } catch (e) {
-          console.error("Error fetching news for sitemap-news.xml:", e);
-        }
-      }
-
-      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
-      xml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
-
-      for (const item of newsUrls) {
-        xml += `  <url>\n`;
-        xml += `    <loc>${item.loc}</loc>\n`;
-        xml += `    <news:news>\n`;
-        xml += `      <news:publication>\n`;
-        xml += `        <news:name>Halal Ottawa</news:name>\n`;
-        xml += `        <news:language>en</news:language>\n`;
-        xml += `      </news:publication>\n`;
-        xml += `      <news:publication_date>${item.pubDate}</news:publication_date>\n`;
-        xml += `      <news:title>${escapeXml((item.title || '').trim())}</news:title>\n`;
-        xml += `    </news:news>\n`;
-        xml += `  </url>\n`;
-      }
-
-      xml += `</urlset>\n`;
-
-      res.header('Content-Type', 'application/xml');
-      res.header('Cache-Control', 'public, max-age=1800, s-maxage=1800');
+      const { xml } = buildNewsSitemapXml(allApprovedNews);
+      res.header("Content-Type", "application/xml; charset=utf-8");
+      res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
     } catch (e: any) {
       console.error("Error generating news sitemap:", e);
       try {
         const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap-news.xml");
         if (fs.existsSync(distStaticPath)) {
-          res.header('Content-Type', 'application/xml');
+          res.header("Content-Type", "application/xml; charset=utf-8");
           return res.sendFile(distStaticPath);
         }
         const publicStaticPath = path.resolve(process.cwd(), "public", "sitemap-news.xml");
         if (fs.existsSync(publicStaticPath)) {
-          res.header('Content-Type', 'application/xml');
+          res.header("Content-Type", "application/xml; charset=utf-8");
           return res.sendFile(publicStaticPath);
         }
       } catch (fallbackError) {
         console.error("Static news sitemap fallback serve failed:", fallbackError);
       }
-      res.status(500).send('Error generating news sitemap');
+      res.status(500).send("Error generating news sitemap");
     }
   });
 
@@ -3768,6 +3626,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     cleanUrlPath = cleanUrlPath.replace(/https?:\/\/[^\/]+/i, '');
     if (!cleanUrlPath.startsWith('/')) cleanUrlPath = '/' + cleanUrlPath;
+    const rawCleanUrlPath = cleanUrlPath;
     if (cleanUrlPath.length > 1 && cleanUrlPath.endsWith('/')) {
       cleanUrlPath = cleanUrlPath.slice(0, -1);
     }
@@ -3792,7 +3651,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const isSingleSegmentValid = (segment: string): boolean => {
       const s = segment.toLowerCase();
       const knownStatic = new Set([
-        "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register", "qibla"
+        "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register", "signup", "qibla", "author", "authors"
       ]);
       if (knownStatic.has(s)) return true;
       
@@ -3963,6 +3822,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           initialData = { page: 'terms' };
         } else if (p0 === 'qibla') {
           return { html: '', isNotFound: false, redirectUrl: '/tools/qibla' };
+        } else if (p0 === 'author' || p0 === 'authors') {
+          return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
         } else if (p0 === 'saved') {
           title = "Saved Places & Articles | Halal Ottawa";
           description = "View your bookmarked halal restaurants, mosques, groceries, and articles on Halal Ottawa.";
@@ -4033,14 +3894,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
             }
 
-            let filteredListings = Array.from(docsMap.values())
-              .filter((data: any) => {
-                if (!data.category) return false;
-                const catArray = Array.isArray(data.category) ? data.category : [data.category];
-                return catArray.some((c: any) =>
-                  String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
-                );
-              });
+            let filteredListings = deduplicateListingsByCanonicalUrl(
+              Array.from(docsMap.values())
+                .filter((data: any) => {
+                  if (!data.category) return false;
+                  const catArray = Array.isArray(data.category) ? data.category : [data.category];
+                  return catArray.some((c: any) =>
+                    String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
+                  );
+                })
+            );
 
             const parseListingTime = (val: any): number => {
               if (!val) return 0;
@@ -4081,9 +3944,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const d = new Date(val);
               return isNaN(d.getTime()) ? 0 : d.getTime();
             };
-            const sortedListings = listingsSnap.docs
-              .map(doc => ({ id: doc.id, ...doc.data() }))
-              .sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+            const sortedListings = deduplicateListingsByCanonicalUrl(
+              listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            ).sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
 
             initialData = {
               listings: sortedListings,
@@ -4160,24 +4023,26 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                 }
               }
 
-              let filteredListings = Array.from(docsMap.values())
-                .filter((data: any) => {
-                  const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
-                  const isRestaurant = listingCategories.some((cat: any) => normalizeCompare(cat) === 'restaurants');
-                  if (!isRestaurant) return false;
+              let filteredListings = deduplicateListingsByCanonicalUrl(
+                Array.from(docsMap.values())
+                  .filter((data: any) => {
+                    const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+                    const isRestaurant = listingCategories.some((cat: any) => normalizeCompare(cat) === 'restaurants');
+                    if (!isRestaurant) return false;
 
-                  if (isLoc) {
-                    const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
-                    return neighborhood === canonicalSubSlug;
-                  } else {
-                    const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
-                    const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
-                    const targetSub = normalizeCompare(canonicalSubSlug.replace(/-/g, ' '));
-                    const matchesType = listingTypes.some((t: any) => normalizeCompare(t) === targetSub || normalizeCompare(t) === canonicalSubSlug);
-                    const matchesCuisine = listingCuisines.some((c: any) => normalizeCompare(c) === targetSub || normalizeCompare(c) === canonicalSubSlug);
-                    return matchesType || matchesCuisine;
-                  }
-                });
+                    if (isLoc) {
+                      const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
+                      return neighborhood === canonicalSubSlug;
+                    } else {
+                      const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
+                      const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
+                      const targetSub = normalizeCompare(canonicalSubSlug.replace(/-/g, ' '));
+                      const matchesType = listingTypes.some((t: any) => normalizeCompare(t) === targetSub || normalizeCompare(t) === canonicalSubSlug);
+                      const matchesCuisine = listingCuisines.some((c: any) => normalizeCompare(c) === targetSub || normalizeCompare(c) === canonicalSubSlug);
+                      return matchesType || matchesCuisine;
+                    }
+                  })
+              );
 
               const parseListingTime = (val: any): number => {
                 if (!val) return 0;
@@ -4228,16 +4093,24 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             if (newsDocSnap.exists()) {
               data = { id: newsDocSnap.id, ...newsDocSnap.data() };
             } else {
-              // Fallback to querying by slug field
-              const q = query(collection(db, 'news'), where('slug', '==', p1), limit(1));
+              // Fallback to querying by slug field (case-insensitive normalized slug)
+              const q = query(collection(db, 'news'), where('slug', '==', p1.toLowerCase()));
               const snap = await getDocs(q);
               if (!snap.empty) {
-                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                const candidates = snap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as any))
+                  .sort((a, b) => {
+                    if (a.isApproved === true && b.isApproved !== true) return -1;
+                    if (a.isApproved !== true && b.isApproved === true) return 1;
+                    return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.publishDate), parseFirestoreTimestamp(b.createdAt)) -
+                           Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.publishDate), parseFirestoreTimestamp(a.createdAt));
+                  });
+                data = candidates[0] || null;
               }
             }
 
             if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `news_${p1}`);
+              const redirectRef = doc(db, 'slug_redirects', `news_${p1.toLowerCase()}`);
               const redirectSnap = await getDoc(redirectRef);
               if (redirectSnap.exists()) {
                 const redirectData = redirectSnap.data();
@@ -4247,8 +4120,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
               isNotFound = true;
             } else {
-              if (data.slug && p1 !== data.slug) {
-                return { html: '', isNotFound: false, redirectUrl: `/news/${data.slug}` };
+              const expectedNewsPath = `/news/${data.slug || data.id}`;
+              if (rawCleanUrlPath !== expectedNewsPath) {
+                return { html: '', isNotFound: false, redirectUrl: expectedNewsPath };
               }
               title = `${data.title} | Halal Ottawa`;
               description = data.content?.substring(0, 160) || description;
@@ -4300,21 +4174,29 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             if (listingDocSnap.exists()) {
               data = { id: listingDocSnap.id, ...listingDocSnap.data() };
             } else {
-              // Fallback to querying by slug field if document ID does not exist
-              const q = query(collection(db, 'listings'), where('slug', '==', p1), limit(1));
+              // Fallback to querying by slug field (deterministic selection when duplicate slugs exist)
+              const q = query(collection(db, 'listings'), where('slug', '==', p1.toLowerCase()));
               const snap = await getDocs(q);
               if (!snap.empty) {
-                data = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                const candidates = snap.docs
+                  .map(d => ({ id: d.id, ...d.data() } as any))
+                  .sort((a, b) => {
+                    if (a.isApproved === true && b.isApproved !== true) return -1;
+                    if (a.isApproved !== true && b.isApproved === true) return 1;
+                    return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.createdAt)) -
+                           Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.createdAt));
+                  });
+                data = candidates[0] || null;
               }
             }
 
             if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `listings_${p1}`);
+              const redirectRef = doc(db, 'slug_redirects', `listings_${p1.toLowerCase()}`);
               const redirectSnap = await getDoc(redirectRef);
               if (redirectSnap.exists()) {
                 const redirectData = redirectSnap.data();
                 if (redirectData && redirectData.newSlug) {
-                  let destination = `/listings/${redirectData.newSlug}`;
+                  let destination = `/restaurants/${redirectData.newSlug}`;
                   try {
                     const newListingDocRef = doc(db, 'listings', redirectData.newSlug);
                     const newListingDocSnap = await getDoc(newListingDocRef);
@@ -4331,7 +4213,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                     if (newListing) {
                       const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
                       if (cat) {
-                        destination = `/${cat.toLowerCase()}/${redirectData.newSlug}`;
+                        destination = `/${normalizeCategoryToSlug(String(cat))}/${redirectData.newSlug}`;
                       }
                     }
                   } catch (e) {
@@ -4348,7 +4230,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const canonicalCatSlug = normalizeCategoryToSlug(cat);
               const canonicalItemSlug = data.slug || data.id;
               const expectedCanonicalPath = `/${canonicalCatSlug}/${canonicalItemSlug}`;
-              if (cleanUrlPath !== expectedCanonicalPath) {
+              if (rawCleanUrlPath !== expectedCanonicalPath) {
                 return { html: '', isNotFound: false, redirectUrl: expectedCanonicalPath };
               }
 
@@ -4408,13 +4290,18 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     html = html.replace(/<title>.*?<\/title>/gi, `<title>${escapeHtmlText(title)}</title>`);
     html = html.replace(/<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi, `<meta name="description" content="${escapeHtmlAttr(description)}" />`);
     
-    // Normalize cleanUrlPath to strip trailing slash for canonical matching (e.g. /grocery/marche-ali/ -> /grocery/marche-ali)
+    // Compute canonical path and URL through shared canonical helper
     let canonicalPath = cleanUrlPath;
     if (canonicalPath.includes('__cookie_check.html')) {
       canonicalPath = canonicalPath.split('__cookie_check.html')[0] || '/';
     }
     if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
       canonicalPath = canonicalPath.slice(0, -1);
+    }
+    if (pathParts.length === 1) {
+      canonicalPath = `/${pathParts[0].toLowerCase()}`;
+    } else if (pathParts.length === 2 && pathParts[0].toLowerCase() !== 'go') {
+      canonicalPath = `/${pathParts[0].toLowerCase()}/${normalizeCompare(pathParts[1]).replace(/\s+/g, '-')}`;
     }
 
     if (initialData) {
@@ -4426,12 +4313,34 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         canonicalPath = `/${formattedCategory}/${initialData.slug || initialData.id}`;
       } else if (routeType === 'news') {
         canonicalPath = `/news/${initialData.slug || initialData.id}`;
-      } else if (routeType === 'event') {
-        canonicalPath = `/events/${initialData.slug || initialData.id}`;
-      } else if (routeType === 'job') {
-        canonicalPath = `/jobs/${initialData.slug || initialData.id}`;
+      } else if (routeType === 'author') {
+        canonicalPath = '/author/youssef-agrebi';
       }
     }
+
+    const isOnlyPageOneQuery = Boolean(
+      req?.query &&
+      Object.keys(req.query).length === 1 &&
+      String(req.query.page || '') === '1'
+    );
+
+    if (!isNotFound && !returnUrlParam && !(urlPath || '').includes('__cookie_check') && pathParts[0]?.toLowerCase() !== 'go') {
+      if (rawCleanUrlPath !== canonicalPath || isOnlyPageOneQuery) {
+        let querySuffix = '';
+        if (req?.query && !isOnlyPageOneQuery) {
+          const qp = new URLSearchParams();
+          for (const [k, v] of Object.entries(req.query)) {
+            if (k === 'page' && String(v) === '1') continue;
+            if (typeof v === 'string') qp.set(k, v);
+          }
+          const qs = qp.toString();
+          if (qs) querySuffix = `?${qs}`;
+        }
+        return { html: '', isNotFound: false, redirectUrl: `${canonicalPath}${querySuffix}` };
+      }
+    }
+
+    const canonicalUrl = getCanonicalUrl(canonicalPath);
 
     let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
@@ -4440,13 +4349,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     <meta property="og:image" content="${escapeHtmlAttr(ogImage)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
+    <meta property="og:url" content="${escapeHtmlAttr(canonicalUrl)}" />
     <meta property="og:type" content="${escapeHtmlAttr(ogType)}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(description)}" />
     <meta name="twitter:image" content="${escapeHtmlAttr(ogImage)}" />
-    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + canonicalPath)}" />
+    <link rel="canonical" href="${escapeHtmlAttr(canonicalUrl)}" />
     `;
 
     if (routeType === 'listing' && initialData) {
@@ -4472,250 +4381,85 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       const heroHref = getImageUrl(heroPath, 750);
       const heroSrcSet = getImageSrcSet(heroPath, HERO_IMAGE_WIDTHS);
       extraTags += `\n    <link rel="preload" as="image" fetchpriority="high" href="${escapeHtmlAttr(heroHref)}" imagesrcset="${escapeHtmlAttr(heroSrcSet)}" imagesizes="${escapeHtmlAttr(HERO_IMAGE_SIZES)}" />`;
-      const websiteSchema = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Halal Ottawa",
-        "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
-        "url": "https://www.halalottawa.ca/"
-      };
-      extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
+      for (const schema of buildHomeStructuredData(description)) {
+        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+      }
     }
 
-      // Inject dynamic, highly optimized Schema.org JSON-LD if we have data
-      if (pathParts.length === 2 && initialData) {
-        let schemaData: any = {
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "name": title,
-          "description": description,
-          "image": ogImage,
-          "url": `https://www.halalottawa.ca${canonicalPath}`
-        };
+      // Inject dynamic, accurate Schema.org JSON-LD for public canonical pages via shared builders
+      if (!isNotFound && (pathParts.length === 1 || pathParts.length === 2) && !['saved', 'login', 'add_listing'].includes(routeType)) {
+        let schemasToEmit: Record<string, any>[] = [];
 
-        const fullUrl = `https://www.halalottawa.ca${canonicalPath}`;
-
-        if (routeType === 'listing') {
-          // Decide specific type if restaurant, mosque, grocery, etc.
-          let schemaType = "LocalBusiness";
-          const cat = (initialData.category || '').toString().toLowerCase();
-          if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
-            schemaType = "Restaurant";
-          } else if (cat.includes('mosque') || cat.includes('masjid')) {
-            schemaType = "PlaceOfWorship";
-          } else if (cat.includes('grocery') || cat.includes('supermarket')) {
-            schemaType = "GroceryStore";
-          } else if (cat.includes('butcher')) {
-            schemaType = "FoodEstablishment";
-          }
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": schemaType,
-            "name": initialData.name,
-            "description": description,
-            "image": ogImage,
-            "url": fullUrl,
-            "address": initialData.address ? {
-              "@type": "PostalAddress",
-              "streetAddress": initialData.address,
-              "addressLocality": "Ottawa",
-              "addressRegion": "ON",
-              "postalCode": initialData.postalCode || "",
-              "addressCountry": "CA"
-            } : undefined,
-            "telephone": initialData.phoneNumber || undefined,
-            "geo": initialData.lat && initialData.lng ? {
-              "@type": "GeoCoordinates",
-              "latitude": parseFloat(initialData.lat),
-              "longitude": parseFloat(initialData.lng)
-            } : undefined
-          };
-
-          // priceRange is only valid for Commercial Local Businesses
-          if (schemaType !== "PlaceOfWorship") {
-            schemaData.priceRange = initialData.priceRange || "$$";
-          }
-
-          // If there's high-quality review averages, inject AggregateRating
-          if (initialData.averageRating && initialData.reviewCount) {
-            schemaData.aggregateRating = {
-              "@type": "AggregateRating",
-              "ratingValue": parseFloat(initialData.averageRating).toFixed(1),
-              "reviewCount": parseInt(initialData.reviewCount) || 1,
-              "bestRating": "5",
-              "worstRating": "1"
-            };
-          }
-        } else if (routeType === 'news') {
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "NewsArticle",
-            "mainEntityOfPage": {
-              "@type": "WebPage",
-              "@id": fullUrl
-            },
-            "headline": initialData.title,
-            "image": ogImage ? [ogImage] : undefined,
-            "datePublished": initialData.publishDate || initialData.createdAt || new Date().toISOString(),
-            "dateModified": initialData.updatedAt || initialData.publishDate || new Date().toISOString(),
-            "author": {
-              "@type": "Person",
-              "name": initialData.author || "Youssef Agrebi"
-            },
-            "publisher": {
-              "@type": "Organization",
-              "name": "Halal Ottawa",
-              "logo": {
-                "@type": "ImageObject",
-                "url": "https://www.halalottawa.ca/favicon.ico"
-              }
-            },
-            "description": description
-          };
-        } else if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
-          const categoryDisplayName = (title.split(' - ')[0] || 'Halal Directory').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            "name": title,
-            "description": description,
-            "url": fullUrl,
-            "mainEntity": {
-              "@type": "ItemList",
-              "name": title,
-              "numberOfItems": (initialData.listings || []).length,
-              "itemListElement": (initialData.listings || []).slice(0, 25).map((l: any, idx: number) => {
-                let catSlug = 'listings';
-                if (Array.isArray(l.category) && l.category.length > 0) {
-                  catSlug = normalizeCategoryToSlug(l.category[0]);
-                } else if (typeof l.category === 'string') {
-                  catSlug = normalizeCategoryToSlug(l.category);
-                }
-                return {
-                  "@type": "ListItem",
-                  "position": idx + 1,
-                  "name": l.name,
-                  "url": `https://www.halalottawa.ca/${catSlug}/${l.slug || l.id}`
-                };
-              })
-            }
-          };
-        }
-
-        const breadcrumbItems = [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://www.halalottawa.ca"
-          }
-        ];
-
-        if (routeType === 'listing') {
-          const mainCategoryStr = Array.isArray(initialData.category) && initialData.category.length > 0 
-            ? initialData.category[0] 
-            : (typeof initialData.category === 'string' ? initialData.category : 'listings');
-          
-          const catSlug = normalizeCategoryToSlug(mainCategoryStr);
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": mainCategoryStr,
-            "item": `https://www.halalottawa.ca/${catSlug}`
+        if (routeType === 'listing' && initialData) {
+          schemasToEmit = buildListingStructuredData(initialData, { description, ogImage });
+        } else if (routeType === 'news' && initialData) {
+          schemasToEmit = buildNewsArticleStructuredData(initialData, { description, ogImage });
+        } else if (routeType === 'news_list') {
+          schemasToEmit = buildNewsListStructuredData({
+            title,
+            description,
+            articles: initialData?.news || [],
           });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": initialData.name,
-            "item": fullUrl
-          });
-        } else if (routeType === 'category' || routeType === 'location') {
-          if (pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants') {
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Restaurants",
-              "item": "https://www.halalottawa.ca/restaurants"
-            });
-            const locName = pathParts[1].toLowerCase().replace(/-/g, ' ');
-            const formattedSub = locName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 3,
-              "name": formattedSub,
-              "item": fullUrl
-            });
-          } else {
-            const categoryDisplayName = (title.split(' - ')[0] || 'Category').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 2,
-              "name": categoryDisplayName,
-              "item": fullUrl
-            });
-          }
         } else if (routeType === 'author') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "News",
-            "item": "https://www.halalottawa.ca/news"
+          schemasToEmit = buildAuthorStructuredData({
+            title,
+            description,
+            authorName: initialData?.name || 'Youssef Agrebi',
           });
+        } else if ((routeType === 'category' || routeType === 'location') && canonicalPath !== '/listings') {
+          const isRestaurantSubcategory =
+            pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants';
+          let categoryLabel = 'Directory';
+          if (isRestaurantSubcategory) {
+            const locName = pathParts[1].toLowerCase().replace(/-/g, ' ');
+            categoryLabel = locName
+              .split(' ')
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' ');
+          } else {
+            const labelMap: Record<string, string> = {
+              restaurants: 'Restaurants',
+              mosques: 'Mosques',
+              organizations: 'Organizations',
+              grocery: 'Grocery',
+              clothing: 'Clothing',
+              schools: 'Schools',
+              butchers: 'Butchers',
+            };
+            categoryLabel =
+              labelMap[pathParts[0].toLowerCase()] ||
+              (title.split(' - ')[0] || 'Category')
+                .replace(/Halal /gi, '')
+                .replace(/ in Ottawa.*/gi, '')
+                .trim();
+          }
 
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": initialData.name || "Youssef Agrebi",
-            "item": fullUrl
+          schemasToEmit = buildCategoryStructuredData({
+            urlPath: canonicalPath,
+            title,
+            description,
+            categoryLabel,
+            isRestaurantSubcategory,
+            listings: initialData?.listings || [],
           });
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "ProfilePage",
-            "name": title,
-            "description": description,
-            "url": fullUrl,
-            "mainEntity": {
-              "@type": "Person",
-              "name": initialData.name || "Youssef Agrebi",
-              "jobTitle": "Senior Journalist & Community Editor",
-              "worksFor": {
-                "@type": "Organization",
-                "name": "Halal Ottawa",
-                "url": "https://www.halalottawa.ca"
-              },
-              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
-            }
+        } else if (['faq', 'privacy-policy', 'terms', 'qibla'].includes(routeType)) {
+          const labelMap: Record<string, string> = {
+            faq: 'FAQ',
+            'privacy-policy': 'Privacy Policy',
+            terms: 'Terms of Service',
+            qibla: 'Qibla Direction',
           };
-        } else if (routeType === 'news') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "News",
-            "item": "https://www.halalottawa.ca/news"
-          });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": initialData.title,
-            "item": fullUrl
+          schemasToEmit = buildStaticPageStructuredData({
+            urlPath: canonicalPath,
+            title,
+            description,
+            breadcrumbName: labelMap[routeType] || title,
           });
         }
 
-        const breadcrumbSchema = {
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": breadcrumbItems
-        };
-
-        if (schemaData) {
-          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+        for (const schema of schemasToEmit) {
+          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
         }
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
       }
       
       if (initialData) {
@@ -4954,6 +4698,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath, {
       index: false,
+      redirect: false,
       maxAge: "30d",
       setHeaders: (res, filePath) => {
         if (filePath.includes("/assets/")) {

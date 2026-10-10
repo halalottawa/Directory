@@ -9,7 +9,8 @@ import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
-import { getAbsoluteUrl } from '../utils/url';
+import { getAbsoluteUrl, getCanonicalUrl } from '../utils/url';
+import { buildNewsArticleStructuredData } from '../utils/structuredData';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { ArticleAd } from '../components/ArticleAd';
@@ -278,61 +279,23 @@ export const NewsDetail: React.FC = () => {
   );
   if (!article) return <NotFound />;
 
+  const canonicalArticleUrl = getCanonicalUrl(`/news/${article.slug || article.id}`);
+  const articleSeoDesc = article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content;
+
   return (
     <>
       <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12">
         <SEO
         title={article.title}
-        description={article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content}
-        canonicalUrl={getAbsoluteUrl(`news/${article.slug || article.id}`)}
+        description={articleSeoDesc}
+        canonicalUrl={canonicalArticleUrl}
         noindex={article.isApproved === false}
         ogImage={article.coverImage ? getAbsoluteUrl(article.coverImage) : undefined}
         ogType="article"
-        structuredData={[
-          {
-            "@context": "https://schema.org",
-            "@type": "Article",
-            "headline": article.title,
-            "image": article.coverImage || "https://www.halalottawa.ca/default-og.jpg",
-            "datePublished": article.publishDate,
-            "author": {
-              "@type": "Person",
-              "name": article.author || "Youssef Agrebi",
-              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
-            },
-            "publisher": {
-              "@type": "Organization",
-              "name": "Halal Ottawa",
-              "logo": {
-                "@type": "ImageObject",
-                "url": "https://www.halalottawa.ca/logo.png"
-              }
-            }
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": "https://www.halalottawa.ca"
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": "News",
-                "item": "https://www.halalottawa.ca/news"
-              },
-              {
-                "@type": "ListItem",
-                "position": 3,
-                "name": article.title
-              }
-            ]
-          }
-        ]}
+        structuredData={buildNewsArticleStructuredData(article, {
+          description: articleSeoDesc,
+          ogImage: article.coverImage ? getAbsoluteUrl(article.coverImage) : undefined
+        })}
       />
 
       <div className="relative h-64 bg-gray-100 overflow-hidden">
@@ -379,6 +342,13 @@ export const NewsDetail: React.FC = () => {
       </div>
 
       <div className="p-6 space-y-8">
+        <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+          <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+          <span className="text-gray-300">›</span>
+          <Link to="/news" className="hover:text-[#e90b35] transition-colors">News</Link>
+          <span className="text-gray-300">›</span>
+          <span className="text-gray-900 truncate max-w-[260px] font-semibold">{article.title}</span>
+        </nav>
         {(() => {
           const paragraphs = article.content ? article.content.split(/\r?\n\s*\r?\n/) : [];
           const numParagraphs = paragraphs.length;

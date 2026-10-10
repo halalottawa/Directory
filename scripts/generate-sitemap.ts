@@ -1,62 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-
-const BASE_URL = 'https://www.halalottawa.ca';
-
-const escapeXml = (str: string): string => {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-};
-
-const staticUrls = [
-  "/",
-  "/news",
-  "/restaurants",
-  "/restaurants/orleans",
-  "/restaurants/kanata",
-  "/restaurants/barrhaven",
-  "/restaurants/downtown",
-  "/mosques",
-  "/organizations",
-  "/grocery",
-  "/clothing",
-  "/schools",
-  "/butchers",
-  "/faq",
-  "/terms",
-  "/privacy-policy",
-  "/tools/qibla",
-  "/author/youssef-agrebi"
-];
-
-function normalizeCategoryToSlug(cat: string): string {
-  if (!cat) return 'listings';
-  const c = cat.toLowerCase().trim();
-  if (c.includes('restaurant')) return 'restaurants';
-  if (c.includes('mosque') || c.includes('masjid')) return 'mosques';
-  if (c.includes('organization')) return 'organizations';
-  if (c.includes('grocery')) return 'grocery';
-  if (c.includes('clothing')) return 'clothing';
-  if (c.includes('school')) return 'schools';
-  if (c.includes('butcher')) return 'butchers';
-  return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
-}
-
-const normalizeCompare = (val: any): string =>
-  String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-
-const subcategoriesList = [
-  'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine',
-  'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos',
-  'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani',
-  'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean',
-  'italian', 'bangladeshi', 'mexican', 'ethiopian'
-];
+import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { buildMainSitemapXml, buildNewsSitemapXml } from '../src/utils/sitemapBuilder';
 
 async function generateSitemap() {
-  console.log("Generating sitemap...");
+  console.log("Generating sitemaps...");
   const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
   let fbApp;
   let db;
@@ -66,213 +15,55 @@ async function generateSitemap() {
     fbApp = initializeApp(firebaseConfig, 'sitemap-generator');
     db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
   } else {
-    console.warn("firebase-applet-config.json not found. Generating sitemap with static URLs only.");
+    console.warn("firebase-applet-config.json not found. Generating sitemaps with static URLs only.");
   }
 
-  const urls: { loc: string; lastmod: string; changefreq: string; priority: string; imageUrl?: string | null; name?: string | null }[] = [];
-  const today = new Date().toISOString().split('T')[0];
+  const allApprovedListings: any[] = [];
+  const allApprovedNews: any[] = [];
 
-  // Add static URLs
-  for (const url of staticUrls) {
-    let priority = "0.8";
-    if (url === "/") priority = "1.0";
-    else if (url === "/news") priority = "0.9";
-    else if (["/faq", "/terms", "/privacy-policy"].includes(url)) priority = "0.3";
-
-    urls.push({
-      loc: `${BASE_URL}${url}`,
-      lastmod: today,
-      changefreq: priority === "0.3" ? "monthly" : "daily",
-      priority: priority,
-    });
-  }
-
-  const getDocLastmod = (data: any): string => {
-    const rawDate = data.updatedAt || data.createdAt;
-    if (!rawDate) return today;
-    if (typeof rawDate.toDate === 'function') {
-      return rawDate.toDate().toISOString().split('T')[0];
-    }
-    const d = new Date(rawDate);
-    return isNaN(d.getTime()) ? today : d.toISOString().split('T')[0];
-  };
-
-  // Fetch dynamic content if DB is available
   if (db) {
     try {
-      // 1. Listings
-      const listingsQuery = query(collection(db, 'listings'), where('isApproved', '==', true));
-      const listingsSnap = await getDocs(listingsQuery);
-      const allApprovedListings: any[] = [];
-      listingsSnap.forEach((doc) => {
-        const data = doc.data();
-        allApprovedListings.push({ id: doc.id, ...data });
-        const idPath = data.slug || doc.id;
-        
-        let categoryPath = 'listings';
-        if (Array.isArray(data.category) && data.category.length > 0) {
-          categoryPath = normalizeCategoryToSlug(data.category[0]);
-        } else if (typeof data.category === 'string') {
-          categoryPath = normalizeCategoryToSlug(data.category);
-        }
+      const [listingsSnap, newsSnap] = await Promise.all([
+        getDocs(query(collection(db, 'listings'), where('isApproved', '==', true))),
+        getDocs(query(collection(db, 'news'), where('isApproved', '==', true))),
+      ]);
 
-        const imageUrl = data.photos?.[0] || data.coverImage || null;
-        urls.push({
-          loc: `${BASE_URL}/${categoryPath}/${idPath}`,
-          lastmod: getDocLastmod(data),
-          changefreq: "weekly",
-          priority: "0.7",
-          imageUrl,
-          name: data.name || data.title || null
-        });
+      listingsSnap.forEach((docSnap) => {
+        allApprovedListings.push({ id: docSnap.id, ...docSnap.data() });
       });
 
-      // 1b. Populated Restaurant Subcategories
-      for (const sub of subcategoriesList) {
-        const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
-        const hasMatch = allApprovedListings.some((l: any) => {
-          const catArray = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
-          const typesArray = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
-          const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
-          return (
-            catArray.some((c: any) => normalizeCompare(c) === cleanSub) ||
-            typesArray.some((t: any) => normalizeCompare(t) === cleanSub) ||
-            cuisinesArray.some((c: any) => normalizeCompare(c) === cleanSub)
-          );
-        });
-        if (hasMatch) {
-          urls.push({
-            loc: `${BASE_URL}/restaurants/${sub}`,
-            lastmod: today,
-            changefreq: "weekly",
-            priority: "0.75"
-          });
-        }
-      }
-
-      // 2. News
-      const newsQuery = query(collection(db, 'news'), where('isApproved', '==', true));
-      const newsSnap = await getDocs(newsQuery);
-      newsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
-        const imageUrl = data.photos?.[0] || data.coverImage || null;
-        urls.push({
-          loc: `${BASE_URL}/news/${idPath}`,
-          lastmod: getDocLastmod(data),
-          changefreq: "weekly",
-          priority: "0.7",
-          imageUrl,
-          name: data.name || data.title || null
-        });
+      newsSnap.forEach((docSnap) => {
+        allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
       });
 
-      console.log(`Added dynamic URLs from Firestore. Total URLs: ${urls.length}`);
+      console.log(`Fetched ${allApprovedListings.length} approved listings and ${allApprovedNews.length} approved news articles from Firestore.`);
     } catch (e) {
       console.error("Error fetching dynamic URLs from Firestore:", e);
     }
   }
 
-  // Generate XML
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
-  xml += `        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
-  
-  for (const url of urls) {
-    xml += `  <url>\n`;
-    xml += `    <loc>${url.loc}</loc>\n`;
-    xml += `    <lastmod>${url.lastmod}</lastmod>\n`;
-    xml += `    <changefreq>${url.changefreq}</changefreq>\n`;
-    xml += `    <priority>${url.priority}</priority>\n`;
-    if (url.imageUrl) {
-      xml += `    <image:image>\n`;
-      xml += `      <image:loc>${escapeXml(url.imageUrl)}</image:loc>\n`;
-      xml += `      <image:title>${escapeXml(url.name || '')}</image:title>\n`;
-      xml += `    </image:image>\n`;
-    }
-    xml += `  </url>\n`;
-  }
-  
-  xml += `</urlset>\n`;
-
+  // 1. Build Main Sitemap (sitemap.xml)
+  const { xml: mainXml, entries: mainEntries } = buildMainSitemapXml(allApprovedListings, allApprovedNews);
   const outputPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
-  fs.writeFileSync(outputPath, xml);
-  console.log(`Sitemap written to ${outputPath}`);
+  fs.writeFileSync(outputPath, mainXml, 'utf-8');
+  console.log(`Main sitemap (${mainEntries.length} unique URLs) written to ${outputPath}`);
 
   const distPath = path.resolve(process.cwd(), 'dist');
   if (fs.existsSync(distPath)) {
     const distLogPath = path.join(distPath, 'sitemap.xml');
-    fs.writeFileSync(distLogPath, xml);
-    console.log(`Sitemap written to ${distLogPath}`);
+    fs.writeFileSync(distLogPath, mainXml, 'utf-8');
+    console.log(`Main sitemap written to ${distLogPath}`);
   }
 
-  // Generate Google News sitemap (sitemap-news.xml)
-  const getDocPubDate = (data: any): string => {
-    const rawDate = data.publishDate || data.createdAt;
-    if (!rawDate) return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
-    if (typeof rawDate.toDate === 'function') {
-      return rawDate.toDate().toISOString().replace(/\.\d{3}Z$/, 'Z');
-    }
-    const d = new Date(rawDate);
-    return isNaN(d.getTime()) ? new Date().toISOString().replace(/\.\d{3}Z$/, 'Z') : d.toISOString().replace(/\.\d{3}Z$/, 'Z');
-  };
-
-  const newsUrls: { loc: string; title: string; pubDate: string }[] = [];
-
-  if (db) {
-    try {
-      // Google News spec: only include articles from the last 2 days
-      const twoDaysAgo = new Date();
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      twoDaysAgo.setHours(0, 0, 0, 0);
-      const cutoffStr = twoDaysAgo.toISOString().split('T')[0]; // "YYYY-MM-DD"
-
-      const q = query(collection(db, 'news'), where('isApproved', '==', true));
-      const snap = await getDocs(q);
-      snap.forEach((doc) => {
-        const data = doc.data();
-        const pubDateStr = data.publishDate || data.createdAt || '';
-        // Filter to last 2 days in JS (publishDate is stored as "YYYY-MM-DD" string)
-        if (pubDateStr < cutoffStr) return;
-        const idPath = data.slug || doc.id;
-        newsUrls.push({
-          loc: `${BASE_URL}/news/${idPath}`,
-          title: data.title || '',
-          pubDate: pubDateStr
-        });
-      });
-    } catch (e) {
-      console.error("Error fetching news for sitemap-news.xml:", e);
-    }
-  }
-
-  let newsXml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  newsXml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
-  newsXml += `        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n`;
-
-  for (const item of newsUrls) {
-    newsXml += `  <url>\n`;
-    newsXml += `    <loc>${item.loc}</loc>\n`;
-    newsXml += `    <news:news>\n`;
-    newsXml += `      <news:publication>\n`;
-    newsXml += `        <news:name>Halal Ottawa</news:name>\n`;
-    newsXml += `        <news:language>en</news:language>\n`;
-    newsXml += `      </news:publication>\n`;
-    newsXml += `      <news:publication_date>${item.pubDate}</news:publication_date>\n`;
-    newsXml += `      <news:title>${escapeXml((item.title || '').trim())}</news:title>\n`;
-    newsXml += `    </news:news>\n`;
-    newsXml += `  </url>\n`;
-  }
-
-  newsXml += `</urlset>\n`;
-
+  // 2. Build Google News Sitemap (sitemap-news.xml)
+  const { xml: newsXml, entries: newsEntries } = buildNewsSitemapXml(allApprovedNews);
   const outputNewsPath = path.resolve(process.cwd(), 'public', 'sitemap-news.xml');
-  fs.writeFileSync(outputNewsPath, newsXml);
-  console.log(`News sitemap written to ${outputNewsPath}`);
+  fs.writeFileSync(outputNewsPath, newsXml, 'utf-8');
+  console.log(`News sitemap (${newsEntries.length} unique qualifying articles) written to ${outputNewsPath}`);
 
   if (fs.existsSync(distPath)) {
     const distNewsPath = path.join(distPath, 'sitemap-news.xml');
-    fs.writeFileSync(distNewsPath, newsXml);
+    fs.writeFileSync(distNewsPath, newsXml, 'utf-8');
     console.log(`News sitemap written to ${distNewsPath}`);
   }
 }

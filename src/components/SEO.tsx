@@ -2,6 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { getGeneralSettings } from '../services/publicSettings';
 import { getImageUrl, GLOBAL_HERO_IMAGE_PATH } from '../config/images';
+import { getCanonicalUrl } from '../utils/url';
 
 export const DEFAULT_HERO_OG_IMAGE = getImageUrl(GLOBAL_HERO_IMAGE_PATH, 1200);
 
@@ -66,6 +67,13 @@ export const SEO: React.FC<SEOProps> = ({
     });
   }, [ogImage]);
 
+  React.useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const ssrSchemas = document.querySelectorAll('script[type="application/ld+json"][data-ssr-schema="true"]');
+      ssrSchemas.forEach((node) => node.parentNode?.removeChild(node));
+    }
+  }, [structuredData, canonicalUrl]);
+
   const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa') || disableSuffix
     ? title 
     : `${title} | Halal Ottawa`;
@@ -91,41 +99,7 @@ export const SEO: React.FC<SEOProps> = ({
     }
   }
 
-  let resolvedCanonical = canonicalUrl || `https://www.halalottawa.ca${currentPath}`;
-
-  if (resolvedCanonical) {
-    resolvedCanonical = resolvedCanonical.replace(/[a-zA-Z0-9-.]+\.run\.app/gi, 'www.halalottawa.ca');
-    
-    // Clean up direct occurrences of cookie check path if any remain
-    if (resolvedCanonical.includes('__cookie_check')) {
-      if (resolvedCanonical.includes('return_url=')) {
-        try {
-          const returnParam = new URL(resolvedCanonical).searchParams.get('return_url');
-          if (returnParam) {
-            let p = returnParam;
-            if (p.startsWith('http://') || p.startsWith('https://')) {
-              p = new URL(p).pathname;
-            }
-            resolvedCanonical = `https://www.halalottawa.ca${p.startsWith('/') ? '' : '/'}${p}`;
-          } else {
-            resolvedCanonical = 'https://www.halalottawa.ca';
-          }
-        } catch (e) {
-          resolvedCanonical = 'https://www.halalottawa.ca';
-        }
-      } else {
-        resolvedCanonical = resolvedCanonical.split('__cookie_check')[0] || 'https://www.halalottawa.ca';
-      }
-    }
-    
-    // Clean up any potential double slashes in paths like https://www.halalottawa.ca//news
-    resolvedCanonical = resolvedCanonical.replace(/https:\/\/www\.halalottawa\.ca\/\/+/g, 'https://www.halalottawa.ca/');
-    
-    // Trim trailing slashes from the canonical URL so both '/path/' and '/path' resolve to '/path'
-    if (resolvedCanonical.endsWith('/') && resolvedCanonical !== 'https://www.halalottawa.ca/') {
-      resolvedCanonical = resolvedCanonical.slice(0, -1);
-    }
-  }
+  const resolvedCanonical = getCanonicalUrl(canonicalUrl || currentPath || '/');
 
   return (
     <Helmet>

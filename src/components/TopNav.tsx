@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 import { isAppWrapper } from '../utils/platform';
+import { normalizeCategoryToSlug, normalizeSubcategorySlug } from '../utils/url';
 import { CategoryIcon } from './CategoryIcon';
 
 interface TopNavProps {
@@ -104,7 +105,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
         {/* Desktop Center: Navigation Links */}
         <nav className="hidden md:flex shrink-0 justify-center items-center gap-4 lg:gap-6">
           {CATEGORIES.filter(c => c !== 'Organizations').map(cat => {
-            const path = `/${cat.toLowerCase().replace(/\s+/g, '-')}`;
+            const path = `/${normalizeCategoryToSlug(cat)}`;
             const label = cat;
             return (
               <div key={cat} className="relative group/menu py-2">
@@ -131,7 +132,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                         {LISTING_TYPES.map((type) => {
-                          const typePath = `/restaurants/${type.toLowerCase().replace(/\s+/g, '-')}`;
+                          const typePath = `/restaurants/${normalizeSubcategorySlug(type)}`;
                           return (
                             <Link
                               key={type}
@@ -154,7 +155,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-x-2 gap-y-1">
                         {CUISINES.map((cuisine) => {
-                          const cuisinePath = `/restaurants/${cuisine.toLowerCase().replace(/\s+/g, '-')}`;
+                          const cuisinePath = `/restaurants/${normalizeSubcategorySlug(cuisine)}`;
                           return (
                             <Link
                               key={cuisine}
@@ -332,7 +333,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                   <p className="px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">Categories</p>
                   <div className="space-y-1">
                     {CATEGORIES.map(cat => {
-                      const path = `/${cat.toLowerCase().replace(/\s+/g, '-')}`;
+                      const path = `/${normalizeCategoryToSlug(cat)}`;
                       const isCatActive = location.pathname === path;
                       if (cat === 'Restaurants') {
                         return (
@@ -372,7 +373,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Food</span>
                                   <div className="flex flex-wrap gap-1.5">
                                     {LISTING_TYPES.map((type) => {
-                                      const typePath = `/restaurants/${type.toLowerCase().replace(/\s+/g, '-')}`;
+                                      const typePath = `/restaurants/${normalizeSubcategorySlug(type)}`;
                                       return (
                                         <Link
                                           key={type}
@@ -396,7 +397,7 @@ export const TopNav: React.FC<TopNavProps> = ({ showBack }) => {
                                   <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Cuisines</span>
                                   <div className="flex flex-wrap gap-1.5">
                                     {CUISINES.map((cuisine) => {
-                                      const cuisinePath = `/restaurants/${cuisine.toLowerCase().replace(/\s+/g, '-')}`;
+                                      const cuisinePath = `/restaurants/${normalizeSubcategorySlug(cuisine)}`;
                                       return (
                                         <Link
                                           key={cuisine}

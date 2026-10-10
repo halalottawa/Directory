@@ -7,7 +7,8 @@ import { DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getPlainText } from '../utils/textUtils';
-import { getAbsoluteUrl } from '../utils/url';
+import { getAbsoluteUrl, getCanonicalUrl } from '../utils/url';
+import { buildNewsListStructuredData } from '../utils/structuredData';
 import { SEO } from '../components/SEO';
 import { isAppWrapper } from '../utils/platform';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
@@ -158,26 +159,13 @@ export const News: React.FC = () => {
       <SEO 
         title="Ottawa News - Halal Ottawa" 
         description="Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region." 
-        canonicalUrl={getAbsoluteUrl("news")} 
+        canonicalUrl={getCanonicalUrl("/news")} 
         disableSuffix={true}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "News",
-              "item": "https://www.halalottawa.ca/news"
-            }
-          ]
-        }}
+        structuredData={buildNewsListStructuredData({
+          title: "Ottawa News - Halal Ottawa",
+          description: "Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region.",
+          articles: filteredNews
+        })}
       />
 
       <div className="flex justify-between items-center gap-4">

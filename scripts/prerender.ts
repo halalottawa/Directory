@@ -19,6 +19,16 @@ import {
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 import { getExcerpt } from '../src/utils/textUtils';
+import { getCanonicalUrl } from '../src/utils/url';
+import {
+  buildHomeStructuredData,
+  buildCategoryStructuredData,
+  buildListingStructuredData,
+  buildNewsArticleStructuredData,
+  buildNewsListStructuredData,
+  buildAuthorStructuredData,
+  buildStaticPageStructuredData,
+} from '../src/utils/structuredData';
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from '../src/config/images';
 
 const BASE_URL = 'https://www.halalottawa.ca';
@@ -405,11 +415,24 @@ async function prerender() {
     }
 
     const relativeFilePath = url === "/" ? "index.html" : `${url.substring(1)}/index.html`;
+    const staticRouteTypeMap: Record<string, string> = {
+      "/": "home",
+      "/faq": "faq",
+      "/terms": "terms",
+      "/privacy-policy": "privacy-policy",
+      "/tools/qibla": "qibla",
+      "/author/youssef-agrebi": "author"
+    };
+    const resolvedRouteType = staticRouteTypeMap[url] || "static";
+    const resolvedInitialData = ["faq", "terms", "privacy-policy", "qibla"].includes(resolvedRouteType)
+      ? { page: resolvedRouteType }
+      : undefined;
 
     pagesToPrerender.push({
       urlPath: url,
       filePath: path.join(distPath, relativeFilePath),
-      routeType: url === "/" ? "home" : "static",
+      routeType: resolvedRouteType,
+      initialData: resolvedInitialData,
       title,
       description,
       ogImage
@@ -529,9 +552,39 @@ async function prerender() {
       // Listings SSG
       const listingsQuery = query(collection(db, 'listings'), where('isApproved', '==', true));
       const listingsSnap = await getDocs(listingsQuery);
-      listingsSnap.forEach((doc) => {
-        const data = doc.data();
-        const idPath = data.slug || doc.id;
+      const parseListingTime = (val: any): number => {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        if (typeof val.toDate === 'function') return val.toDate().getTime();
+        if (typeof val.seconds === 'number') return val.seconds * 1000;
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      };
+
+      const dedupedListingsMap = new Map<string, any>();
+      listingsSnap.forEach((docSnap) => {
+        const data = docSnap.data();
+        const item = { id: docSnap.id, ...data };
+        const idPath = String(data.slug || docSnap.id).trim();
+        let categoryPath = 'listings';
+        if (Array.isArray(data.category) && data.category.length > 0) {
+          categoryPath = normalizeCategoryToSlug(data.category[0]);
+        } else if (typeof data.category === 'string') {
+          categoryPath = normalizeCategoryToSlug(data.category);
+        }
+        const canonicalKey = `/${categoryPath}/${idPath}`.toLowerCase();
+        const existing = dedupedListingsMap.get(canonicalKey);
+        const itemTime = Math.max(parseListingTime(data.updatedAt), parseListingTime(data.createdAt));
+        const existingTime = existing ? Math.max(parseListingTime(existing.updatedAt), parseListingTime(existing.createdAt)) : -1;
+        if (!existing || itemTime >= existingTime) {
+          dedupedListingsMap.set(canonicalKey, item);
+        }
+      });
+
+      const allApprovedListings = Array.from(dedupedListingsMap.values());
+
+      allApprovedListings.forEach((data) => {
+        const idPath = data.slug || data.id;
         
         let categoryPath = 'listings';
         if (Array.isArray(data.category) && data.category.length > 0) {
@@ -550,23 +603,12 @@ async function prerender() {
           urlPath: url,
           filePath: path.join(distPath, categoryPath, idPath, "index.html"),
           routeType: "listing",
-          initialData: { id: doc.id, ...data },
+          initialData: data,
           title,
           description,
           ogImage
         });
       });
-
-      // Populate Category and Location Pages Data for SSG
-      const allApprovedListings = listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-      const parseListingTime = (val: any): number => {
-        if (!val) return 0;
-        if (typeof val === 'number') return val;
-        if (typeof val.toDate === 'function') return val.toDate().getTime();
-        if (typeof val.seconds === 'number') return val.seconds * 1000;
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? 0 : d.getTime();
-      };
 
       const categoryMapSSG: Record<string, string> = {
         restaurants: 'Restaurants',
@@ -701,6 +743,8 @@ async function prerender() {
         }
       }
 
+      const canonicalPageUrl = getCanonicalUrl(resolvedCanonicalPath);
+
       let extraTags = `
     <meta property="og:site_name" content="Halal Ottawa" />
     <meta property="og:title" content="${escapeHtmlAttr(page.title)}" />
@@ -708,13 +752,13 @@ async function prerender() {
     <meta property="og:image" content="${escapeHtmlAttr(page.ogImage)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:url" content="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
+    <meta property="og:url" content="${escapeHtmlAttr(canonicalPageUrl)}" />
     <meta property="og:type" content="${ogType}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${escapeHtmlAttr(page.title)}" />
     <meta name="twitter:description" content="${escapeHtmlAttr(page.description)}" />
     <meta name="twitter:image" content="${escapeHtmlAttr(page.ogImage)}" />
-    <link rel="canonical" href="${escapeHtmlAttr("https://www.halalottawa.ca" + resolvedCanonicalPath)}" />
+    <link rel="canonical" href="${escapeHtmlAttr(canonicalPageUrl)}" />
       `;
 
       const isSubcategoryEmpty =
@@ -753,254 +797,89 @@ async function prerender() {
       }
 
       if (page.urlPath === "/" || page.routeType === "home") {
-        const websiteSchema = {
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Halal Ottawa",
-          "alternateName": ["HalalOttawa", "Halal Ottawa Directory"],
-          "url": "https://www.halalottawa.ca/",
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://www.halalottawa.ca/listings?search={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
-        };
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`;
-        const organizationSchema = {
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          "name": "Halal Ottawa",
-          "url": "https://www.halalottawa.ca",
-          "logo": {
-            "@type": "ImageObject",
-            "url": "https://www.halalottawa.ca/favicon.png"
-          },
-          "sameAs": [
-            "https://www.instagram.com/halalottawa"
-          ]
-        };
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(organizationSchema)}</script>`;
-      }
-
-      // Inject JSON-LD Schema standard Markup structures
-      if (page.initialData) {
-        let schemaData: any = {
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "name": page.title,
-          "description": page.description,
-          "image": page.ogImage,
-          "url": `${BASE_URL}${page.urlPath}`
-        };
-
-        const fullUrl = `${BASE_URL}${page.urlPath}`;
-
-        if (page.routeType === 'listing') {
-          let schemaType = "LocalBusiness";
-          const cat = (page.initialData.category || '').toString().toLowerCase();
-          if (cat.includes('restaurant') || cat.includes('food') || cat.includes('cafe')) {
-            schemaType = "Restaurant";
-          } else if (cat.includes('mosque') || cat.includes('masjid')) {
-            schemaType = "PlaceOfWorship";
-          } else if (cat.includes('grocery') || cat.includes('supermarket')) {
-            schemaType = "GroceryStore";
-          } else if (cat.includes('butcher')) {
-            schemaType = "FoodEstablishment";
-          }
-
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": schemaType,
-            "name": page.initialData.name,
-            "description": page.description,
-            "image": page.ogImage,
-            "url": fullUrl,
-            "address": page.initialData.address ? {
-              "@type": "PostalAddress",
-              "streetAddress": page.initialData.address,
-              "addressLocality": "Ottawa",
-              "addressRegion": "ON",
-              "postalCode": page.initialData.postalCode || "",
-              "addressCountry": "CA"
-            } : undefined,
-            "telephone": page.initialData.phoneNumber || undefined,
-            "geo": page.initialData.lat && page.initialData.lng ? {
-              "@type": "GeoCoordinates",
-              "latitude": parseFloat(page.initialData.lat),
-              "longitude": parseFloat(page.initialData.lng)
-            } : undefined
-          };
-
-          // priceRange is only valid for Commercial Local Businesses
-          if (schemaType !== "PlaceOfWorship") {
-            schemaData.priceRange = page.initialData.priceRange || "$$";
-          }
-
-          if (page.initialData.averageRating && page.initialData.reviewCount) {
-            schemaData.aggregateRating = {
-              "@type": "AggregateRating",
-              "ratingValue": parseFloat(page.initialData.averageRating).toFixed(1),
-              "reviewCount": parseInt(page.initialData.reviewCount) || 1,
-              "bestRating": "5",
-              "worstRating": "1"
-            };
-          }
-        } else if (page.routeType === 'author') {
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "ProfilePage",
-            "name": page.title,
-            "description": page.description,
-            "url": fullUrl,
-            "mainEntity": {
-              "@type": "Person",
-              "name": "Youssef Agrebi",
-              "jobTitle": "Senior Journalist & Community Editor",
-              "worksFor": {
-                "@type": "Organization",
-                "name": "Halal Ottawa",
-                "url": "https://www.halalottawa.ca"
-              },
-              "url": "https://www.halalottawa.ca/author/youssef-agrebi"
-            }
-          };
-        } else if (page.routeType === 'news') {
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "NewsArticle",
-            "mainEntityOfPage": {
-              "@type": "WebPage",
-              "@id": fullUrl
-            },
-            "headline": page.initialData.title,
-            "image": page.ogImage ? [page.ogImage] : undefined,
-            "datePublished": page.initialData.publishDate || page.initialData.createdAt || new Date().toISOString(),
-            "dateModified": page.initialData.updatedAt || page.initialData.publishDate || new Date().toISOString(),
-            "author": {
-              "@type": "Person",
-              "name": page.initialData.author || "Youssef Agrebi"
-            },
-            "publisher": {
-              "@type": "Organization",
-              "name": "Halal Ottawa",
-              "logo": {
-                "@type": "ImageObject",
-                "url": "https://www.halalottawa.ca/favicon.png"
-              }
-            },
-            "description": page.description
-          };
-        } else if ((page.routeType === 'category' || page.routeType === 'location') && page.initialData?.listings) {
-          const categoryDisplayName = (page.title.split(' - ')[0] || 'Halal Directory').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
-          schemaData = {
-            "@context": "https://schema.org",
-            "@type": "CollectionPage",
-            "name": page.title,
-            "description": page.description,
-            "url": fullUrl,
-            "mainEntity": {
-              "@type": "ItemList",
-              "name": page.title,
-              "numberOfItems": (page.initialData.listings || []).length,
-              "itemListElement": (page.initialData.listings || []).slice(0, 25).map((l: any, idx: number) => {
-                let catSlug = 'listings';
-                if (Array.isArray(l.category) && l.category.length > 0) {
-                  catSlug = normalizeCategoryToSlug(l.category[0]);
-                } else if (typeof l.category === 'string') {
-                  catSlug = normalizeCategoryToSlug(l.category);
-                }
-                return {
-                  "@type": "ListItem",
-                  "position": idx + 1,
-                  "name": l.name,
-                  "url": `https://www.halalottawa.ca/${catSlug}/${l.slug || l.id}`
-                };
-              })
-            }
-          };
+        for (const schema of buildHomeStructuredData(page.description)) {
+          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
         }
+      } else if (!["/saved", "/login", "/listings/add", "/listings"].includes(page.urlPath) && !isSubcategoryEmpty) {
+        let schemasToEmit: Record<string, any>[] = [];
+        const pathSegments = page.urlPath.split('/').filter(Boolean);
 
-        const breadcrumbItems = [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://www.halalottawa.ca"
-          }
-        ];
-
-        if (page.routeType === 'listing') {
-          const mainCategoryStr = Array.isArray(page.initialData.category) && page.initialData.category.length > 0 
-            ? page.initialData.category[0] 
-            : (typeof page.initialData.category === 'string' ? page.initialData.category : 'listings');
-          
-          const catSlug = normalizeCategoryToSlug(mainCategoryStr);
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": mainCategoryStr,
-            "item": `https://www.halalottawa.ca/${catSlug}`
+        if (page.routeType === 'listing' && page.initialData) {
+          schemasToEmit = buildListingStructuredData(page.initialData, {
+            description: page.description,
+            ogImage: page.ogImage,
           });
-
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": page.initialData.name,
-            "item": fullUrl
+        } else if (page.routeType === 'news' && page.initialData) {
+          schemasToEmit = buildNewsArticleStructuredData(page.initialData, {
+            description: page.description,
+            ogImage: page.ogImage,
+          });
+        } else if (page.routeType === 'news_list') {
+          schemasToEmit = buildNewsListStructuredData({
+            title: page.title,
+            description: page.description,
+            articles: page.initialData?.news || [],
+          });
+        } else if (page.routeType === 'author') {
+          schemasToEmit = buildAuthorStructuredData({
+            title: page.title,
+            description: page.description,
+            authorName: page.initialData?.name || 'Youssef Agrebi',
           });
         } else if (page.routeType === 'category' || page.routeType === 'location') {
-          const pathSegments = page.urlPath.split('/').filter(Boolean);
-          if (pathSegments.length === 2 && pathSegments[0].toLowerCase() === 'restaurants') {
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Restaurants",
-              "item": "https://www.halalottawa.ca/restaurants"
-            });
+          const isRestaurantSubcategory =
+            pathSegments.length === 2 && pathSegments[0].toLowerCase() === 'restaurants';
+          let categoryLabel = 'Directory';
+          if (isRestaurantSubcategory) {
             const locName = pathSegments[1].toLowerCase().replace(/-/g, ' ');
-            const formattedSub = locName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 3,
-              "name": formattedSub,
-              "item": fullUrl
-            });
-          } else {
-            const categoryDisplayName = (page.title.split(' - ')[0] || 'Category').replace(/Halal /gi, '').replace(/ in Ottawa.*/gi, '').trim();
-            breadcrumbItems.push({
-              "@type": "ListItem",
-              "position": 2,
-              "name": categoryDisplayName,
-              "item": fullUrl
-            });
+            categoryLabel = locName
+              .split(' ')
+              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(' ');
+          } else if (pathSegments.length >= 1) {
+            const labelMap: Record<string, string> = {
+              restaurants: 'Restaurants',
+              mosques: 'Mosques',
+              organizations: 'Organizations',
+              grocery: 'Grocery',
+              clothing: 'Clothing',
+              schools: 'Schools',
+              butchers: 'Butchers',
+            };
+            categoryLabel =
+              labelMap[pathSegments[0].toLowerCase()] ||
+              (page.title.split(' - ')[0] || 'Category')
+                .replace(/Halal /gi, '')
+                .replace(/ in Ottawa.*/gi, '')
+                .trim();
           }
-        } else if (page.routeType === 'news') {
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 2,
-            "name": "News",
-            "item": "https://www.halalottawa.ca/news"
-          });
 
-          breadcrumbItems.push({
-            "@type": "ListItem",
-            "position": 3,
-            "name": page.initialData.title,
-            "item": fullUrl
+          schemasToEmit = buildCategoryStructuredData({
+            urlPath: page.urlPath,
+            title: page.title,
+            description: page.description,
+            categoryLabel,
+            isRestaurantSubcategory,
+            listings: page.initialData?.listings || [],
+          });
+        } else if (['faq', 'privacy-policy', 'terms', 'qibla'].includes(page.routeType)) {
+          const labelMap: Record<string, string> = {
+            faq: 'FAQ',
+            'privacy-policy': 'Privacy Policy',
+            terms: 'Terms of Service',
+            qibla: 'Qibla Direction',
+          };
+          schemasToEmit = buildStaticPageStructuredData({
+            urlPath: page.urlPath,
+            title: page.title,
+            description: page.description,
+            breadcrumbName: labelMap[page.routeType] || page.title,
           });
         }
 
-        const breadcrumbSchema = {
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": breadcrumbItems
-        };
-
-        if (schemaData) {
-          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schemaData)}</script>`;
+        for (const schema of schemasToEmit) {
+          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
         }
-        extraTags += `\n    <script type="application/ld+json">${JSON.stringify(breadcrumbSchema)}</script>`;
       }
 
       if (page.initialData) {

@@ -6,7 +6,8 @@ import { Listing, NewsArticle } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
-import { getListingUrl, getAbsoluteUrl } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug } from '../utils/url';
+import { buildHomeStructuredData } from '../utils/structuredData';
 import { useAuth } from '../context/AuthContext';
 import { isAppWrapper } from '../utils/platform';
 import { SEO } from '../components/SEO';
@@ -226,21 +227,10 @@ export const Home: React.FC = () => {
       <SEO 
         title="Halal Ottawa - Halal Places in Ottawa"
         description="Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local community news."
-        canonicalUrl={getAbsoluteUrl("")}
+        canonicalUrl={getCanonicalUrl("/")}
         disableSuffix={true}
         ogImage={getImageUrl(heroImageUrl || GLOBAL_HERO_IMAGE_PATH, 750)}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "Halal Ottawa",
-          "url": getAbsoluteUrl(""),
-          "description": "Discover Halal restaurants, mosques, grocery stores, and Islamic organizations in Ottawa.",
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": `${getAbsoluteUrl("listings")}?search={search_term_string}`,
-            "query-input": "required name=search_term_string"
-          }
-        }}
+        structuredData={buildHomeStructuredData("Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with local community news.")}
       />
 
       {isApp ? (
@@ -333,7 +323,7 @@ export const Home: React.FC = () => {
                 {CATEGORIES.map((cat, i) => (
                   <div key={cat} className={`flex-1 md:min-w-[130px] ${i >= 6 ? 'hidden md:block' : ''}`}>
                     <Link
-                      to={`/${cat.toLowerCase()}`}
+                      to={`/${normalizeCategoryToSlug(cat)}`}
                       aria-label={`Browse ${cat} category`}
                       className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-50 rounded-2xl hover:shadow-md transition-all h-full outline-none focus:ring-2 focus:ring-[#e90b35] active:scale-95"
                     >

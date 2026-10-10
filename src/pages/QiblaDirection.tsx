@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Compass, MapPin, Navigation2, Crosshair, AlertCircle } from 'lucide-react';
 import { SEO } from '../components/SEO';
+import { getCanonicalUrl } from '../utils/url';
+import { buildStaticPageStructuredData } from '../utils/structuredData';
 
 const KAABA_LAT = 21.422487;
 const KAABA_LNG = 39.826206;
@@ -117,26 +119,14 @@ export const QiblaDirection: React.FC = () => {
       <SEO 
         title="Ottawa Qibla Direction - Halal Ottawa" 
         description="Find the Qibla direction online accurately using your device compass and location in Ottawa." 
-        canonicalUrl="https://www.halalottawa.ca/tools/qibla"
+        canonicalUrl={getCanonicalUrl("/tools/qibla")}
         disableSuffix={true}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Qibla Direction",
-              "item": "https://www.halalottawa.ca/tools/qibla"
-            }
-          ]
-        }}
+        structuredData={buildStaticPageStructuredData({
+          urlPath: "/tools/qibla",
+          title: "Ottawa Qibla Direction - Halal Ottawa",
+          description: "Find the Qibla direction online accurately using your device compass and location in Ottawa.",
+          breadcrumbName: "Qibla Direction"
+        })}
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">

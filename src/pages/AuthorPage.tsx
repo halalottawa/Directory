@@ -8,7 +8,8 @@ import { DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getPlainText } from '../utils/textUtils';
-import { getAbsoluteUrl } from '../utils/url';
+import { getAbsoluteUrl, getCanonicalUrl } from '../utils/url';
+import { buildAuthorStructuredData } from '../utils/structuredData';
 import { SEO } from '../components/SEO';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
 
@@ -85,74 +86,22 @@ export const AuthorPage: React.FC = () => {
     });
   }, [articles, searchQuery]);
 
-  const authorProfileSchema = {
-    "@context": "https://schema.org",
-    "@type": "ProfilePage",
-    "mainEntity": {
-      "@type": "Person",
-      "name": authorName,
-      "alternateName": "Youssef Agrebi",
-      "identifier": "youssef-agrebi",
-      "jobTitle": authorRole,
-      "worksFor": {
-        "@type": "Organization",
-        "name": "Halal Ottawa",
-        "url": "https://www.halalottawa.ca"
-      },
-      "description": authorBio,
-      "image": "https://www.halalottawa.ca/favicon.png",
-      "url": "https://www.halalottawa.ca/author/youssef-agrebi",
-      "sameAs": [
-        "https://www.linkedin.com/in/youssef-agrebi-a05010aa/"
-      ],
-      "knowsAbout": [
-        "Halal Dining in Ottawa",
-        "Ottawa Muslim Community News",
-        "Islamic Culture & Lifestyle",
-        "Community Journalism"
-      ],
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Ottawa",
-        "addressRegion": "ON",
-        "addressCountry": "CA"
-      }
-    }
-  };
-
-  const breadcrumbsSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Home",
-        "item": "https://www.halalottawa.ca"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "News",
-        "item": "https://www.halalottawa.ca/news"
-      },
-      {
-        "@type": "ListItem",
-        "position": 3,
-        "name": authorName,
-        "item": "https://www.halalottawa.ca/author/youssef-agrebi"
-      }
-    ]
-  };
+  const canonicalAuthorUrl = getCanonicalUrl("/author/youssef-agrebi");
+  const authorPageTitle = `${authorName} - Editor & Journalist | Halal Ottawa`;
+  const authorPageDesc = `Read all community news, investigative articles, and local announcements authored by ${authorName} on Halal Ottawa.`;
 
   return (
     <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen">
       <SEO
-        title={`${authorName} - Editor & Journalist | Halal Ottawa`}
-        description={`Read all community news, investigative articles, and local announcements authored by ${authorName} on Halal Ottawa.`}
-        canonicalUrl={getAbsoluteUrl("author/youssef-agrebi")}
+        title={authorPageTitle}
+        description={authorPageDesc}
+        canonicalUrl={canonicalAuthorUrl}
         disableSuffix={true}
-        structuredData={[authorProfileSchema, breadcrumbsSchema]}
+        structuredData={buildAuthorStructuredData({
+          title: authorPageTitle,
+          description: authorPageDesc,
+          authorName
+        })}
       />
 
       {/* Breadcrumb Navigation */}

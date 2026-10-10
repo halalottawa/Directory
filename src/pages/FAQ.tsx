@@ -1,6 +1,8 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { SEO } from '../components/SEO';
+import { getCanonicalUrl } from '../utils/url';
+import { buildStaticPageStructuredData } from '../utils/structuredData';
 
 const FAQ_ITEMS = [
   {
@@ -38,39 +40,13 @@ export const FAQ: React.FC = () => {
       <SEO 
         title="FAQ" 
         description="Frequently Asked Questions (FAQ) about Halal Ottawa. Learn how we verify halal statuses, submit new listings, post events or jobs, and support the Ottawa Muslim community." 
-        canonicalUrl="https://www.halalottawa.ca/faq"
-        structuredData={[
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": "https://www.halalottawa.ca"
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": "FAQ",
-                "item": "https://www.halalottawa.ca/faq"
-              }
-            ]
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": faqs.map(faq => ({
-              "@type": "Question",
-              "name": faq.question,
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": faq.answer
-              }
-            }))
-          }
-        ]}
+        canonicalUrl={getCanonicalUrl("/faq")}
+        structuredData={buildStaticPageStructuredData({
+          urlPath: "/faq",
+          title: "Frequently Asked Questions (FAQ) | Halal Ottawa",
+          description: "Frequently Asked Questions (FAQ) about Halal Ottawa. Learn how we verify halal statuses, submit new listings, post events or jobs, and support the Ottawa Muslim community.",
+          breadcrumbName: "FAQ"
+        })}
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">

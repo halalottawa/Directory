@@ -2,6 +2,8 @@ import React from 'react';
 import { ChevronLeft, Shield, Lock, Eye, FileText, Mail, MapPin, Globe, Cookie } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SEO } from '../components/SEO';
+import { getCanonicalUrl } from '../utils/url';
+import { buildStaticPageStructuredData } from '../utils/structuredData';
 
 export const PrivacyPolicy: React.FC = () => {
   const navigate = useNavigate();
@@ -11,25 +13,13 @@ export const PrivacyPolicy: React.FC = () => {
       <SEO 
         title="Privacy Policy" 
         description="Read the Privacy Policy for Halal Ottawa to find out how we collect, use, and safeguard your personal details, cookies, and account data across our platform." 
-        canonicalUrl="https://www.halalottawa.ca/privacy-policy"
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Privacy Policy",
-              "item": "https://www.halalottawa.ca/privacy-policy"
-            }
-          ]
-        }}
+        canonicalUrl={getCanonicalUrl("/privacy-policy")}
+        structuredData={buildStaticPageStructuredData({
+          urlPath: "/privacy-policy",
+          title: "Privacy Policy | Halal Ottawa",
+          description: "Read the Privacy Policy for Halal Ottawa to find out how we collect, use, and safeguard your personal details, cookies, and account data across our platform.",
+          breadcrumbName: "Privacy Policy"
+        })}
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">

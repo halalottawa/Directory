@@ -784,7 +784,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
   const catSlug = normalizeCategoryToSlug(mainCategory);
   const photoUrl = (listing.photos && listing.photos.length > 0) ? listing.photos[0] : (listing.coverImage || '/ottawa-sunset.webp');
   const optimizedPhoto = getOptimizedImageUrlSSR(photoUrl, 1920, 600) || photoUrl;
-  const rating = listing.averageRating ? Number(listing.averageRating).toFixed(1) : '5.0';
+  const rating = listing.averageRating ? Number(listing.averageRating).toFixed(1) : '0';
   const reviewCount = listing.reviewCount || 0;
   const address = listing.address || 'Ottawa, ON';
   const phone = listing.phoneNumber;
@@ -1138,6 +1138,13 @@ export function renderNewsDetailSSRHtml(news: any): string {
       </div>
 
       <div class="p-6 space-y-8">
+        <nav aria-label="Breadcrumbs" class="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+          <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+          <span class="text-gray-300">›</span>
+          <a href="/news" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">News</a>
+          <span class="text-gray-300">›</span>
+          <span class="text-gray-900 truncate max-w-[260px] font-semibold">${escapeHtmlText(news.title)}</span>
+        </nav>
         ${newsContentWithAdsHtml}
 
         ${sourceLink ? `

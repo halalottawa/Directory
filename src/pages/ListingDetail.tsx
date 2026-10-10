@@ -7,7 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug, normalizeSubcategorySlug, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { buildListingStructuredData } from '../utils/structuredData';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { SaveButton } from '../components/SaveButton';
@@ -271,11 +272,25 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
             if (docSnap.exists()) {
               listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
             } else {
-              const q = query(collection(db, 'listings'), where('slug', '==', slug));
+              const q = query(collection(db, 'listings'), where('slug', '==', slug.toLowerCase()));
               const querySnapshot = await getDocs(q);
               if (!querySnapshot.empty) {
-                docSnap = querySnapshot.docs[0];
-                listingData = { id: docSnap.id, ...docSnap.data() } as Listing;
+                const parseTs = (v: any): number => {
+                  if (!v) return 0;
+                  if (typeof v === 'number') return v;
+                  if (typeof v.toDate === 'function') return v.toDate().getTime();
+                  if (typeof v.seconds === 'number') return v.seconds * 1000;
+                  const d = new Date(v);
+                  return isNaN(d.getTime()) ? 0 : d.getTime();
+                };
+                const candidates = querySnapshot.docs
+                  .map((d) => ({ id: d.id, ...d.data() } as Listing))
+                  .sort((a: any, b: any) => {
+                    if (a.isApproved === true && b.isApproved !== true) return -1;
+                    if (a.isApproved !== true && b.isApproved === true) return 1;
+                    return Math.max(parseTs(b.updatedAt), parseTs(b.createdAt)) - Math.max(parseTs(a.updatedAt), parseTs(a.createdAt));
+                  });
+                listingData = candidates[0] || null;
               }
             }
 
@@ -301,7 +316,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                     if (newListing) {
                       const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
                       if (cat) {
-                        destination = `/${cat.toLowerCase()}/${rData.newSlug}`;
+                        destination = `/${normalizeCategoryToSlug(String(cat))}/${rData.newSlug}`;
                       }
                     }
                   } catch (e) {
@@ -639,7 +654,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
         {mainCategory && (
           <>
             <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-            <Link to={`/${mainCategory.toLowerCase()}`} className="hover:text-[#e90b35] transition-colors">{displayCategory}</Link>
+            <Link to={`/${normalizeCategoryToSlug(mainCategory)}`} className="hover:text-[#e90b35] transition-colors">{displayCategory}</Link>
           </>
         )}
         <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
@@ -650,94 +665,22 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
 
   const { categories: cleanCats } = getCleanCategoriesAndTags(listing);
   const mainCategoryStr = cleanCats[0] || 'listings';
+  const canonicalListingUrl = getCanonicalUrl(getListingUrl(listing));
+  const listingSeoDescription = `Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`;
     
   return (
     <>
       <div className="md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:bg-white md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100">
       <SEO
         title={listing.name}
-        description={`Find verified reviews, directions, address, phone number, and open hours for ${listing.name} in Ottawa. Located at ${listing.address}${listing.suburb ? ` (${listing.suburb})` : ""}.`}
-        canonicalUrl={getAbsoluteUrl(getListingUrl(listing))}
+        description={listingSeoDescription}
+        canonicalUrl={canonicalListingUrl}
         noindex={listing.isApproved === false}
         ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
-        structuredData={[
-          {
-            "@context": "https://schema.org",
-            "@type": (() => {
-              switch(mainCategoryStr) {
-                case 'Restaurants': return 'Restaurant';
-                case 'Mosques': return 'PlaceOfWorship';
-                case 'Grocery': return 'GroceryStore';
-                case 'Clothing': return 'ClothingStore';
-                case 'Schools': return 'School';
-                case 'Organizations': return 'Organization';
-                case 'Butchers': return 'FoodEstablishment';
-                default: return 'LocalBusiness';
-              }
-            })(),
-            "name": listing.name,
-            "image": listing.photos?.length > 0 ? listing.photos.map(p => getAbsoluteUrl(p)) : undefined,
-            "@id": getAbsoluteUrl(getListingUrl(listing)),
-            "url": listing.website || getAbsoluteUrl(getListingUrl(listing)),
-            "telephone": listing.phoneNumber || undefined,
-            "address": {
-              "@type": "PostalAddress",
-              "streetAddress": listing.address,
-              "addressLocality": "Ottawa",
-              "addressRegion": "ON",
-              "addressCountry": "CA"
-            },
-            "geo": {
-              "@type": "GeoCoordinates",
-              "latitude": listing.lat,
-              "longitude": listing.lng
-            },
-            "description": listing.description,
-            "openingHours": listing.openingHours ? listing.openingHours : undefined,
-            "openingHoursSpecification": listing.openingHours && listing.openingHours.length > 0
-              ? (typeof listing.openingHours === 'string' ? listing.openingHours.split(',').map(s => s.trim()) : (listing.openingHours as any)).map((entry: string) => {
-                  const match = entry.match(/^([A-Za-z]{2}(?:[,\-][A-Za-z]{2})*)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
-                  if (!match) return null;
-                  return {
-                    "@type": "OpeningHoursSpecification",
-                    "dayOfWeek": expandDays(match[1]),
-                    "opens": match[2],
-                    "closes": match[3]
-                  };
-                }).filter(Boolean)
-              : undefined,
-            ...(listing.cuisine && listing.cuisine.length > 0 && Array.isArray(listing.category) && listing.category.includes('Restaurants') ? { "servesCuisine": listing.cuisine.join(", ") } : {}),
-            ...(listing.plan === 'premium' && (listing.menuUrl || listing.menuPdfUrl) ? { "hasMenu": getAbsoluteUrl(listing.menuUrl || listing.menuPdfUrl!) } : {}),
-            "aggregateRating": listing.reviewCount && listing.reviewCount > 0 ? {
-              "@type": "AggregateRating",
-              "ratingValue": listing.averageRating,
-              "reviewCount": listing.reviewCount
-            } : undefined
-          },
-          {
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            "itemListElement": [
-              {
-                "@type": "ListItem",
-                "position": 1,
-                "name": "Home",
-                "item": getAbsoluteUrl("")
-              },
-              {
-                "@type": "ListItem",
-                "position": 2,
-                "name": mainCategoryStr,
-                "item": getAbsoluteUrl(mainCategoryStr.toLowerCase())
-              },
-              {
-                "@type": "ListItem",
-                "position": 3,
-                "name": listing.name
-              }
-            ]
-          }
-        ]}
+        structuredData={buildListingStructuredData(listing, {
+          description: listingSeoDescription,
+          ogImage: listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined
+        })}
       />
 
       {/* Listing Header Banner */}
@@ -810,7 +753,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                   <>
                     {mainCategory && (
                       <Link 
-                        to={`/${mainCategory.toLowerCase().replace(/\s+/g, '-')}`}
+                        to={`/${normalizeCategoryToSlug(mainCategory)}`}
                         className={`transition-all hover:scale-105 active:scale-95 duration-200 ${
                           displaySubcategories.length === 0 
                             ? "bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase" 
@@ -825,8 +768,8 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                         (CUISINES as readonly any[]).some(c => String(c).toLowerCase().trim() === sub.toLowerCase().trim()) || 
                         (LISTING_TYPES as readonly any[]).some(t => String(t).toLowerCase().trim() === sub.toLowerCase().trim());
                       const subPath = isRestaurantSubcategory 
-                        ? `/restaurants/${sub.toLowerCase().replace(/\s+/g, '-')}` 
-                        : `/${sub.toLowerCase().replace(/\s+/g, '-')}`;
+                        ? `/restaurants/${normalizeSubcategorySlug(sub)}` 
+                        : `/${normalizeCategoryToSlug(sub)}`;
                       return (
                         <Link 
                           key={`sub-${index}`} 

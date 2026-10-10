@@ -1,6 +1,8 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
 import { SEO } from '../components/SEO';
+import { getCanonicalUrl } from '../utils/url';
+import { buildStaticPageStructuredData } from '../utils/structuredData';
 
 export const TermsOfService: React.FC = () => {
   return (
@@ -8,25 +10,13 @@ export const TermsOfService: React.FC = () => {
       <SEO 
         title="Terms of Service" 
         description="Read the Terms of Service for Halal Ottawa to understand the guidelines, rules, user responsibilities, and legal agreements for accessing and using our community directory." 
-        canonicalUrl="https://www.halalottawa.ca/terms"
-        structuredData={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://www.halalottawa.ca"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Terms of Service",
-              "item": "https://www.halalottawa.ca/terms"
-            }
-          ]
-        }}
+        canonicalUrl={getCanonicalUrl("/terms")}
+        structuredData={buildStaticPageStructuredData({
+          urlPath: "/terms",
+          title: "Terms of Service | Halal Ottawa",
+          description: "Read the Terms of Service for Halal Ottawa to understand the guidelines, rules, user responsibilities, and legal agreements for accessing and using our community directory.",
+          breadcrumbName: "Terms of Service"
+        })}
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">

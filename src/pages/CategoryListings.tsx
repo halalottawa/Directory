@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
-import { getListingUrl, getAbsoluteUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, deduplicateListingsByCanonicalUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { buildCategoryStructuredData } from '../utils/structuredData';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
@@ -311,8 +312,8 @@ export const CategoryListings: React.FC = () => {
   }, [formattedCategory, user, isValidCategory, isLocationCategory]);
 
   const filteredListings = React.useMemo(() => {
-    // Merge with demo data
-    const allListings = [...rawListings, ...DEMO_LISTINGS.filter(l => {
+    // Merge with demo data and deduplicate by canonical URL
+    const allListings = deduplicateListingsByCanonicalUrl([...rawListings, ...DEMO_LISTINGS.filter(l => {
         const cats = Array.isArray(l.category) ? l.category : [l.category];
         const types = l.types || [];
         const cuisines = l.cuisine || [];
@@ -328,7 +329,7 @@ export const CategoryListings: React.FC = () => {
         return cats.some(cat => normalizeCompare(cat) === targetNorm) || 
                types.some(t => normalizeCompare(t) === targetNorm) ||
                cuisines.some(c => normalizeCompare(c) === targetNorm);
-    })];
+    })]);
     
     const parseTime = (val: any): number => {
       if (!val) return 0;
@@ -522,103 +523,46 @@ export const CategoryListings: React.FC = () => {
   const currentLocationKey = isLocationCategory ? formattedCategory.toLowerCase() : null;
   const currentGuide = currentLocationKey ? locationGuides[currentLocationKey] : null;
 
-  const breadcrumbsList = isUnderRestaurants && pathname !== '/restaurants'
-    ? [
-        {
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://www.halalottawa.ca"
-        },
-        {
-          "@type": "ListItem",
-          "position": 2,
-          "name": "Restaurants",
-          "item": "https://www.halalottawa.ca/restaurants"
-        },
-        {
-          "@type": "ListItem",
-          "position": 3,
-          "name": formattedCategory,
-          "item": `https://www.halalottawa.ca${pathname}`
-        }
-      ]
-    : [
-        {
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://www.halalottawa.ca"
-        },
-        {
-          "@type": "ListItem",
-          "position": 2,
-          "name": formattedCategory,
-          "item": `https://www.halalottawa.ca${pathname}`
-        }
-      ];
+  const canonicalCategoryPageUrl = getCanonicalUrl(pathname);
+  const hasFilterOrSessionQuery = Array.from(searchParams.keys()).some((k) =>
+    ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
+  );
+  const shouldNoindexCategoryPage = filteredListings.length === 0 || hasFilterOrSessionQuery;
+  const isRestaurantSub = isUnderRestaurants && pathname !== '/restaurants';
 
-  const structuredDataList: any[] = [
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": breadcrumbsList
-    }
-  ];
-
-  if (listings.length > 0) {
-    structuredDataList.push({
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      "name": `Halal ${formattedCategory} in Ottawa`,
-      "url": `https://www.halalottawa.ca${pathname}`,
-      "numberOfItems": listings.length,
-      "itemListElement": listings.slice(0, 10).map((listing, index) => ({
-        "@type": "ListItem",
-        "position": index + 1,
-        "name": listing.name,
-        "url": `https://www.halalottawa.ca${getListingUrl(listing)}`
-      }))
-    });
-  }
-
-  if (currentGuide && currentGuide.faqs.length > 0) {
-    structuredDataList.push({
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": currentGuide.faqs.map(faq => ({
-        "@type": "Question",
-        "name": faq.q,
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": faq.a
-        }
-      }))
-    });
-  }
+  const structuredDataList = buildCategoryStructuredData({
+    urlPath: pathname,
+    title: pageTitle,
+    description: seoDescription,
+    categoryLabel: formattedCategory,
+    isRestaurantSubcategory: isRestaurantSub,
+    listings: filteredListings
+  });
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
         title={pageTitle} 
         description={seoDescription} 
-        canonicalUrl={`https://www.halalottawa.ca${pathname}`} 
+        canonicalUrl={canonicalCategoryPageUrl} 
         disableSuffix={true}
-        noindex={filteredListings.length === 0 || searchParams.toString().length > 0}
-        robots={filteredListings.length === 0 || searchParams.toString().length > 0 ? 'noindex, follow' : undefined}
+        noindex={shouldNoindexCategoryPage}
+        robots={shouldNoindexCategoryPage ? 'noindex, follow' : undefined}
         structuredData={structuredDataList}
       />
 
       {/* Breadcrumb Bar */}
-      {isUnderRestaurants && pathname !== '/restaurants' && (
-        <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
-          <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
-          <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
-          <Link to="/restaurants" className="hover:text-[#e90b35] transition-colors">Restaurants</Link>
-          <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
-          <span className="font-semibold text-gray-900">{formattedCategory}</span>
-        </nav>
-      )}
+      <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+        <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+        {isRestaurantSub && (
+          <>
+            <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+            <Link to="/restaurants" className="hover:text-[#e90b35] transition-colors">Restaurants</Link>
+          </>
+        )}
+        <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <span className="font-semibold text-gray-900">{formattedCategory}</span>
+      </nav>
 
       <div className="flex justify-between items-center">
         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">
