@@ -37,6 +37,28 @@ export const AuthorPage: React.FC = () => {
     const fetchArticles = async () => {
       setLoading(true);
       try {
+        const res = await fetch('/api/news');
+        if (res.ok) {
+          const data = await res.json();
+          const fetched = (Array.isArray(data?.news) ? data.news : []) as NewsArticle[];
+          if (isMounted) {
+            if (fetched.length > 0) {
+              const authorArticles = fetched.filter(a => {
+                if (!a.author) return true;
+                return a.author.toLowerCase().trim() === authorName.toLowerCase().trim();
+              });
+              authorArticles.sort((a, b) => {
+                const timeA = new Date(a.publishDate || a.createdAt || 0).getTime();
+                const timeB = new Date(b.publishDate || b.createdAt || 0).getTime();
+                return timeB - timeA;
+              });
+              setArticles(authorArticles.length > 0 ? authorArticles : fetched);
+            } else {
+              setArticles(DEMO_NEWS);
+            }
+          }
+          return;
+        }
         const q = query(
           collection(db, 'news'),
           where('isApproved', '==', true)
@@ -45,13 +67,11 @@ export const AuthorPage: React.FC = () => {
         if (isMounted) {
           if (!snapshot.empty) {
             const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as NewsArticle[];
-            // Filter by author name (case-insensitive) or include default articles authored by Youssef
             const authorArticles = fetched.filter(a => {
               if (!a.author) return true;
               return a.author.toLowerCase().trim() === authorName.toLowerCase().trim();
             });
 
-            // Sort by publishDate descending
             authorArticles.sort((a, b) => {
               const timeA = new Date(a.publishDate || a.createdAt || 0).getTime();
               const timeB = new Date(b.publishDate || b.createdAt || 0).getTime();
@@ -64,7 +84,6 @@ export const AuthorPage: React.FC = () => {
           }
         }
       } catch (err) {
-        console.error("Error fetching author articles:", err);
         if (isMounted) {
           setArticles(DEMO_NEWS);
         }

@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy, setLogLevel } from 'firebase/firestore';
+import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from '../src/utils/firestoreQuotaFallback';
 import {
   renderHomeSSRHtml,
   renderCategorySSRHtml,
@@ -316,6 +317,9 @@ async function prerender() {
   if (fs.existsSync(configPath)) {
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     fbApp = initializeApp(firebaseConfig, 'prerender-generator');
+    try {
+      setLogLevel('silent');
+    } catch {}
     db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
   } else {
     console.warn("firebase-applet-config.json not found. Prerendering with static URLs only.");
@@ -444,115 +448,7 @@ async function prerender() {
     try {
       console.log("Fetching dynamic contents from Firestore...");
 
-      // Pre-fetch Home Page Initial Data and All News Articles
-      try {
-        const qListingsHome = query(collection(db, 'listings'), where('isApproved', '==', true), orderBy('createdAt', 'desc'), limit(8));
-        const qNewsAll = query(collection(db, 'news'), where('isApproved', '==', true));
-        const settingsDocRef = doc(db, 'settings', 'general');
-
-        const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
-          getDocs(qListingsHome),
-          getDocs(qNewsAll),
-          getDoc(settingsDocRef).catch(() => null)
-        ]);
-        const settingsData = settingsSnap && settingsSnap.exists() ? settingsSnap.data() : {};
-
-        let listingsData = listingsSnap.docs.map(doc => {
-          const d = doc.data() as any;
-          return {
-            id: doc.id,
-            name: d.name || '',
-            slug: d.slug || doc.id,
-            category: d.category || 'restaurants',
-            coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
-            photos: d.photos ? d.photos.slice(0, 1) : [],
-            averageRating: d.averageRating || 5.0,
-            address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
-            isFeatured: !!d.isFeatured,
-            description: getExcerpt(d.description, 160),
-            createdAt: d.createdAt || null
-          };
-        });
-        const parseTime = (val: any): number => {
-          if (!val) return 0;
-          if (typeof val === 'number') return val;
-          if (typeof val.toDate === 'function') return val.toDate().getTime();
-          if (typeof val.seconds === 'number') return val.seconds * 1000;
-          const d = new Date(val);
-          return isNaN(d.getTime()) ? 0 : d.getTime();
-        };
-        listingsData = listingsData.sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8);
-
-        let allNewsData = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        allNewsData = allNewsData.sort((a, b) => parseTime(b.publishDate || b.createdAt) - parseTime(a.publishDate || a.createdAt));
-
-        const homeNewsData = allNewsData.slice(0, 6).map(item => ({
-          id: item.id,
-          title: item.title || '',
-          slug: item.slug || item.id,
-          excerpt: getExcerpt(item.excerpt || item.content, 160),
-          coverImage: item.coverImage || '',
-          publishDate: item.publishDate || item.createdAt || null,
-          author: item.author || 'Youssef Agrebi',
-          createdAt: item.createdAt || null
-        }));
-
-        const homePage = pagesToPrerender.find(p => p.urlPath === "/");
-        if (homePage) {
-          homePage.initialData = {
-            listings: listingsData,
-            news: homeNewsData,
-            settings: settingsData,
-            timestamp: Date.now()
-          };
-        }
-
-        const authorPage = pagesToPrerender.find(p => p.urlPath === "/author/youssef-agrebi");
-        if (authorPage) {
-          const authorArticles = allNewsData.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
-          authorPage.routeType = 'author';
-          authorPage.initialData = {
-            name: 'Youssef Agrebi',
-            articles: authorArticles
-          };
-        }
-
-        const newsListPage = pagesToPrerender.find(p => p.urlPath === "/news");
-        if (newsListPage) {
-          newsListPage.routeType = "news_list";
-          newsListPage.initialData = {
-            news: allNewsData,
-            timestamp: Date.now()
-          };
-        }
-
-        // News Articles SSG: generate static HTML only for canonical URL (/news/:slug or /news/:id if no slug)
-        allNewsData.forEach((data) => {
-          const title = `${data.title} | Halal Ottawa`;
-          const description = data.content ? truncateDescription(data.content) : "Read latest updates and news regarding the Ottawa halal and Muslim community.";
-          const ogImage = getAbsoluteUrl(data.coverImage || "");
-          const canonicalSegment = data.slug || data.id;
-
-          if (canonicalSegment) {
-            pagesToPrerender.push({
-              urlPath: `/news/${canonicalSegment}`,
-              filePath: path.join(distPath, "news", canonicalSegment, "index.html"),
-              routeType: "news",
-              initialData: data,
-              title,
-              description,
-              ogImage
-            });
-          }
-        });
-      } catch (homeErr) {
-        console.error("Error fetching home page pre-fetch data:", homeErr);
-      }
-
-      // Listings SSG
-      const listingsQuery = query(collection(db, 'listings'), where('isApproved', '==', true));
-      const listingsSnap = await getDocs(listingsQuery);
-      const parseListingTime = (val: any): number => {
+      const parseTime = (val: any): number => {
         if (!val) return 0;
         if (typeof val === 'number') return val;
         if (typeof val.toDate === 'function') return val.toDate().getTime();
@@ -561,11 +457,122 @@ async function prerender() {
         return isNaN(d.getTime()) ? 0 : d.getTime();
       };
 
+      let rawListings: any[] = [];
+      let allNewsData: any[] = [];
+      let settingsData: any = {};
+
+      try {
+        const qListingsAll = query(collection(db, 'listings'), where('isApproved', '==', true));
+        const qNewsAll = query(collection(db, 'news'), where('isApproved', '==', true));
+        const settingsDocRef = doc(db, 'settings', 'general');
+
+        const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
+          getDocs(qListingsAll),
+          getDocs(qNewsAll),
+          getDoc(settingsDocRef).catch(() => null),
+        ]);
+        settingsData = settingsSnap && settingsSnap.exists() ? settingsSnap.data() : {};
+        rawListings = listingsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        allNewsData = newsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      } catch (fetchErr) {
+        if (!isFirestoreQuotaError(fetchErr)) {
+          console.error('Error fetching home page pre-fetch data:', fetchErr);
+        }
+        rawListings = getFallbackListings();
+        allNewsData = getFallbackNews();
+        settingsData = {};
+      }
+
+      allNewsData = allNewsData.sort(
+        (a, b) => parseTime(b.publishDate || b.createdAt) - parseTime(a.publishDate || a.createdAt)
+      );
+
+      let listingsData = rawListings
+        .map((d: any) => ({
+          id: d.id,
+          name: d.name || '',
+          slug: d.slug || d.id,
+          category: d.category || 'restaurants',
+          coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
+          photos: d.photos ? d.photos.slice(0, 1) : [],
+          averageRating: d.averageRating || 0,
+          reviewCount: d.reviewCount || 0,
+          address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
+          isFeatured: !!d.isFeatured,
+          description: getExcerpt(d.description, 160),
+          createdAt: d.createdAt || null,
+        }))
+        .sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt))
+        .slice(0, 8);
+
+      const homeNewsData = allNewsData.slice(0, 6).map((item) => ({
+        id: item.id,
+        title: item.title || '',
+        slug: item.slug || item.id,
+        excerpt: getExcerpt(item.excerpt || item.content, 160),
+        coverImage: item.coverImage || '',
+        publishDate: item.publishDate || item.createdAt || null,
+        author: item.author || 'Youssef Agrebi',
+        createdAt: item.createdAt || null,
+      }));
+
+      const homePage = pagesToPrerender.find((p) => p.urlPath === '/');
+      if (homePage) {
+        homePage.initialData = {
+          listings: listingsData,
+          news: homeNewsData,
+          settings: settingsData,
+          timestamp: Date.now(),
+        };
+      }
+
+      const authorPage = pagesToPrerender.find((p) => p.urlPath === '/author/youssef-agrebi');
+      if (authorPage) {
+        const authorArticles = allNewsData.filter(
+          (a: any) => !a.author || a.author.toLowerCase().includes('youssef')
+        );
+        authorPage.routeType = 'author';
+        authorPage.initialData = {
+          name: 'Youssef Agrebi',
+          articles: authorArticles,
+        };
+      }
+
+      const newsListPage = pagesToPrerender.find((p) => p.urlPath === '/news');
+      if (newsListPage) {
+        newsListPage.routeType = 'news_list';
+        newsListPage.initialData = {
+          news: allNewsData,
+          timestamp: Date.now(),
+        };
+      }
+
+      allNewsData.forEach((data) => {
+        const title = `${data.title} | Halal Ottawa`;
+        const description = data.content
+          ? truncateDescription(data.content)
+          : 'Read latest updates and news regarding the Ottawa halal and Muslim community.';
+        const ogImage = getAbsoluteUrl(data.coverImage || '');
+        const canonicalSegment = data.slug || data.id;
+
+        if (canonicalSegment) {
+          pagesToPrerender.push({
+            urlPath: `/news/${canonicalSegment}`,
+            filePath: path.join(distPath, 'news', canonicalSegment, 'index.html'),
+            routeType: 'news',
+            initialData: data,
+            title,
+            description,
+            ogImage,
+          });
+        }
+      });
+
+      const parseListingTime = parseTime;
       const dedupedListingsMap = new Map<string, any>();
-      listingsSnap.forEach((docSnap) => {
-        const data = docSnap.data();
-        const item = { id: docSnap.id, ...data };
-        const idPath = String(data.slug || docSnap.id).trim();
+      rawListings.forEach((data) => {
+        const item = { ...data, id: data.id };
+        const idPath = String(data.slug || data.id).trim();
         let categoryPath = 'listings';
         if (Array.isArray(data.category) && data.category.length > 0) {
           categoryPath = normalizeCategoryToSlug(data.category[0]);
@@ -575,7 +582,9 @@ async function prerender() {
         const canonicalKey = `/${categoryPath}/${idPath}`.toLowerCase();
         const existing = dedupedListingsMap.get(canonicalKey);
         const itemTime = Math.max(parseListingTime(data.updatedAt), parseListingTime(data.createdAt));
-        const existingTime = existing ? Math.max(parseListingTime(existing.updatedAt), parseListingTime(existing.createdAt)) : -1;
+        const existingTime = existing
+          ? Math.max(parseListingTime(existing.updatedAt), parseListingTime(existing.createdAt))
+          : -1;
         if (!existing || itemTime >= existingTime) {
           dedupedListingsMap.set(canonicalKey, item);
         }

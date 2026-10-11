@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, setLogLevel } from 'firebase/firestore';
 import { buildMainSitemapXml, buildNewsSitemapXml } from '../src/utils/sitemapBuilder';
+import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from '../src/utils/firestoreQuotaFallback';
 
 async function generateSitemap() {
   console.log("Generating sitemaps...");
@@ -13,13 +14,16 @@ async function generateSitemap() {
   if (fs.existsSync(configPath)) {
     const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     fbApp = initializeApp(firebaseConfig, 'sitemap-generator');
+    try {
+      setLogLevel('silent');
+    } catch {}
     db = getFirestore(fbApp, firebaseConfig.firestoreDatabaseId);
   } else {
     console.warn("firebase-applet-config.json not found. Generating sitemaps with static URLs only.");
   }
 
-  const allApprovedListings: any[] = [];
-  const allApprovedNews: any[] = [];
+  let allApprovedListings: any[] = [];
+  let allApprovedNews: any[] = [];
 
   if (db) {
     try {
@@ -38,8 +42,15 @@ async function generateSitemap() {
 
       console.log(`Fetched ${allApprovedListings.length} approved listings and ${allApprovedNews.length} approved news articles from Firestore.`);
     } catch (e) {
-      console.error("Error fetching dynamic URLs from Firestore:", e);
+      if (!isFirestoreQuotaError(e)) {
+        console.error("Error fetching dynamic URLs from Firestore:", e);
+      }
+      allApprovedListings = getFallbackListings();
+      allApprovedNews = getFallbackNews();
     }
+  } else {
+    allApprovedListings = getFallbackListings();
+    allApprovedNews = getFallbackNews();
   }
 
   // 1. Build Main Sitemap (sitemap.xml)

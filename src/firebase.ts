@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
-import { initializeFirestore } from 'firebase/firestore';
+import { initializeFirestore, setLogLevel } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 export {
@@ -9,6 +9,10 @@ export {
   getGeneralSettings,
   getInitialGeneralSettings,
 } from './utils/settings';
+
+try {
+  setLogLevel('silent');
+} catch {}
 
 const config = { ...firebaseConfig };
 

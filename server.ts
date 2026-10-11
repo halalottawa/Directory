@@ -32,6 +32,7 @@ import { getExcerpt } from "./src/utils/textUtils";
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
 import { buildMainSitemapXml, buildNewsSitemapXml } from "./src/utils/sitemapBuilder";
 import { getCanonicalUrl, deduplicateListingsByCanonicalUrl } from "./src/utils/url";
+import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from "./src/utils/firestoreQuotaFallback";
 import {
   buildHomeStructuredData,
   buildCategoryStructuredData,
@@ -71,7 +72,10 @@ async function ensureFirebaseDb() {
     if (!cachedFirestoreUtils) {
       try {
         const { initializeApp, getApps } = await import("firebase/app");
-        const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy, updateDoc, increment } = await import("firebase/firestore");
+        const { getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy, updateDoc, increment, setLogLevel } = await import("firebase/firestore");
+        try {
+          setLogLevel("silent");
+        } catch {}
         cachedFirestoreUtils = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, query, where, limit, orderBy, updateDoc, increment };
       } catch (err) {
         console.error("Error lazy-importing firebase web SDK utils in server:", err);
@@ -99,6 +103,7 @@ async function ensureFirebaseDb() {
 
 let cachedSettingsData: any = null;
 let cachedSettingsExpiry = 0;
+let firestoreQuotaCooldownUntil = 0;
 
 const DEFAULT_LOGO_URL = "https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/halal-ottawa-logo.webp";
 
@@ -107,23 +112,29 @@ async function getCachedSettingsData(): Promise<any> {
   if (cachedSettingsData && now < cachedSettingsExpiry) {
     return cachedSettingsData;
   }
-  try {
-    const fb = await ensureFirebaseDb();
-    if (fb) {
-      const { db, utils } = fb;
-      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
-      if (docSnap.exists()) {
-        const raw = docSnap.data() || {};
-        cachedSettingsData = {
-          logoUrl: DEFAULT_LOGO_URL,
-          ...raw,
-        };
-        cachedSettingsExpiry = now + 60000; // 60s server memory cache
-        return cachedSettingsData;
+  if (now >= firestoreQuotaCooldownUntil) {
+    try {
+      const fb = await ensureFirebaseDb();
+      if (fb) {
+        const { db, utils } = fb;
+        const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'general'));
+        if (docSnap.exists()) {
+          const raw = docSnap.data() || {};
+          cachedSettingsData = {
+            logoUrl: DEFAULT_LOGO_URL,
+            ...raw,
+          };
+          cachedSettingsExpiry = now + 60000; // 60s server memory cache
+          return cachedSettingsData;
+        }
+      }
+    } catch (err) {
+      if (isFirestoreQuotaError(err)) {
+        firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+      } else {
+        console.error("Error retrieving settings/general:", err);
       }
     }
-  } catch (err) {
-    console.error("Error retrieving settings/general:", err);
   }
   cachedSettingsData = { logoUrl: DEFAULT_LOGO_URL };
   cachedSettingsExpiry = now + 60000;
@@ -178,67 +189,53 @@ async function getCachedHomeData(): Promise<any> {
   if (cachedHomePayload && now < cachedHomePayloadExpiry) {
     return cachedHomePayload;
   }
-  const fb = await ensureFirebaseDb();
-  if (!fb) return null;
-  const { db, utils } = fb;
-  const { collection, getDocs, doc, getDoc, query, where, limit } = utils;
 
-  const qListings = query(collection(db, 'listings'), where('isApproved', '==', true));
-  const qNews = query(collection(db, 'news'), where('isApproved', '==', true), limit(20));
-  const settingsRef = doc(db, 'settings', 'general');
-
-  // Run homepage Firestore queries in parallel
-  const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
-    getDocs(qListings),
-    getDocs(qNews),
-    getDoc(settingsRef).catch(() => null)
+  const [allListings, allNews, settingsData] = await Promise.all([
+    getCachedListingsData(),
+    getCachedNewsData(),
+    getCachedSettingsData(),
   ]);
 
-  const settingsData = settingsSnap && settingsSnap.exists() ? (settingsSnap.data() || {}) : {};
-  cachedSettingsData = settingsData;
-  cachedSettingsExpiry = now + HOME_CACHE_TTL_MS;
+  const listingsData = allListings.slice(0, 12).map((d: any) => ({
+    id: d.id,
+    name: d.name || '',
+    slug: d.slug || d.id,
+    category: d.category || 'restaurants',
+    coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
+    photos: d.photos ? d.photos.slice(0, 1) : [],
+    averageRating: d.averageRating || 0,
+    reviewCount: d.reviewCount || 0,
+    address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
+    isFeatured: !!d.isFeatured,
+    description: getExcerpt(d.description, 160),
+    createdAt: d.createdAt || null,
+    updatedAt: d.updatedAt || null,
+  }));
 
-  let listingsData = listingsSnap.docs.map((docItem: any) => {
-    const d = docItem.data() as any;
-    return {
-      id: docItem.id,
-      name: d.name || '',
-      slug: d.slug || docItem.id,
-      category: d.category || 'restaurants',
-      coverImage: d.coverImage || (d.photos && d.photos[0]) || '',
-      photos: d.photos ? d.photos.slice(0, 1) : [],
-      averageRating: d.averageRating || 5.0,
-      address: d.address ? d.address.split(',')[0] : 'Ottawa, ON',
-      isFeatured: !!d.isFeatured,
-      description: getExcerpt(d.description, 160),
-      createdAt: d.createdAt || null,
-      updatedAt: d.updatedAt || null
-    };
-  });
-  listingsData = deduplicateListingsByCanonicalUrl(listingsData)
-    .sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt))
-    .slice(0, 12);
-
-  let newsData = newsSnap.docs.map((docItem: any) => {
-    const d = docItem.data() as any;
-    return {
-      id: docItem.id,
+  const newsData = allNews
+    .slice()
+    .sort(
+      (a: any, b: any) =>
+        parseFirestoreTimestamp(b.publishDate || b.createdAt) -
+        parseFirestoreTimestamp(a.publishDate || a.createdAt)
+    )
+    .slice(0, 6)
+    .map((d: any) => ({
+      id: d.id,
       title: d.title || '',
-      slug: d.slug || docItem.id,
+      slug: d.slug || d.id,
       excerpt: getExcerpt(d.excerpt || d.content, 160),
       coverImage: d.coverImage || '',
       publishDate: d.publishDate || d.createdAt || null,
       author: d.author || 'Youssef Agrebi',
-      createdAt: d.createdAt || null
-    };
-  });
-  newsData = newsData.sort((a: any, b: any) => parseFirestoreTimestamp(b.publishDate || b.createdAt) - parseFirestoreTimestamp(a.publishDate || a.createdAt)).slice(0, 6);
+      createdAt: d.createdAt || null,
+    }));
 
   cachedHomePayload = {
     listings: listingsData,
     news: newsData,
-    settings: settingsData,
-    timestamp: now
+    settings: settingsData || { logoUrl: DEFAULT_LOGO_URL },
+    timestamp: now,
   };
   cachedHomePayloadExpiry = now + HOME_CACHE_TTL_MS;
   return cachedHomePayload;
@@ -249,16 +246,41 @@ async function getCachedListingsData(): Promise<any[]> {
   if (cachedListingsPayload && now < cachedListingsExpiry) {
     return cachedListingsPayload;
   }
-  const fb = await ensureFirebaseDb();
-  if (!fb) return [];
-  const { db, utils } = fb;
-  const snap = await utils.getDocs(utils.query(utils.collection(db, 'listings'), utils.where('isApproved', '==', true)));
-  const items = deduplicateListingsByCanonicalUrl(
-    snap.docs.map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
-  ).sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
-  cachedListingsPayload = items;
+  if (now < firestoreQuotaCooldownUntil) {
+    const fallback = deduplicateListingsByCanonicalUrl(getFallbackListings()).sort(
+      (a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)
+    );
+    cachedListingsPayload = fallback;
+    cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
+    return fallback;
+  }
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const snap = await utils.getDocs(
+        utils.query(utils.collection(db, 'listings'), utils.where('isApproved', '==', true))
+      );
+      const items = deduplicateListingsByCanonicalUrl(
+        snap.docs.map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+      ).sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
+      cachedListingsPayload = items;
+      cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
+      return items;
+    }
+  } catch (err) {
+    if (isFirestoreQuotaError(err)) {
+      firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+    } else {
+      console.error('Error retrieving listings:', err);
+    }
+  }
+  const fallback = deduplicateListingsByCanonicalUrl(getFallbackListings()).sort(
+    (a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)
+  );
+  cachedListingsPayload = fallback;
   cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
-  return items;
+  return fallback;
 }
 
 async function getCachedNewsData(): Promise<any[]> {
@@ -266,20 +288,62 @@ async function getCachedNewsData(): Promise<any[]> {
   if (cachedNewsPayload && now < cachedNewsExpiry) {
     return cachedNewsPayload;
   }
-  const fb = await ensureFirebaseDb();
-  if (!fb) return [];
-  const { db, utils } = fb;
-  const snap = await utils.getDocs(utils.query(utils.collection(db, 'news'), utils.where('isApproved', '==', true), utils.limit(50)));
-  const items = snap.docs
-    .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+  if (now < firestoreQuotaCooldownUntil) {
+    const fallback = getFallbackNews()
+      .slice()
+      .sort((a: any, b: any) => {
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        return (
+          parseFirestoreTimestamp(b.publishDate || b.createdAt) -
+          parseFirestoreTimestamp(a.publishDate || a.createdAt)
+        );
+      });
+    cachedNewsPayload = fallback;
+    cachedNewsExpiry = now + HOME_CACHE_TTL_MS;
+    return fallback;
+  }
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const snap = await utils.getDocs(
+        utils.query(utils.collection(db, 'news'), utils.where('isApproved', '==', true), utils.limit(50))
+      );
+      const items = snap.docs
+        .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+        .sort((a: any, b: any) => {
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return (
+            parseFirestoreTimestamp(b.publishDate || b.createdAt) -
+            parseFirestoreTimestamp(a.publishDate || a.createdAt)
+          );
+        });
+      cachedNewsPayload = items;
+      cachedNewsExpiry = now + HOME_CACHE_TTL_MS;
+      return items;
+    }
+  } catch (err) {
+    if (isFirestoreQuotaError(err)) {
+      firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+    } else {
+      console.error('Error retrieving news:', err);
+    }
+  }
+  const fallback = getFallbackNews()
+    .slice()
     .sort((a: any, b: any) => {
       if (a.isFeatured && !b.isFeatured) return -1;
       if (!a.isFeatured && b.isFeatured) return 1;
-      return parseFirestoreTimestamp(b.publishDate || b.createdAt) - parseFirestoreTimestamp(a.publishDate || a.createdAt);
+      return (
+        parseFirestoreTimestamp(b.publishDate || b.createdAt) -
+        parseFirestoreTimestamp(a.publishDate || a.createdAt)
+      );
     });
-  cachedNewsPayload = items;
+  cachedNewsPayload = fallback;
   cachedNewsExpiry = now + HOME_CACHE_TTL_MS;
-  return items;
+  return fallback;
 }
 
 const CACHE_INVALIDATION_COOLDOWN_MS = 30 * 1000; // 30 seconds
@@ -2228,31 +2292,16 @@ async function startServer() {
 
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const fb = await ensureFirebaseDb();
-      const allApprovedListings: any[] = [];
-      const allApprovedNews: any[] = [];
-
-      if (fb) {
-        const { db, utils } = fb;
-        const { collection, getDocs, query, where } = utils;
-        const [listingsSnap, newsSnap] = await Promise.all([
-          getDocs(query(collection(db, "listings"), where("isApproved", "==", true))),
-          getDocs(query(collection(db, "news"), where("isApproved", "==", true))),
-        ]);
-        listingsSnap.forEach((docSnap: any) => {
-          allApprovedListings.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        newsSnap.forEach((docSnap: any) => {
-          allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
-        });
-      }
+      const [allApprovedListings, allApprovedNews] = await Promise.all([
+        getCachedListingsData(),
+        getCachedNewsData(),
+      ]);
 
       const { xml } = buildMainSitemapXml(allApprovedListings, allApprovedNews);
       res.header("Content-Type", "application/xml; charset=utf-8");
       res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
     } catch (e: any) {
-      console.error("Error generating dynamic sitemap, serving static build file fallback:", e);
       try {
         const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap.xml");
         if (fs.existsSync(distStaticPath)) {
@@ -2273,24 +2322,13 @@ async function startServer() {
 
   app.get("/sitemap-news.xml", async (req, res) => {
     try {
-      const fb = await ensureFirebaseDb();
-      const allApprovedNews: any[] = [];
-
-      if (fb) {
-        const { db, utils } = fb;
-        const { collection, getDocs, query, where } = utils;
-        const snap = await getDocs(query(collection(db, "news"), where("isApproved", "==", true)));
-        snap.forEach((docSnap: any) => {
-          allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
-        });
-      }
+      const allApprovedNews = await getCachedNewsData();
 
       const { xml } = buildNewsSitemapXml(allApprovedNews);
       res.header("Content-Type", "application/xml; charset=utf-8");
       res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
     } catch (e: any) {
-      console.error("Error generating news sitemap:", e);
       try {
         const distStaticPath = path.resolve(process.cwd(), "dist", "sitemap-news.xml");
         if (fs.existsSync(distStaticPath)) {
@@ -3775,32 +3813,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           ogImage = defaultHeroImage;
           routeType = 'news_list';
           try {
-            const qNews = query(
-              collection(db, 'news'),
-              where('isApproved', '==', true),
-              limit(30)
-            );
-            const newsSnap = await getDocs(qNews);
-            const parseNewsTime = (val: any): number => {
-              if (!val) return 0;
-              if (typeof val === 'number') return val;
-              if (typeof val.toDate === 'function') return val.toDate().getTime();
-              if (typeof val.seconds === 'number') return val.seconds * 1000;
-              const d = new Date(val);
-              return isNaN(d.getTime()) ? 0 : d.getTime();
-            };
-            let newsList = newsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-            newsList.sort((a, b) => {
-              if (a.isFeatured && !b.isFeatured) return -1;
-              if (!a.isFeatured && b.isFeatured) return 1;
-              return parseNewsTime(b.publishDate || b.createdAt) - parseNewsTime(a.publishDate || a.createdAt);
-            });
+            const newsList = (await getCachedNewsData()).slice(0, 30);
             initialData = {
               news: newsList,
               timestamp: Date.now()
             };
           } catch (e) {
-            console.error("Error pre-fetching news list for SSR", e);
+            if (!isFirestoreQuotaError(e)) {
+              console.error("Error pre-fetching news list for SSR", e);
+            }
           }
         } else if (p0 === 'faq') {
           title = "Frequently Asked Questions (FAQ) | Halal Ottawa";
@@ -3866,60 +3887,23 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
           try {
             const targetCat = categoryMap[p0];
-            const targetCatTitle = targetCat.charAt(0).toUpperCase() + targetCat.slice(1);
-            const targetCatLower = targetCat.toLowerCase();
-            const queries = [
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', targetCatTitle)),
-              query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', targetCatTitle))
-            ];
-            if (targetCatTitle !== targetCatLower) {
-              queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', targetCatLower)));
-              queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', targetCatLower)));
-            }
-
-            const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
-            const docsMap = new Map<string, any>();
-            for (const snap of snaps) {
-              if (snap && snap.docs) {
-                for (const doc of snap.docs) {
-                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-                }
-              }
-            }
-
-            if (docsMap.size === 0) {
-              const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
-              for (const doc of fallbackSnap.docs) {
-                docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-              }
-            }
-
-            let filteredListings = deduplicateListingsByCanonicalUrl(
-              Array.from(docsMap.values())
-                .filter((data: any) => {
-                  if (!data.category) return false;
-                  const catArray = Array.isArray(data.category) ? data.category : [data.category];
-                  return catArray.some((c: any) =>
-                    String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
-                  );
-                })
-            );
-
-            const parseListingTime = (val: any): number => {
-              if (!val) return 0;
-              if (typeof val.toDate === 'function') return val.toDate().getTime();
-              if (typeof val.seconds === 'number') return val.seconds * 1000;
-              const d = new Date(val);
-              return isNaN(d.getTime()) ? 0 : d.getTime();
-            };
-            filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+            const allListings = await getCachedListingsData();
+            const filteredListings = allListings.filter((data: any) => {
+              if (!data.category) return false;
+              const catArray = Array.isArray(data.category) ? data.category : [data.category];
+              return catArray.some((c: any) =>
+                String(c).toLowerCase().trim() === targetCat.toLowerCase().trim()
+              );
+            });
 
             initialData = {
               listings: filteredListings,
               timestamp: Date.now()
             };
           } catch (e) {
-            console.error(`Error pre-fetching category listings for ${p0}`, e);
+            if (!isFirestoreQuotaError(e)) {
+              console.error(`Error pre-fetching category listings for ${p0}`, e);
+            }
           }
         } else if (cuisineMap[p0] || typeMap[p0] || isRestaurantSubcategory(pathParts[0])) {
           let decodedSeg = pathParts[0];
@@ -3932,28 +3916,15 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           ogImage = defaultHeroImage;
           routeType = 'category';
           try {
-            const qListings = query(
-              collection(db, 'listings'),
-              where('isApproved', '==', true)
-            );
-            const listingsSnap = await getDocs(qListings);
-            const parseListingTime = (val: any): number => {
-              if (!val) return 0;
-              if (typeof val.toDate === 'function') return val.toDate().getTime();
-              if (typeof val.seconds === 'number') return val.seconds * 1000;
-              const d = new Date(val);
-              return isNaN(d.getTime()) ? 0 : d.getTime();
-            };
-            const sortedListings = deduplicateListingsByCanonicalUrl(
-              listingsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            ).sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
-
+            const sortedListings = await getCachedListingsData();
             initialData = {
               listings: sortedListings,
               timestamp: Date.now()
             };
           } catch (e) {
-            console.error("Error pre-fetching all listings for /listings", e);
+            if (!isFirestoreQuotaError(e)) {
+              console.error("Error pre-fetching all listings for /listings", e);
+            }
           }
         }
       }
@@ -3989,76 +3960,33 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
             try {
               const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(canonicalSubSlug);
-              const queries: any[] = [];
-              if (isLoc) {
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'Restaurants')));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', 'Restaurants')));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', 'array-contains', 'restaurants')));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('category', '==', 'restaurants')));
-              } else {
-                const targetSub = canonicalSubSlug.replace(/-/g, ' ');
-                const targetSubTitle = canonicalSubSlug === 'cafes' ? 'Cafés' : formattedSub;
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSubTitle)));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSubTitle)));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', 'array-contains', targetSub)));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', 'array-contains', targetSub)));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('cuisine', '==', targetSubTitle)));
-                queries.push(query(collection(db, 'listings'), where('isApproved', '==', true), where('types', '==', targetSubTitle)));
-              }
+              const allListings = await getCachedListingsData();
+              const filteredListings = allListings.filter((data: any) => {
+                const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+                const isRestaurant = listingCategories.some((cat: any) => normalizeCompare(cat) === 'restaurants');
+                if (!isRestaurant) return false;
 
-              const snaps = await Promise.all(queries.map(q => getDocs(q).catch(() => null)));
-              const docsMap = new Map<string, any>();
-              for (const snap of snaps) {
-                if (snap && snap.docs) {
-                  for (const doc of snap.docs) {
-                    docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-                  }
+                if (isLoc) {
+                  const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
+                  return neighborhood === canonicalSubSlug;
+                } else {
+                  const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
+                  const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
+                  const targetSub = normalizeCompare(canonicalSubSlug.replace(/-/g, ' '));
+                  const matchesType = listingTypes.some((t: any) => normalizeCompare(t) === targetSub || normalizeCompare(t) === canonicalSubSlug);
+                  const matchesCuisine = listingCuisines.some((c: any) => normalizeCompare(c) === targetSub || normalizeCompare(c) === canonicalSubSlug);
+                  return matchesType || matchesCuisine;
                 }
-              }
-
-              if (docsMap.size === 0) {
-                const fallbackSnap = await getDocs(query(collection(db, 'listings'), where('isApproved', '==', true)));
-                for (const doc of fallbackSnap.docs) {
-                  docsMap.set(doc.id, { id: doc.id, ...doc.data() });
-                }
-              }
-
-              let filteredListings = deduplicateListingsByCanonicalUrl(
-                Array.from(docsMap.values())
-                  .filter((data: any) => {
-                    const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
-                    const isRestaurant = listingCategories.some((cat: any) => normalizeCompare(cat) === 'restaurants');
-                    if (!isRestaurant) return false;
-
-                    if (isLoc) {
-                      const neighborhood = getNeighborhoodFromAddress(data.address || '', data.suburb || '');
-                      return neighborhood === canonicalSubSlug;
-                    } else {
-                      const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
-                      const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
-                      const targetSub = normalizeCompare(canonicalSubSlug.replace(/-/g, ' '));
-                      const matchesType = listingTypes.some((t: any) => normalizeCompare(t) === targetSub || normalizeCompare(t) === canonicalSubSlug);
-                      const matchesCuisine = listingCuisines.some((c: any) => normalizeCompare(c) === targetSub || normalizeCompare(c) === canonicalSubSlug);
-                      return matchesType || matchesCuisine;
-                    }
-                  })
-              );
-
-              const parseListingTime = (val: any): number => {
-                if (!val) return 0;
-                if (typeof val.toDate === 'function') return val.toDate().getTime();
-                if (typeof val.seconds === 'number') return val.seconds * 1000;
-                const d = new Date(val);
-                return isNaN(d.getTime()) ? 0 : d.getTime();
-              };
-              filteredListings = filteredListings.sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
+              });
 
               initialData = {
                 listings: filteredListings,
                 timestamp: Date.now()
               };
             } catch (e) {
-              console.error(`Error pre-fetching location/subcategory listings for ${p0}/${p1}`, e);
+              if (!isFirestoreQuotaError(e)) {
+                console.error(`Error pre-fetching location/subcategory listings for ${p0}/${p1}`, e);
+              }
             }
           } else if (p0 === 'tools' && p1.toLowerCase() === 'qibla') {
             title = "Ottawa Qibla Direction - Compass & Kaaba Bearing | Halal Ottawa";
@@ -4074,50 +4002,68 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             initialData = { page: 'add_listing' };
           }
         } else if (p0 === 'go') {
-          try {
-            const linkRef = doc(db, 'short_links', p1);
-            const linkSnap = await getDoc(linkRef);
-            if (!linkSnap.exists()) {
-              isNotFound = true;
+          if (Date.now() >= firestoreQuotaCooldownUntil) {
+            try {
+              const linkRef = doc(db, 'short_links', p1);
+              const linkSnap = await getDoc(linkRef);
+              if (!linkSnap.exists()) {
+                isNotFound = true;
+              }
+            } catch (e) {
+              if (isFirestoreQuotaError(e)) {
+                firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+              } else {
+                console.error("Error fetching short link details", e);
+              }
             }
-          } catch (e) {
-            console.error("Error fetching short link details", e);
           }
         } else if (p0 === 'news') {
           try {
-            // Try fetching by Firestore Document ID first
-            const newsDocRef = doc(db, 'news', p1);
-            const newsDocSnap = await getDoc(newsDocRef);
-            let data: any = null;
-            
-            if (newsDocSnap.exists()) {
-              data = { id: newsDocSnap.id, ...newsDocSnap.data() };
-            } else {
-              // Fallback to querying by slug field (case-insensitive normalized slug)
-              const q = query(collection(db, 'news'), where('slug', '==', p1.toLowerCase()));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                const candidates = snap.docs
-                  .map(d => ({ id: d.id, ...d.data() } as any))
-                  .sort((a, b) => {
-                    if (a.isApproved === true && b.isApproved !== true) return -1;
-                    if (a.isApproved !== true && b.isApproved === true) return 1;
-                    return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.publishDate), parseFirestoreTimestamp(b.createdAt)) -
-                           Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.publishDate), parseFirestoreTimestamp(a.createdAt));
-                  });
-                data = candidates[0] || null;
+            const cachedNews = await getCachedNewsData();
+            let data: any =
+              cachedNews.find((n: any) => n.id === p1 || String(n.slug || '').toLowerCase() === p1.toLowerCase()) ||
+              null;
+
+            if (!data && Date.now() >= firestoreQuotaCooldownUntil) {
+              try {
+                const newsDocRef = doc(db, 'news', p1);
+                const newsDocSnap = await getDoc(newsDocRef);
+                if (newsDocSnap.exists()) {
+                  data = { id: newsDocSnap.id, ...newsDocSnap.data() };
+                } else {
+                  const q = query(collection(db, 'news'), where('slug', '==', p1.toLowerCase()));
+                  const snap = await getDocs(q);
+                  if (!snap.empty) {
+                    const candidates = snap.docs
+                      .map(d => ({ id: d.id, ...d.data() } as any))
+                      .sort((a, b) => {
+                        if (a.isApproved === true && b.isApproved !== true) return -1;
+                        if (a.isApproved !== true && b.isApproved === true) return 1;
+                        return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.publishDate), parseFirestoreTimestamp(b.createdAt)) -
+                               Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.publishDate), parseFirestoreTimestamp(a.createdAt));
+                      });
+                    data = candidates[0] || null;
+                  }
+                }
+
+                if (!data) {
+                  const redirectRef = doc(db, 'slug_redirects', `news_${p1.toLowerCase()}`);
+                  const redirectSnap = await getDoc(redirectRef);
+                  if (redirectSnap.exists()) {
+                    const redirectData = redirectSnap.data();
+                    if (redirectData && redirectData.newSlug) {
+                      return { html: '', isNotFound: false, redirectUrl: `/news/${redirectData.newSlug}` };
+                    }
+                  }
+                }
+              } catch (innerErr) {
+                if (isFirestoreQuotaError(innerErr)) {
+                  firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+                }
               }
             }
 
             if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `news_${p1.toLowerCase()}`);
-              const redirectSnap = await getDoc(redirectRef);
-              if (redirectSnap.exists()) {
-                const redirectData = redirectSnap.data();
-                if (redirectData && redirectData.newSlug) {
-                  return { html: '', isNotFound: false, redirectUrl: `/news/${redirectData.newSlug}` };
-                }
-              }
               isNotFound = true;
             } else {
               const expectedNewsPath = `/news/${data.slug || data.id}`;
@@ -4136,7 +4082,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               routeType = 'news';
             }
           } catch (e) {
-            console.error("Error fetching news details", e);
+            if (!isFirestoreQuotaError(e)) {
+              console.error("Error fetching news details", e);
+            }
           }
         } else if (p0 === 'authors') {
           return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
@@ -4149,10 +4097,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             ogImage = defaultHeroImage;
             routeType = 'author';
             try {
-              const qNews = query(collection(db, 'news'), where('isApproved', '==', true));
-              const newsSnap = await getDocs(qNews);
-              let authorArticles = newsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-              authorArticles = authorArticles.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
+              const allNews = await getCachedNewsData();
+              const authorArticles = allNews.filter((a: any) => !a.author || a.author.toLowerCase().includes('youssef'));
               initialData = {
                 name: 'Youssef Agrebi',
                 articles: authorArticles
@@ -4166,62 +4112,61 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           }
         } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
           try {
-            // Try fetching by Firestore Document ID first
-            const listingDocRef = doc(db, 'listings', p1);
-            const listingDocSnap = await getDoc(listingDocRef);
-            let data: any = null;
-            
-            if (listingDocSnap.exists()) {
-              data = { id: listingDocSnap.id, ...listingDocSnap.data() };
-            } else {
-              // Fallback to querying by slug field (deterministic selection when duplicate slugs exist)
-              const q = query(collection(db, 'listings'), where('slug', '==', p1.toLowerCase()));
-              const snap = await getDocs(q);
-              if (!snap.empty) {
-                const candidates = snap.docs
-                  .map(d => ({ id: d.id, ...d.data() } as any))
-                  .sort((a, b) => {
-                    if (a.isApproved === true && b.isApproved !== true) return -1;
-                    if (a.isApproved !== true && b.isApproved === true) return 1;
-                    return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.createdAt)) -
-                           Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.createdAt));
-                  });
-                data = candidates[0] || null;
+            const cachedListings = await getCachedListingsData();
+            let data: any =
+              cachedListings.find((l: any) => l.id === p1 || String(l.slug || '').toLowerCase() === p1.toLowerCase()) ||
+              null;
+
+            if (!data && Date.now() >= firestoreQuotaCooldownUntil) {
+              try {
+                const listingDocRef = doc(db, 'listings', p1);
+                const listingDocSnap = await getDoc(listingDocRef);
+                if (listingDocSnap.exists()) {
+                  data = { id: listingDocSnap.id, ...listingDocSnap.data() };
+                } else {
+                  const q = query(collection(db, 'listings'), where('slug', '==', p1.toLowerCase()));
+                  const snap = await getDocs(q);
+                  if (!snap.empty) {
+                    const candidates = snap.docs
+                      .map(d => ({ id: d.id, ...d.data() } as any))
+                      .sort((a, b) => {
+                        if (a.isApproved === true && b.isApproved !== true) return -1;
+                        if (a.isApproved !== true && b.isApproved === true) return 1;
+                        return Math.max(parseFirestoreTimestamp(b.updatedAt), parseFirestoreTimestamp(b.createdAt)) -
+                               Math.max(parseFirestoreTimestamp(a.updatedAt), parseFirestoreTimestamp(a.createdAt));
+                      });
+                    data = candidates[0] || null;
+                  }
+                }
+
+                if (!data) {
+                  const redirectRef = doc(db, 'slug_redirects', `listings_${p1.toLowerCase()}`);
+                  const redirectSnap = await getDoc(redirectRef);
+                  if (redirectSnap.exists()) {
+                    const redirectData = redirectSnap.data();
+                    if (redirectData && redirectData.newSlug) {
+                      let destination = `/restaurants/${redirectData.newSlug}`;
+                      const targetListing = cachedListings.find(
+                        (l: any) => l.id === redirectData.newSlug || String(l.slug || '').toLowerCase() === String(redirectData.newSlug).toLowerCase()
+                      );
+                      if (targetListing) {
+                        const cat = Array.isArray(targetListing.category) ? targetListing.category[0] : targetListing.category;
+                        if (cat) {
+                          destination = `/${normalizeCategoryToSlug(String(cat))}/${redirectData.newSlug}`;
+                        }
+                      }
+                      return { html: '', isNotFound: false, redirectUrl: destination };
+                    }
+                  }
+                }
+              } catch (innerErr) {
+                if (isFirestoreQuotaError(innerErr)) {
+                  firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+                }
               }
             }
 
             if (!data) {
-              const redirectRef = doc(db, 'slug_redirects', `listings_${p1.toLowerCase()}`);
-              const redirectSnap = await getDoc(redirectRef);
-              if (redirectSnap.exists()) {
-                const redirectData = redirectSnap.data();
-                if (redirectData && redirectData.newSlug) {
-                  let destination = `/restaurants/${redirectData.newSlug}`;
-                  try {
-                    const newListingDocRef = doc(db, 'listings', redirectData.newSlug);
-                    const newListingDocSnap = await getDoc(newListingDocRef);
-                    let newListing: any = null;
-                    if (newListingDocSnap.exists()) {
-                      newListing = newListingDocSnap.data();
-                    } else {
-                      const qStatus = query(collection(db, 'listings'), where('slug', '==', redirectData.newSlug), limit(1));
-                      const snapStatus = await getDocs(qStatus);
-                      if (!snapStatus.empty) {
-                        newListing = snapStatus.docs[0].data();
-                      }
-                    }
-                    if (newListing) {
-                      const cat = Array.isArray(newListing.category) ? newListing.category[0] : newListing.category;
-                      if (cat) {
-                        destination = `/${normalizeCategoryToSlug(String(cat))}/${redirectData.newSlug}`;
-                      }
-                    }
-                  } catch (e) {
-                    console.error("Error determining redirect destination category", e);
-                  }
-                  return { html: '', isNotFound: false, redirectUrl: destination };
-                }
-              }
               isNotFound = true;
             } else {
               const cat = Array.isArray(data.category) && data.category.length > 0
