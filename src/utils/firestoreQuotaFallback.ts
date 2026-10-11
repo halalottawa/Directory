@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { RESTAURANT_SUBCATEGORIES } from './sitemapBuilder';
 
 export function isFirestoreQuotaError(err: unknown): boolean {
   if (!err) return false;
@@ -47,38 +48,7 @@ const RESTAURANT_SUBCATEGORY_SLUGS = new Set([
   'kanata',
   'barrhaven',
   'downtown',
-  'bakery',
-  'pizza',
-  'burgers',
-  'cafes',
-  'seafood',
-  'steakhouse',
-  'shawarma',
-  'poutine',
-  'brunch',
-  'breakfast',
-  'pho',
-  'ramen',
-  'fried-chicken',
-  'buffet',
-  'tacos',
-  'turkish',
-  'middle-eastern',
-  'moroccan',
-  'lebanese',
-  'syrian',
-  'pakistani',
-  'afghani',
-  'indian',
-  'persian',
-  'chinese',
-  'mediterranean',
-  'thai',
-  'korean',
-  'italian',
-  'bangladeshi',
-  'mexican',
-  'ethiopian',
+  ...RESTAURANT_SUBCATEGORIES,
 ]);
 
 let cachedFallbackListings: any[] | null = null;

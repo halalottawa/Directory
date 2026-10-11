@@ -72,7 +72,7 @@ export const SEO: React.FC<SEOProps> = ({
       const ssrSchemas = document.querySelectorAll('script[type="application/ld+json"][data-ssr-schema="true"]');
       ssrSchemas.forEach((node) => node.parentNode?.removeChild(node));
     }
-  }, [structuredData, canonicalUrl]);
+  }, [structuredData, canonicalUrl, noindex]);
 
   const siteTitle = title.includes('Halal Ottawa - Halal Places in Ottawa') || disableSuffix
     ? title 
@@ -99,15 +99,16 @@ export const SEO: React.FC<SEOProps> = ({
     }
   }
 
-  const resolvedCanonical = getCanonicalUrl(canonicalUrl || currentPath || '/');
+  const effectiveRobots = robots || (noindex ? 'noindex, nofollow' : 'index, follow');
+  const isHardNoIndex = noindex && !effectiveRobots.includes('follow') || effectiveRobots.includes('nofollow');
+  const resolvedCanonical = !isHardNoIndex ? getCanonicalUrl(canonicalUrl || currentPath || '/') : undefined;
+  const shouldEmitStructuredData = !noindex && !effectiveRobots.startsWith('noindex') && Boolean(structuredData);
 
   return (
     <Helmet>
       {/* Standard SEO */}
       <title>{siteTitle}</title>
-      {(noindex || robots) && (
-        <meta name="robots" content={robots || 'noindex, nofollow'} />
-      )}
+      <meta name="robots" content={effectiveRobots} />
       <meta name="description" content={description} />
       {resolvedCanonical && <link rel="canonical" href={resolvedCanonical} />}
 
@@ -130,8 +131,8 @@ export const SEO: React.FC<SEOProps> = ({
       {!noindex && <meta name="twitter:description" content={description} />}
       {resolvedOgImage && !noindex && <meta name="twitter:image" content={resolvedOgImage} />}
 
-      {/* Structured Data (JSON-LD) */}
-      {structuredData && (
+      {/* Structured Data (JSON-LD) - never emitted on noindex, empty, deleted, or error pages */}
+      {shouldEmitStructuredData && (
         Array.isArray(structuredData)
           ? (structuredData as Array<any>).map((schema, i) => (
               <script 

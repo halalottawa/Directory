@@ -30,6 +30,7 @@ import {
   buildAuthorStructuredData,
   buildStaticPageStructuredData,
 } from '../src/utils/structuredData';
+import { RESTAURANT_SUBCATEGORIES } from '../src/utils/sitemapBuilder';
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from '../src/config/images';
 
 const BASE_URL = 'https://www.halalottawa.ca';
@@ -43,38 +44,7 @@ const staticUrls = [
   "/restaurants/kanata",
   "/restaurants/barrhaven",
   "/restaurants/downtown",
-  "/restaurants/bakery",
-  "/restaurants/pizza",
-  "/restaurants/burgers",
-  "/restaurants/cafes",
-  "/restaurants/seafood",
-  "/restaurants/steakhouse",
-  "/restaurants/shawarma",
-  "/restaurants/poutine",
-  "/restaurants/brunch",
-  "/restaurants/breakfast",
-  "/restaurants/pho",
-  "/restaurants/ramen",
-  "/restaurants/fried-chicken",
-  "/restaurants/buffet",
-  "/restaurants/tacos",
-  "/restaurants/turkish",
-  "/restaurants/middle-eastern",
-  "/restaurants/moroccan",
-  "/restaurants/lebanese",
-  "/restaurants/syrian",
-  "/restaurants/pakistani",
-  "/restaurants/afghani",
-  "/restaurants/indian",
-  "/restaurants/persian",
-  "/restaurants/chinese",
-  "/restaurants/mediterranean",
-  "/restaurants/thai",
-  "/restaurants/korean",
-  "/restaurants/italian",
-  "/restaurants/bangladeshi",
-  "/restaurants/mexican",
-  "/restaurants/ethiopian",
+  ...RESTAURANT_SUBCATEGORIES.map(sub => `/restaurants/${sub}`),
   "/mosques",
   "/organizations",
   "/grocery",
@@ -349,7 +319,11 @@ async function prerender() {
     let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with community updates and local news.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
-    if (url === "/news") {
+    if (url === "/listings") {
+      title = `Browse Halal Directories in Ottawa - ${monthYearStr}`;
+      description = `Explore our community directory of certified halal local businesses, restaurants, mosques, grocery stores, and Islamic schools in Ottawa for ${monthYearStr}.`;
+      ogImage = "https://www.halalottawa.ca/default-og.jpg";
+    } else if (url === "/news") {
       title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
       description = "Stay up to date with the latest stories, local community announcements, mosque updates, and community news from Ottawa's Muslim community.";
       ogImage = "https://www.halalottawa.ca/default-og.jpg";
@@ -681,30 +655,29 @@ async function prerender() {
 
       // Restaurant Subcategories (Food Types and Cuisines) SSG
       const normalizeCompare = (val: any): string =>
-        String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/&/g, '').replace(/\s+/g, ' ');
 
-      const subcategoriesSSG = [
-        'bakery', 'pizza', 'burgers', 'cafes', 'seafood', 'steakhouse', 'shawarma', 'poutine', 
-        'brunch', 'breakfast', 'pho', 'ramen', 'fried-chicken', 'buffet', 'tacos',
-        'turkish', 'middle-eastern', 'moroccan', 'lebanese', 'syrian', 'pakistani', 
-        'afghani', 'indian', 'persian', 'chinese', 'mediterranean', 'thai', 'korean', 
-        'italian', 'bangladeshi', 'mexican', 'ethiopian'
-      ];
-      for (const sub of subcategoriesSSG) {
+      for (const sub of RESTAURANT_SUBCATEGORIES) {
         const subPage = pagesToPrerender.find(p => p.urlPath === `/restaurants/${sub}`);
         if (subPage) {
           const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
           const filtered = allApprovedListings
             .filter((l: any) => {
               const catArray = Array.isArray(l.category) ? l.category : (l.category ? [l.category] : []);
+              const isRestaurant = catArray.some((c: any) => {
+                const norm = normalizeCompare(c);
+                return norm === 'restaurants' || norm === 'bakery' || norm === 'cafe' || norm === 'dessert';
+              });
+              if (!isRestaurant) return false;
               const typesArray = Array.isArray(l.types) ? l.types : (l.types ? [l.types] : []);
               const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : (l.cuisine ? [l.cuisine] : []);
 
-              const matchesCat = catArray.some((c: any) => normalizeCompare(c) === cleanSub);
-              const matchesType = typesArray.some((t: any) => normalizeCompare(t) === cleanSub);
-              const matchesCuisine = cuisinesArray.some((c: any) => normalizeCompare(c) === cleanSub);
+              const matchItem = (val: any) => {
+                const norm = normalizeCompare(val);
+                return norm === cleanSub || norm === sub || (cleanSub === 'sandwiches' && norm === 'sandwiches subs') || (cleanSub === 'smoothies' && norm === 'juice smoothies');
+              };
 
-              return matchesCat || matchesType || matchesCuisine;
+              return catArray.some(matchItem) || typesArray.some(matchItem) || cuisinesArray.some(matchItem);
             })
             .sort((a, b) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt));
 
@@ -726,6 +699,19 @@ async function prerender() {
   let renderCount = 0;
   for (const page of pagesToPrerender) {
     try {
+      const isCategoryOrLocationEmpty =
+        (page.routeType === 'category' || page.routeType === 'location') &&
+        Array.isArray(page.initialData?.listings) &&
+        page.initialData.listings.length === 0;
+
+      // Do not write 200 OK static files for empty category/subcategory pages (they return 404 via server.ts to prevent Soft 404s)
+      if (isCategoryOrLocationEmpty) {
+        if (fs.existsSync(page.filePath)) {
+          try { fs.unlinkSync(page.filePath); } catch {}
+        }
+        continue;
+      }
+
       let html = baseTemplate;
       
       // Strip existing OG, Twitter and canonical tags to prevent duplicates and ensure fresh values are injected
@@ -771,13 +757,12 @@ async function prerender() {
       `;
 
       const isSubcategoryEmpty =
-        page.urlPath.startsWith("/restaurants/") &&
-        !["/restaurants/orleans", "/restaurants/kanata", "/restaurants/barrhaven", "/restaurants/downtown"].includes(page.urlPath) &&
+        (page.routeType === 'category' || page.routeType === 'location') &&
         Array.isArray(page.initialData?.listings) &&
         page.initialData.listings.length === 0;
 
-      if (page.urlPath === "/listings" || isSubcategoryEmpty) {
-        extraTags += `\n    <meta name="robots" content="noindex, follow" />`;
+      if (isSubcategoryEmpty) {
+        extraTags += `\n    <meta name="robots" content="noindex, nofollow" />`;
       } else if (["/saved", "/login", "/listings/add"].includes(page.urlPath)) {
         extraTags += `\n    <meta name="robots" content="noindex, nofollow" />`;
       } else {
@@ -807,9 +792,9 @@ async function prerender() {
 
       if (page.urlPath === "/" || page.routeType === "home") {
         for (const schema of buildHomeStructuredData(page.description)) {
-          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+          extraTags += `\n    <script type="application/ld+json" data-ssr-schema="true">${JSON.stringify(schema)}</script>`;
         }
-      } else if (!["/saved", "/login", "/listings/add", "/listings"].includes(page.urlPath) && !isSubcategoryEmpty) {
+      } else if (!["/saved", "/login", "/listings/add"].includes(page.urlPath) && !isSubcategoryEmpty) {
         let schemasToEmit: Record<string, any>[] = [];
         const pathSegments = page.urlPath.split('/').filter(Boolean);
 
@@ -887,7 +872,7 @@ async function prerender() {
         }
 
         for (const schema of schemasToEmit) {
-          extraTags += `\n    <script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+          extraTags += `\n    <script type="application/ld+json" data-ssr-schema="true">${JSON.stringify(schema)}</script>`;
         }
       }
 

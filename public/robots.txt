@@ -1,41 +1,14 @@
 User-agent: *
 Allow: /
 
-# Block crawling of private and administrative areas
-Disallow: /admin
-Disallow: /login
-Disallow: /register
-Disallow: /signup
-Disallow: /profile
-Disallow: /settings
-Disallow: /saved
-Disallow: /go/
+# Disallow non-HTML backend API endpoints and internal session check helper
+Disallow: /api/
+Disallow: /__cookie_check.html
 
-# Block crawling of forms and action routes to prevent indexing of add or edit pages (news, listing, job, event)
-Disallow: /listings/add
-Disallow: /listings/edit/*
-Disallow: /news/add
-Disallow: /news/edit/*
-Disallow: /events/add
-Disallow: /events/edit/*
-Disallow: /jobs/add
-Disallow: /jobs/edit/*
-Disallow: /profile/edit
-
-# Ensure public listings and content are explicitly allowed
-Allow: /listings
-Allow: /news
-Allow: /author
-Allow: /tools/qibla
-Allow: /restaurants
-Allow: /mosques
-Allow: /organizations
-Allow: /grocery
-Allow: /clothing
-Allow: /schools
-Allow: /butchers
-Allow: /llms.txt
-Allow: /llm.txt
+# Note: Private/auth/action routes (/admin, /login, /register, /saved, /profile, /settings,
+# /listings/add, /listings/edit/*, /news/add, /news/edit/*) and parameterized search/filter URLs
+# are intentionally NOT blocked in robots.txt so crawlers can read their authoritative
+# X-Robots-Tag / <meta name="robots" content="noindex, ..."> and canonical/redirect responses.
 
 # Sitemap
 Sitemap: https://www.halalottawa.ca/sitemap.xml

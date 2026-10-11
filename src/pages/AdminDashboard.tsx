@@ -127,44 +127,106 @@ export const AdminDashboard: React.FC = () => {
 
   const fetchData = async () => {
     try {
+      let quotaExceeded = false;
+      const safeGetDocs = async (colName: string) => {
+        try {
+          return await getDocs(collection(db, colName));
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          if (err?.code === 'resource-exhausted' || msg.includes('Quota limit exceeded') || msg.includes('Quota exceeded')) {
+            quotaExceeded = true;
+            return { docs: [] } as any;
+          }
+          throw err;
+        }
+      };
+
+      const safeGetSettingsDoc = async () => {
+        try {
+          return await getDoc(doc(db, 'settings', 'general'));
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          if (err?.code === 'resource-exhausted' || msg.includes('Quota limit exceeded') || msg.includes('Quota exceeded')) {
+            quotaExceeded = true;
+            return { exists: () => false, data: () => ({}) } as any;
+          }
+          throw err;
+        }
+      };
+
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
         reviewsSnap, commentsSnap, usersSnap, planRequestsSnap, settingsSnap, shortLinksSnap, subscribersSnap
       ] = await Promise.all([
-        getDocs(collection(db, 'listings')),
-        getDocs(collection(db, 'events')),
-        getDocs(collection(db, 'jobs')),
-        getDocs(collection(db, 'news')),
-        getDocs(collection(db, 'reviews')),
-        getDocs(collection(db, 'comments')),
-        getDocs(collection(db, 'users')),
-        getDocs(collection(db, 'plan_requests')),
-        getDoc(doc(db, 'settings', 'general')),
-        getDocs(collection(db, 'short_links')),
-        getDocs(collection(db, 'subscribers')).catch(() => ({ docs: [] }) as any)
+        safeGetDocs('listings'),
+        safeGetDocs('events'),
+        safeGetDocs('jobs'),
+        safeGetDocs('news'),
+        safeGetDocs('reviews'),
+        safeGetDocs('comments'),
+        safeGetDocs('users'),
+        safeGetDocs('plan_requests'),
+        safeGetSettingsDoc(),
+        safeGetDocs('short_links'),
+        safeGetDocs('subscribers').catch(() => ({ docs: [] }) as any)
       ]);
 
-      const listings = listingsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Listing))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Event))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const jobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Job))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const news = newsSnap.docs.map(d => ({ id: d.id, ...d.data() } as NewsArticle))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const reviews = reviewsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const comments = commentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Comment))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      const users = usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile))
-        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      const plansData = planRequestsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      let listings = listingsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Listing))
+        .sort((a: Listing, b: Listing) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const events = eventsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Event))
+        .sort((a: Event, b: Event) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const jobs = jobsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Job))
+        .sort((a: Job, b: Job) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      let news = newsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as NewsArticle))
+        .sort((a: NewsArticle, b: NewsArticle) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const reviews = reviewsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Review))
+        .sort((a: Review, b: Review) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const comments = commentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as Comment))
+        .sort((a: Comment, b: Comment) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const users = usersSnap.docs.map((d: any) => ({ uid: d.id, ...d.data() } as UserProfile))
+        .sort((a: UserProfile, b: UserProfile) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      const plansData = planRequestsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() } as any))
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-      const shortLinksData = shortLinksSnap.docs.map(d => ({ slug: d.id, ...d.data() }));
+      const shortLinksData = shortLinksSnap.docs.map((d: any) => ({ slug: d.id, ...d.data() }));
       const subs = subscribersSnap && subscribersSnap.docs
         ? subscribersSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }))
         : [];
+
+      if (quotaExceeded) {
+        try {
+          const [listingsRes, newsRes, settingsRes] = await Promise.all([
+            listings.length === 0 ? fetch('/api/listings') : Promise.resolve(null),
+            news.length === 0 ? fetch('/api/news') : Promise.resolve(null),
+            !settingsSnap.exists() ? fetch('/api/settings') : Promise.resolve(null),
+          ]);
+          if (listingsRes && listingsRes.ok) {
+            const lData = await listingsRes.json();
+            if (Array.isArray(lData?.listings)) {
+              listings = (lData.listings as Listing[]).sort(
+                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+              );
+            }
+          }
+          if (newsRes && newsRes.ok) {
+            const nData = await newsRes.json();
+            if (Array.isArray(nData?.news)) {
+              news = (nData.news as NewsArticle[]).sort(
+                (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+              );
+            }
+          }
+          if (settingsRes && settingsRes.ok) {
+            const sData = await settingsRes.json();
+            if (sData?.logoUrl) setSiteLogoUrl(sData.logoUrl);
+            if (sData?.coverImageUrl) setCoverImageUrl(sData.coverImageUrl);
+            if (sData?.faviconUrl) setFaviconUrl(sData.faviconUrl);
+            if (sData?.heroImageUrl) setHeroImageUrlState(sData.heroImageUrl);
+          }
+        } catch {
+          // Ignore API fallback errors
+        }
+      }
 
       if (settingsSnap.exists()) {
         const settingsData = settingsSnap.data();
@@ -174,17 +236,17 @@ export const AdminDashboard: React.FC = () => {
         if (settingsData.heroImageUrl) setHeroImageUrlState(settingsData.heroImageUrl);
       }
 
-      setPendingListings(listings.filter(i => !i.isApproved));
-      setApprovedListings(listings.filter(i => i.isApproved));
+      setPendingListings(listings.filter((i: Listing) => !i.isApproved));
+      setApprovedListings(listings.filter((i: Listing) => i.isApproved));
       
-      setPendingEvents(events.filter(i => !i.isApproved));
-      setApprovedEvents(events.filter(i => i.isApproved));
+      setPendingEvents(events.filter((i: Event) => !i.isApproved));
+      setApprovedEvents(events.filter((i: Event) => i.isApproved));
       
-      setPendingJobs(jobs.filter(i => !i.isApproved));
-      setApprovedJobs(jobs.filter(i => i.isApproved));
+      setPendingJobs(jobs.filter((i: Job) => !i.isApproved));
+      setApprovedJobs(jobs.filter((i: Job) => i.isApproved));
       
-      setPendingNews(news.filter(i => !i.isApproved));
-      setApprovedNews(news.filter(i => i.isApproved));
+      setPendingNews(news.filter((i: NewsArticle) => !i.isApproved));
+      setApprovedNews(news.filter((i: NewsArticle) => i.isApproved));
 
       setAllReviews(reviews);
       setAllComments(comments);
@@ -193,27 +255,29 @@ export const AdminDashboard: React.FC = () => {
       setShortLinks(shortLinksData.sort((a: any, b: any) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)));
       setStandaloneSubscribers(subs);
 
-      // Auto-repair listing ratings based on actual approved reviews
-      listings.forEach(async (listing) => {
-        const listingReviews = reviews.filter(r => r.listingId === listing.id && r.isApproved);
-        const correctCount = listingReviews.length;
-        let correctAvg = 0;
-        if (correctCount > 0) {
-          const totalRating = listingReviews.reduce((sum, r) => sum + r.rating, 0);
-          correctAvg = Number((totalRating / correctCount).toFixed(1));
-        }
-        if (listing.reviewCount !== correctCount || listing.averageRating !== correctAvg) {
-          try {
-            await updateDoc(doc(db, 'listings', listing.id), {
-              reviewCount: correctCount,
-              averageRating: correctAvg
-            });
-            console.log(`Auto-repaired rating for ${listing.name} (${listing.reviewCount} -> ${correctCount})`);
-          } catch (e) {
-            console.error(`Failed to auto-repair ${listing.name}`, e);
+      // Auto-repair listing ratings based on actual approved reviews only when live Firestore data was loaded
+      if (!quotaExceeded) {
+        listings.forEach(async (listing: Listing) => {
+          const listingReviews = reviews.filter((r: Review) => r.listingId === listing.id && r.isApproved);
+          const correctCount = listingReviews.length;
+          let correctAvg = 0;
+          if (correctCount > 0) {
+            const totalRating = listingReviews.reduce((sum: number, r: Review) => sum + r.rating, 0);
+            correctAvg = Number((totalRating / correctCount).toFixed(1));
           }
-        }
-      });
+          if (listing.reviewCount !== correctCount || listing.averageRating !== correctAvg) {
+            try {
+              await updateDoc(doc(db, 'listings', listing.id), {
+                reviewCount: correctCount,
+                averageRating: correctAvg
+              });
+              console.log(`Auto-repaired rating for ${listing.name} (${listing.reviewCount} -> ${correctCount})`);
+            } catch (e) {
+              console.error(`Failed to auto-repair ${listing.name}`, e);
+            }
+          }
+        });
+      }
 
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'admin_dashboard');

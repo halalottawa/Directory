@@ -512,9 +512,6 @@ export function renderHomeSSRHtml(data: {
 
             <!-- Categories - Merged Single Responsive Component -->
             <section class="space-y-4 mb-8">
-              <p class="text-gray-600 text-sm md:text-base leading-relaxed max-w-3xl mx-auto text-center m-0">
-                Explore Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Browse by category or neighbourhood to find local options and community updates.
-              </p>
               <div class="relative group">
                 <button aria-label="Scroll categories left" class="hidden md:flex absolute -left-6 top-1/2 -translate-y-1/2 shrink-0 w-8 h-8 bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-sm rounded-full items-center justify-center text-gray-500 hover:text-[#c4082c] transition-all duration-300 hover:scale-110 hover:bg-white z-10">
                   <svg class="w-4 h-4 transition-transform hover:-translate-x-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
@@ -1745,19 +1742,24 @@ export function renderAuthorSSRHtml(authorData: any = {}, articles: any[] = []):
 }
 
 /**
- * Static HTML for 404 Not Found Pages
+ * Static HTML for 404 Not Found / 410 Gone Pages
  */
-export function renderNotFoundSSRHtml(): string {
+export function renderNotFoundSSRHtml(statusCode: 404 | 410 = 404, customTitle?: string, customMessage?: string): string {
+  const heading = customTitle || (statusCode === 410 ? 'Content Permanently Removed' : 'Page Not Found');
+  const message = customMessage || (statusCode === 410
+    ? 'This listing or page has been permanently removed from Halal Ottawa.'
+    : "Sorry, we couldn't find the page you're looking for. Explore our verified Ottawa directories below.");
+
   return renderSSRLayoutShell(`
-    <div class="flex-1 w-full max-w-7xl mx-auto px-4 mt-8 lg:mt-12 mb-20 flex flex-col items-center justify-center" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-      <div class="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 flex flex-col items-center justify-center min-h-[50vh]">
-        <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto">
-          <span class="text-3xl font-bold text-[#e90b35]">404</span>
+    <main role="main" class="flex-1 w-full max-w-7xl mx-auto px-4 mt-8 lg:mt-12 mb-20 flex flex-col items-center justify-center" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <div role="status" aria-live="polite" class="bg-white p-8 md:p-12 rounded-3xl shadow-sm border border-gray-100 w-full text-center space-y-6 flex flex-col items-center justify-center min-h-[50vh]">
+        <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto" aria-hidden="true">
+          <span class="text-3xl font-bold text-[#e90b35]">${statusCode}</span>
         </div>
         
         <div class="space-y-2 max-w-md mx-auto">
-          <h1 class="text-2xl font-bold text-gray-900 m-0">Page Not Found</h1>
-          <p class="text-gray-500 m-0">Sorry, we couldn't find the page you're looking for.</p>
+          <h1 class="text-2xl font-bold text-gray-900 m-0">${escapeHtmlText(heading)}</h1>
+          <p class="text-gray-500 m-0">${escapeHtmlText(message)}</p>
         </div>
 
         <div class="pt-4 flex flex-col sm:flex-row gap-3 justify-center w-full max-w-md mx-auto">
@@ -1768,8 +1770,21 @@ export function renderNotFoundSSRHtml(): string {
             Browse All Listings
           </a>
         </div>
+
+        <nav aria-label="Popular Ottawa Halal Categories" class="pt-4 border-t border-gray-100 w-full max-w-lg mx-auto">
+          <p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Explore Popular Categories</p>
+          <div class="flex flex-wrap justify-center gap-2">
+            <a href="/restaurants" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Restaurants</a>
+            <a href="/mosques" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Mosques</a>
+            <a href="/grocery" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Grocery</a>
+            <a href="/butchers" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Butchers</a>
+            <a href="/schools" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Schools</a>
+            <a href="/organizations" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">Organizations</a>
+            <a href="/news" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-red-50 hover:text-[#e90b35] text-decoration-none">News</a>
+          </div>
+        </nav>
       </div>
-    </div>
+    </main>
   `);
 }
 

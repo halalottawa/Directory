@@ -236,21 +236,31 @@ export const Listings: React.FC = () => {
     return () => observer.disconnect();
   }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
+  const hasActiveSearchOrFilter =
+    Boolean(searchQuery.trim()) ||
+    !activeCategories.includes('All') ||
+    currentPage > 1 ||
+    Array.from(searchParams.keys()).some((k) =>
+      ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
+    );
+  const isEmptyState = filteredListings.length === 0;
+  const shouldNoindex = hasActiveSearchOrFilter || isEmptyState;
+
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
-        title="Listings" 
+        title="Browse Halal Directories in Ottawa - Restaurants, Mosques & Places" 
         description="Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community." 
         canonicalUrl={getCanonicalUrl("/listings")} 
-        noindex={true}
-        robots="noindex, follow"
-        structuredData={buildCategoryStructuredData({
+        noindex={shouldNoindex}
+        robots={isEmptyState ? "noindex, nofollow" : shouldNoindex ? "noindex, follow" : "index, follow"}
+        structuredData={!shouldNoindex ? buildCategoryStructuredData({
           urlPath: "/listings",
           title: "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places",
           description: "Browse our comprehensive directory of Halal businesses, organizations, and places in the Ottawa Muslim community.",
           categoryLabel: "Listings",
           listings: currentListings
-        })}
+        }) : undefined}
       />
 
       <div className="flex justify-between items-center">

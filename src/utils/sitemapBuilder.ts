@@ -24,7 +24,6 @@ export const RESTAURANT_SUBCATEGORIES = [
 ] as const;
 
 const DISALLOWED_EXACT_PATHS = new Set([
-  '/listings',
   '/admin',
   '/login',
   '/register',
@@ -264,7 +263,15 @@ export function buildMainSitemapXml(
     sortGroup: 0,
   });
 
-  // 2. News Hub & Author Page
+  // 2. Directory Hub (/listings), News Hub & Author Page
+  if (approvedListings.length > 0) {
+    upsertEntry({
+      loc: `${CANONICAL_BASE_URL}/listings`,
+      lastmodDate: getLatestDate(allListingDates),
+      sortGroup: 1,
+    });
+  }
+
   upsertEntry({
     loc: `${CANONICAL_BASE_URL}/news`,
     lastmodDate: getLatestDate(allNewsDates),
@@ -281,7 +288,7 @@ export function buildMainSitemapXml(
     sortGroup: 1,
   });
 
-  // 3. Main Category Hubs (7)
+  // 3. Main Category Hubs (only included when >= 1 approved listing exists)
   for (const [slug, catName] of Object.entries(MAIN_CATEGORIES_MAP)) {
     const catListings = approvedListings.filter((l) => {
       const catArray = Array.isArray(l.category) ? l.category : l.category ? [l.category] : [];
@@ -291,11 +298,13 @@ export function buildMainSitemapXml(
           normalizeCategoryToSlug(String(c)) === slug
       );
     });
-    upsertEntry({
-      loc: `${CANONICAL_BASE_URL}/${slug}`,
-      lastmodDate: getLatestDate(catListings.map(getListingLastmod)),
-      sortGroup: 1,
-    });
+    if (catListings.length > 0) {
+      upsertEntry({
+        loc: `${CANONICAL_BASE_URL}/${slug}`,
+        lastmodDate: getLatestDate(catListings.map(getListingLastmod)),
+        sortGroup: 1,
+      });
+    }
   }
 
   // 4. Static Informational & Tool Pages (no synthetic lastmod)
@@ -307,7 +316,7 @@ export function buildMainSitemapXml(
     });
   }
 
-  // 5. Restaurant Neighbourhood Hubs (4)
+  // 5. Restaurant Neighbourhood Hubs (only included when >= 1 approved listing exists)
   for (const loc of RESTAURANT_LOCATIONS) {
     const locListings = approvedListings.filter((l) => {
       const catArray = Array.isArray(l.category) ? l.category : l.category ? [l.category] : [];
@@ -315,11 +324,13 @@ export function buildMainSitemapXml(
       if (!isRestaurant) return false;
       return getNeighborhoodFromAddress(l.address || '', l.suburb || '') === loc;
     });
-    upsertEntry({
-      loc: `${CANONICAL_BASE_URL}/restaurants/${loc}`,
-      lastmodDate: getLatestDate(locListings.map(getListingLastmod)),
-      sortGroup: 2,
-    });
+    if (locListings.length > 0) {
+      upsertEntry({
+        loc: `${CANONICAL_BASE_URL}/restaurants/${loc}`,
+        lastmodDate: getLatestDate(locListings.map(getListingLastmod)),
+        sortGroup: 2,
+      });
+    }
   }
 
   // 6. Populated Restaurant Subcategory Hubs (only included when >= 1 approved listing exists)
@@ -327,12 +338,21 @@ export function buildMainSitemapXml(
     const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
     const subListings = approvedListings.filter((l) => {
       const catArray = Array.isArray(l.category) ? l.category : l.category ? [l.category] : [];
+      const isRestaurant = catArray.some((c: any) => {
+        const norm = normalizeCompare(c);
+        return norm === 'restaurants' || norm === 'bakery' || norm === 'cafe' || norm === 'dessert';
+      });
+      if (!isRestaurant) return false;
       const typesArray = Array.isArray(l.types) ? l.types : l.types ? [l.types] : [];
       const cuisinesArray = Array.isArray(l.cuisine) ? l.cuisine : l.cuisine ? [l.cuisine] : [];
+      const matchItem = (val: any) => {
+        const norm = normalizeCompare(val);
+        return norm === cleanSub || norm === sub || (cleanSub === 'sandwiches' && norm === 'sandwiches subs') || (cleanSub === 'smoothies' && norm === 'juice smoothies');
+      };
       return (
-        catArray.some((c: any) => normalizeCompare(c) === cleanSub) ||
-        typesArray.some((t: any) => normalizeCompare(t) === cleanSub) ||
-        cuisinesArray.some((c: any) => normalizeCompare(c) === cleanSub)
+        catArray.some(matchItem) ||
+        typesArray.some(matchItem) ||
+        cuisinesArray.some(matchItem)
       );
     });
     if (subListings.length > 0) {

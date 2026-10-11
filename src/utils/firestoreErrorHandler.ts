@@ -24,7 +24,36 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export function isFirestoreQuotaErrorClient(err: unknown): boolean {
+  if (!err) return false;
+  const code = (err as any)?.code;
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    code === 'resource-exhausted' ||
+    msg.includes('Quota limit exceeded') ||
+    msg.includes('Quota exceeded') ||
+    msg.includes('resource-exhausted')
+  );
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  if (isFirestoreQuotaErrorClient(error)) {
+    console.warn(`[Firestore Quota Fallback] Quota reached during ${operationType} on ${path || 'unknown'}`);
+    if (
+      operationType === OperationType.CREATE ||
+      operationType === OperationType.UPDATE ||
+      operationType === OperationType.DELETE ||
+      operationType === OperationType.WRITE
+    ) {
+      import('sonner')
+        .then(({ toast }) => {
+          toast.error('Daily database quota reached. Please try again after the quota resets.');
+        })
+        .catch(() => {});
+    }
+    return;
+  }
+
   let currentUser: any = null;
   try {
     currentUser = (globalThis as any).__FIREBASE_AUTH_INSTANCE__?.currentUser ?? null;

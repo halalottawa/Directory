@@ -154,6 +154,9 @@ export const News: React.FC = () => {
     return () => observer.disconnect();
   }, [shouldUseInfiniteScroll, currentPage, totalPages]);
 
+  const isEmptyNewsState = currentNews.length === 0;
+  const hasActiveNewsFilter = Boolean(searchQuery.trim()) || currentPage > 1 || isEmptyNewsState;
+
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
       <SEO 
@@ -161,11 +164,13 @@ export const News: React.FC = () => {
         description="Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region." 
         canonicalUrl={getCanonicalUrl("/news")} 
         disableSuffix={true}
-        structuredData={buildNewsListStructuredData({
+        noindex={hasActiveNewsFilter}
+        robots={isEmptyNewsState ? "noindex, nofollow" : hasActiveNewsFilter ? "noindex, follow" : "index, follow"}
+        structuredData={!hasActiveNewsFilter ? buildNewsListStructuredData({
           title: "Ottawa News - Halal Ottawa",
           description: "Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region.",
           articles: filteredNews
-        })}
+        }) : undefined}
       />
 
       <div className="flex justify-between items-center gap-4">
@@ -191,6 +196,7 @@ export const News: React.FC = () => {
         <input
           type="text"
           placeholder="Search community news, announcements, and articles..."
+          aria-label="Search community news, announcements, and articles"
           className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-[#e90b35]"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -198,12 +204,21 @@ export const News: React.FC = () => {
       </div>
 
       {currentNews.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm max-w-lg mx-auto">
-          <Newspaper className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-gray-800">No News Found</h3>
-          <p className="text-gray-500 text-sm mt-1">
+        <div role="status" aria-live="polite" className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm max-w-lg mx-auto space-y-4">
+          <Newspaper className="w-12 h-12 text-gray-300 mx-auto mb-1" aria-hidden="true" />
+          <h2 className="text-lg font-bold text-gray-800">No News Found</h2>
+          <p className="text-gray-500 text-sm">
             {searchQuery ? `No articles matching "${searchQuery}".` : 'No community news published yet.'}
           </p>
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="inline-flex items-center justify-center px-5 py-2.5 bg-[#e90b35] text-white text-sm font-bold rounded-xl hover:bg-[#d00a2f] transition-colors"
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">

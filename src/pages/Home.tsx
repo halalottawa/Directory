@@ -307,9 +307,6 @@ export const Home: React.FC = () => {
 
         {/* Categories - Merged Single Responsive Component */}
         <section className="space-y-4 mb-8">
-          <p className="text-gray-600 text-sm md:text-base leading-relaxed max-w-3xl mx-auto text-center">
-            Explore Ottawa halal restaurants, mosques, grocery stores, butchers, clothing stores, Islamic schools, and Muslim organizations. Browse by category or neighbourhood to find local options and community updates.
-          </p>
           <div className="relative group">
             <button 
               onClick={scrollPrevCategories}

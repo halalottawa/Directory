@@ -28,15 +28,6 @@
       ]
     },
     {
-      "source": "/listings",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, follow"
-        }
-      ]
-    },
-    {
       "source": "/(.*)",
       "headers": [
         {
@@ -50,6 +41,7 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/qibla", "destination": "/tools/qibla", "permanent": true },
+    { "source": "/signup", "destination": "/login", "permanent": true },
     { "source": "/author", "destination": "/author/youssef-agrebi", "permanent": true },
     { "source": "/authors", "destination": "/author/youssef-agrebi", "permanent": true },
     { "source": "/authors/:slug", "destination": "/author/youssef-agrebi", "permanent": true },
@@ -61,9 +53,13 @@
     { "source": "/islamic schools/:slug", "destination": "/schools/:slug", "permanent": true },
     { "source": "/restaurants/caf%C3%A9s", "destination": "/restaurants/cafes", "permanent": true },
     { "source": "/restaurants/cafés", "destination": "/restaurants/cafes", "permanent": true },
+    { "source": "/restaurants/cafe", "destination": "/restaurants/cafes", "permanent": true },
     { "source": "/caf%C3%A9s", "destination": "/restaurants/cafes", "permanent": true },
     { "source": "/cafés", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/:sub(bakery|pizza|burgers|cafes|seafood|steakhouse|shawarma|poutine|brunch|breakfast|pho|ramen|fried-chicken|buffet|tacos|turkish|middle-eastern|moroccan|lebanese|syrian|pakistani|afghani|indian|persian|chinese|mediterranean|thai|korean|italian|bangladeshi|mexican|ethiopian)", "destination": "/restaurants/:sub", "permanent": true }
+    { "source": "/cafe", "destination": "/restaurants/cafes", "permanent": true },
+    { "source": "/restaurants/afghan", "destination": "/restaurants/afghani", "permanent": true },
+    { "source": "/afghan", "destination": "/restaurants/afghani", "permanent": true },
+    { "source": "/:sub(bakery|pizza|burgers|cafes|seafood|steakhouse|shawarma|poutine|brunch|breakfast|pho|fried-chicken|buffet|tacos|turkish|middle-eastern|moroccan|lebanese|syrian|pakistani|afghani|indian|persian|chinese|mediterranean|thai|italian|bangladeshi|mexican|ethiopian)", "destination": "/restaurants/:sub", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/api/$1" },

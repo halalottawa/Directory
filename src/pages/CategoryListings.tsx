@@ -63,7 +63,7 @@ const LOCATION_BOUNDARIES: Record<string, {
 };
 
 const normalizeCompare = (val: string): string =>
-  String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/&/g, '').replace(/\s+/g, ' ');
 
 const getCleanCategoriesAndTags = (listing: any) => {
   const findCanonical = (val: string, list: readonly any[]): string | undefined => {
@@ -128,7 +128,11 @@ export const CategoryListings: React.FC = () => {
     : '';
     
   const isMainCategory = CATEGORIES.map(c => normalizeCompare(c)).includes(normalizeCompare(rawFormattedCategory));
-  const matchedType = LISTING_TYPES.find(t => normalizeCompare(t) === normalizeCompare(rawFormattedCategory));
+  const matchedType = LISTING_TYPES.find(t => {
+    const normT = normalizeCompare(t);
+    const normCat = normalizeCompare(rawFormattedCategory);
+    return normT === normCat || (normCat === 'sandwiches' && normT === 'sandwiches subs') || (normCat === 'smoothies' && normT === 'juice smoothies');
+  });
   const matchedCuisine = CUISINES.find(c => normalizeCompare(c) === normalizeCompare(rawFormattedCategory));
   const matchedLocation = ['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].find(l => normalizeCompare(l) === normalizeCompare(rawFormattedCategory));
   const isLocationCategory = !!matchedLocation;
@@ -524,20 +528,24 @@ export const CategoryListings: React.FC = () => {
   const currentGuide = currentLocationKey ? locationGuides[currentLocationKey] : null;
 
   const canonicalCategoryPageUrl = getCanonicalUrl(pathname);
-  const hasFilterOrSessionQuery = Array.from(searchParams.keys()).some((k) =>
-    ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
-  );
-  const shouldNoindexCategoryPage = filteredListings.length === 0 || hasFilterOrSessionQuery;
+  const hasFilterOrSessionQuery =
+    Boolean(searchQuery.trim()) ||
+    currentPage > 1 ||
+    Array.from(searchParams.keys()).some((k) =>
+      ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
+    );
+  const isEmptyCategoryPage = filteredListings.length === 0;
+  const shouldNoindexCategoryPage = isEmptyCategoryPage || hasFilterOrSessionQuery;
   const isRestaurantSub = isUnderRestaurants && pathname !== '/restaurants';
 
-  const structuredDataList = buildCategoryStructuredData({
+  const structuredDataList = !shouldNoindexCategoryPage ? buildCategoryStructuredData({
     urlPath: pathname,
     title: pageTitle,
     description: seoDescription,
     categoryLabel: formattedCategory,
     isRestaurantSubcategory: isRestaurantSub,
     listings: filteredListings
-  });
+  }) : undefined;
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto">
@@ -547,7 +555,7 @@ export const CategoryListings: React.FC = () => {
         canonicalUrl={canonicalCategoryPageUrl} 
         disableSuffix={true}
         noindex={shouldNoindexCategoryPage}
-        robots={shouldNoindexCategoryPage ? 'noindex, follow' : undefined}
+        robots={isEmptyCategoryPage ? 'noindex, nofollow' : shouldNoindexCategoryPage ? 'noindex, follow' : 'index, follow'}
         structuredData={structuredDataList}
       />
 
