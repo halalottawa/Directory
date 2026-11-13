@@ -7,25 +7,28 @@ if (typeof window !== 'undefined' && window.location.hostname === 'halalottawa.c
   window.location.replace(`https://www.halalottawa.ca${window.location.pathname}${window.location.search}${window.location.hash}`);
 }
 
-// Proactively set session cookies on client to prevent proxy redirects in iframes
-if (typeof document !== 'undefined') {
+// Only set legacy sandbox cookies inside AI Studio preview hosts
+if (typeof document !== 'undefined' && typeof window !== 'undefined') {
   try {
-    const isHttps = window.location.protocol === 'https:';
-    const maxAge = '; max-age=2592000';
-    if (!document.cookie.includes('__session=')) {
-      if (isHttps) {
-        document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
-        document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
-      } else {
-        document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+    const h = window.location.hostname;
+    if (h.includes('ais-dev-') || h.includes('ais-pre-')) {
+      const isHttps = window.location.protocol === 'https:';
+      const maxAge = '; max-age=2592000';
+      if (!document.cookie.includes('__session=')) {
+        if (isHttps) {
+          document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+          document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
+        } else {
+          document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
+        }
       }
-    }
-    if (!document.cookie.includes('cookie_check=')) {
-      if (isHttps) {
-        document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
-        document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
-      } else {
-        document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
+      if (!document.cookie.includes('cookie_check=')) {
+        if (isHttps) {
+          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
+          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
+        } else {
+          document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
+        }
       }
     }
   } catch (e) {}

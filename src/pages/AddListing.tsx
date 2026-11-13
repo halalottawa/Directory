@@ -6,7 +6,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { generateSlug, getUniqueSlug } from '../utils/slugify';
+import { generateSlug, findListingSlugConflict } from '../utils/slugify';
 import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
 import { uploadFile, uploadFromUrl } from '../utils/storageUtils';
@@ -20,6 +20,7 @@ export const AddListing: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ message: string; existingUrl?: string } | null>(null);
   const [isDetectingSuburb, setIsDetectingSuburb] = useState(false);
   const [menuInputType, setMenuInputType] = useState<'pdf' | 'items'>('pdf');
   const [formData, setFormData] = useState({
@@ -222,8 +223,28 @@ export const AddListing: React.FC = () => {
       return;
     }
 
+    setDuplicateWarning(null);
     setLoading(true);
     try {
+      const isAdmin = user.role === 'admin';
+      const baseSlug = isAdmin && formData.slug
+        ? generateSlug(formData.slug)
+        : generateSlug(formData.name);
+
+      const conflictCheck = await findListingSlugConflict(db, baseSlug);
+      if (conflictCheck.conflict) {
+        const existingUrl = `/${conflictCheck.existingCategory || 'restaurants'}/${conflictCheck.existingSlug || baseSlug}`;
+        const warnMsg = isAdmin
+          ? `Blocked: A listing named "${conflictCheck.existingName || formData.name}" already exists (slug "${baseSlug}"). Duplicate "-1" slugs are not allowed.`
+          : `A listing named "${conflictCheck.existingName || formData.name}" already exists in our directory.`;
+        setDuplicateWarning({ message: warnMsg, existingUrl });
+        toast.error(warnMsg);
+        setLoading(false);
+        return;
+      }
+
+      const uniqueSlug = baseSlug;
+
       let finalSuburb = formData.suburb;
       if (!finalSuburb && formData.address.trim()) {
         try {
@@ -235,12 +256,6 @@ export const AddListing: React.FC = () => {
           console.warn('On submit suburb detection failed:', subErr);
         }
       }
-
-      const isAdmin = user.role === 'admin';
-      const baseSlug = isAdmin && formData.slug 
-        ? generateSlug(formData.slug) 
-        : generateSlug(formData.name);
-      const uniqueSlug = await getUniqueSlug(db, 'listings', baseSlug);
 
       const processedPhotos = await Promise.all(
         formData.photos.filter(p => p.trim() !== '').map(async (photoUrl, idx) => {
@@ -300,6 +315,23 @@ export const AddListing: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Add Listing</h1>
           <p className="text-gray-500">Submit a new halal listing to the community.</p>
         </div>
+
+        {duplicateWarning && (
+          <div role="alert" className="p-4 bg-amber-50 text-amber-900 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <span className="text-sm font-medium">{duplicateWarning.message}</span>
+            </div>
+            {duplicateWarning.existingUrl && (
+              <a
+                href={duplicateWarning.existingUrl}
+                className="text-xs font-bold text-[#e90b35] hover:underline whitespace-nowrap"
+              >
+                View existing listing &rarr;
+              </a>
+            )}
+          </div>
+        )}
 
         {showSuccess && (
           <div className="p-4 bg-green-50 text-green-700 rounded-2xl border border-green-100 animate-in fade-in slide-in-from-top-2 flex items-center gap-3">

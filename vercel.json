@@ -1,69 +1,81 @@
 {
-  "headers": [
-    {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/fonts/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/uploads/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "x-vercel-enable-rewrite-caching",
-          "value": "1"
-        }
-      ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "{dist/template.spa.html,dist/index.html,firebase-applet-config.json,redirects.json,public/*.txt,public/*.xml}"
     }
-  ],
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "redirects": [
-    { "source": "/qibla", "destination": "/tools/qibla", "permanent": true },
-    { "source": "/signup", "destination": "/login", "permanent": true },
-    { "source": "/author", "destination": "/author/youssef-agrebi", "permanent": true },
-    { "source": "/authors", "destination": "/author/youssef-agrebi", "permanent": true },
-    { "source": "/authors/:slug", "destination": "/author/youssef-agrebi", "permanent": true },
-    { "source": "/events", "destination": "/", "permanent": true },
-    { "source": "/events/:slug*", "destination": "/", "permanent": true },
-    { "source": "/jobs", "destination": "/", "permanent": true },
-    { "source": "/jobs/:slug*", "destination": "/", "permanent": true },
-    { "source": "/islamic%20schools/:slug", "destination": "/schools/:slug", "permanent": true },
-    { "source": "/islamic schools/:slug", "destination": "/schools/:slug", "permanent": true },
-    { "source": "/restaurants/caf%C3%A9s", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/restaurants/cafés", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/restaurants/cafe", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/caf%C3%A9s", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/cafés", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/cafe", "destination": "/restaurants/cafes", "permanent": true },
-    { "source": "/restaurants/afghan", "destination": "/restaurants/afghani", "permanent": true },
-    { "source": "/afghan", "destination": "/restaurants/afghani", "permanent": true },
-    { "source": "/:sub(bakery|pizza|burgers|cafes|seafood|steakhouse|shawarma|poutine|brunch|breakfast|pho|fried-chicken|buffet|tacos|turkish|middle-eastern|moroccan|lebanese|syrian|pakistani|afghani|indian|persian|chinese|mediterranean|thai|italian|bangladeshi|mexican|ethiopian)", "destination": "/restaurants/:sub", "permanent": true }
-  ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/api/$1" },
-    { "source": "/uploads/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/uploads/$1" },
-    { "source": "/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/$1" }
+  },
+  "routes": [
+    {
+      "src": "^/assets/(.*)$",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    {
+      "src": "^/fonts/(.*)$",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    {
+      "src": "^/uploads/(.*)$",
+      "headers": { "Cache-Control": "public, max-age=31536000, immutable" },
+      "continue": true
+    },
+    {
+      "src": "^/$",
+      "has": [{ "type": "query", "key": "p" }],
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(?:.*\\/)?feed/?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/comments/feed/?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/listing-tag(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/wp-.*$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/xmlrpc\\.php$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/app-ads\\.txt/?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(sitemap\\.xml|sitemap-news\\.xml)$",
+      "headers": { "x-vercel-enable-rewrite-caching": "1" },
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(listings|restaurants|mosques|organizations|grocery|clothing|schools|butchers)$",
+      "headers": { "x-vercel-enable-rewrite-caching": "1" },
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/restaurants/(.*)$",
+      "headers": { "x-vercel-enable-rewrite-caching": "1" },
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(?!api/)(.+)/$",
+      "dest": "/api/index"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "^/(.*)$",
+      "headers": { "x-vercel-enable-rewrite-caching": "1" },
+      "dest": "/api/index"
+    }
   ]
 }

@@ -169,9 +169,15 @@ export const News: React.FC = () => {
         structuredData={!hasActiveNewsFilter ? buildNewsListStructuredData({
           title: "Ottawa News - Halal Ottawa",
           description: "Stay up to date with the latest stories, local community announcements, highlights, and Muslim lifestyle news in the Ottawa region.",
-          articles: filteredNews
+          articles: currentNews
         }) : undefined}
       />
+
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+        <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+        <span className="text-gray-300">›</span>
+        <span className="font-semibold text-gray-900" aria-current="page">News</span>
+      </nav>
 
       <div className="flex justify-between items-center gap-4">
         <div className="flex items-center gap-3">

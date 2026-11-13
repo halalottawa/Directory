@@ -633,10 +633,27 @@ export function renderCategorySSRHtml(options: {
   formattedCategory: string;
   urlPath: string;
   listings: any[];
+  introText?: string;
+  currentPage?: number;
 }): string {
-  const { h1Text, description, formattedCategory, urlPath, listings } = options;
+  const { h1Text, formattedCategory, urlPath, listings, introText, currentPage = 1 } = options;
   const isUnderRestaurants = urlPath.startsWith('/restaurants') || urlPath.startsWith('/restaurants/');
-  const cleanUrlPath = urlPath.replace(/\/+$/, '');
+  const cleanUrlPath = urlPath.replace(/\/+$/, '') || '/';
+  const itemsPerPage = 18;
+  const totalPages = Math.max(1, Math.ceil(listings.length / itemsPerPage));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const currentListings = listings.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+
+  const trimmedIntro = typeof introText === 'string' ? introText.trim() : '';
+  const introParagraphs = trimmedIntro
+    ? trimmedIntro.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    : [];
+  const introBlockHtml = introParagraphs.length > 0
+    ? `<div class="bg-white border border-gray-100 rounded-2xl p-4 md:p-6 shadow-sm space-y-3 text-sm md:text-base text-gray-700 leading-relaxed">
+        ${introParagraphs.map((p) => `<p class="m-0">${escapeHtmlText(p).replace(/\n/g, '<br />')}</p>`).join('\n        ')}
+      </div>`
+    : '';
+
   const categories = [
     { name: 'Restaurants', slug: 'restaurants' },
     { name: 'Mosques', slug: 'mosques' },
@@ -655,7 +672,7 @@ export function renderCategorySSRHtml(options: {
     return `<a href="/${cat.slug}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all text-decoration-none ${activeClass}">${escapeHtmlText(cat.name)}</a>`;
   }).join('\n');
 
-  const listingsCardsHtml = listings.length > 0 ? listings.map((l, idx) => {
+  const listingsCardsHtml = currentListings.length > 0 ? currentListings.map((l, idx) => {
     let catSlug = 'listings';
     if (Array.isArray(l.category) && l.category.length > 0) {
       catSlug = normalizeCategoryToSlug(l.category[0]);
@@ -665,8 +682,10 @@ export function renderCategorySSRHtml(options: {
     const listingUrl = `/${catSlug}/${l.slug || l.id}`;
     const photoUrl = (l.photos && l.photos.length > 0) ? l.photos[0] : (l.coverImage || '/ottawa-sunset.webp');
     const optimizedPhoto = getOptimizedImageUrlSSR(photoUrl, 400, 192) || photoUrl;
-    const rating = l.averageRating ? Number(l.averageRating).toFixed(1) : '5.0';
-    const reviewCount = l.reviewCount || 0;
+    const reviewCount = Number(l.reviewCount) || 0;
+    const numericRating = Number(l.averageRating) || 0;
+    const hasReviews = reviewCount > 0 && numericRating > 0;
+    const rating = numericRating.toFixed(1);
     const address = l.address ? escapeHtmlText(l.address.split(',')[0]) : 'Ottawa, ON';
     const mainCat = Array.isArray(l.category) ? (l.category[0] || 'Listing') : (l.category || 'Listing');
     const isEager = idx < 4;
@@ -697,10 +716,11 @@ export function renderCategorySSRHtml(options: {
         <div>
           <div class="flex justify-between items-start">
             <h2 class="font-bold text-lg leading-tight group-hover:text-[#e90b35] transition-colors m-0 text-gray-900">${escapeHtmlText(l.name)}</h2>
+            ${hasReviews ? `
             <div class="flex items-center gap-1 text-xs font-bold bg-yellow-50 text-yellow-700 px-2 py-1 rounded-lg">
               <svg class="w-3 h-3 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
               <span>${rating}</span>
-            </div>
+            </div>` : ''}
           </div>
           <div class="text-gray-500 text-sm mt-1 flex items-center justify-between flex-wrap gap-2">
             <span class="flex items-center gap-2">
@@ -714,29 +734,41 @@ export function renderCategorySSRHtml(options: {
           </div>` : ''}
         </div>
         <div class="mt-4 flex justify-between items-center">
-          <span class="text-xs text-gray-400">${reviewCount} reviews</span>
+          <span class="text-xs text-gray-400">${hasReviews ? `${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}` : 'Be the first to review'}</span>
         </div>
       </div>
     </a>`;
   }).join('\n') : `
     <div class="col-span-full text-center py-12 px-4 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-      <p class="text-gray-900 text-base font-semibold mb-2">Verified ${escapeHtmlText(formattedCategory)} in Ottawa</p>
-      <p class="text-gray-500 text-sm mb-4">Explore local halal dining options, browse nearby neighborhoods, or submit a new community listing.</p>
-      <a href="/restaurants" class="inline-block bg-[#e90b35] text-white px-5 py-2 rounded-full font-bold text-sm text-decoration-none shadow-sm hover:bg-[#d00a2f]">View All Halal Restaurants</a>
+      <p class="text-gray-900 text-base font-semibold mb-2">No verified ${escapeHtmlText(formattedCategory.toLowerCase())} listings found right now.</p>
+      <p class="text-gray-500 text-sm mb-4">Explore local halal options across Ottawa, browse nearby neighborhoods, or submit a new community listing.</p>
+      <a href="/restaurants" class="inline-block bg-[#e90b35] text-white px-5 py-2 rounded-full font-bold text-sm text-decoration-none shadow-sm hover:bg-[#d00a2f]">Browse All Halal Restaurants</a>
     </div>`;
 
+  const paginationHtml = totalPages > 1 ? `
+    <nav aria-label="Pagination" class="flex justify-center items-center gap-2 pt-6 pb-8">
+      ${Array.from({ length: totalPages }).map((_, i) => {
+        const pageNum = i + 1;
+        const href = pageNum === 1 ? cleanUrlPath : `${cleanUrlPath}?page=${pageNum}`;
+        const activeClass = pageNum === safePage
+          ? 'bg-[#e90b35] text-white'
+          : 'bg-white text-gray-500 border border-gray-100 hover:bg-gray-50';
+        return `<a href="${escapeHtmlAttr(href)}" class="w-9 h-9 md:w-10 md:h-10 rounded-xl font-bold text-xs md:text-sm flex items-center justify-center text-decoration-none transition-all ${activeClass}">${pageNum}</a>`;
+      }).join('\n      ')}
+    </nav>` : '';
+
   const breadcrumbsHtml = isUnderRestaurants && cleanUrlPath !== '/restaurants'
-    ? `<nav aria-label="Breadcrumbs" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+    ? `<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
         <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
         <span class="text-gray-400">›</span>
         <a href="/restaurants" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Restaurants</a>
         <span class="text-gray-400">›</span>
-        <span class="font-semibold text-gray-900">${escapeHtmlText(formattedCategory)}</span>
+        <span class="font-semibold text-gray-900" aria-current="page">${escapeHtmlText(formattedCategory)}</span>
       </nav>`
-    : `<nav aria-label="Breadcrumbs" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+    : `<nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
         <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
         <span class="text-gray-400">›</span>
-        <span class="font-semibold text-gray-900">${escapeHtmlText(formattedCategory)}</span>
+        <span class="font-semibold text-gray-900" aria-current="page">${escapeHtmlText(formattedCategory)}</span>
       </nav>`;
 
   return renderSSRLayoutShell(`
@@ -744,10 +776,7 @@ export function renderCategorySSRHtml(options: {
       ${breadcrumbsHtml}
 
       <div class="flex justify-between items-center">
-        <div>
-          <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">${escapeHtmlText(h1Text)}</h1>
-          <p class="text-sm text-gray-500 mt-1 max-w-3xl leading-relaxed m-0">${escapeHtmlText(description)}</p>
-        </div>
+        <h1 class="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">${escapeHtmlText(h1Text)}</h1>
         <a href="/listings/add" class="bg-[#e90b35] text-white p-2 md:p-3 rounded-full shadow-lg text-sm font-bold flex items-center justify-center hover:bg-[#d00a2f] text-decoration-none shrink-0" title="Add New Listing">
           <svg class="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
         </a>
@@ -765,9 +794,13 @@ export function renderCategorySSRHtml(options: {
         </div>
       </div>
 
+      ${introBlockHtml}
+
       <div class="grid md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">
         ${listingsCardsHtml}
       </div>
+
+      ${paginationHtml}
     </div>
   `);
 }
@@ -790,7 +823,10 @@ export function renderListingDetailSSRHtml(listing: any): string {
 
   const typesArray = Array.isArray(listing.types) ? listing.types : (listing.types ? [listing.types] : []);
   const cuisinesArray = Array.isArray(listing.cuisine) ? listing.cuisine : (listing.cuisine ? [listing.cuisine] : []);
-  const tags = Array.from(new Set([...typesArray, ...cuisinesArray])).filter(Boolean).slice(0, 2);
+  const tags = Array.from(new Set([...typesArray, ...cuisinesArray, ...catArray.slice(1)])).filter(Boolean);
+  const isPremium = listing.plan === 'premium';
+  const hasVisibleMenu = isPremium && Boolean(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) && !String(listing.name || '').toLowerCase().includes('jamia islamia');
+  const fullVisibleAddress = address + (listing.suburb && !address.toLowerCase().includes(String(listing.suburb).toLowerCase()) ? ` (${listing.suburb})` : '');
 
   const tagsHtml = tags.map(tag => `
     <span class="bg-red-50 text-[#e90b35] border border-red-100 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wide uppercase">
@@ -855,26 +891,27 @@ export function renderListingDetailSSRHtml(listing: any): string {
               <div class="flex items-center gap-3 flex-wrap">
                 <h1 class="text-2xl font-bold leading-tight m-0 text-white">${escapeHtmlText(listing.name)}</h1>
               </div>
+              ${reviewCount > 0 && Number(listing.averageRating) > 0 ? `
               <div class="flex items-center gap-4 mt-2 text-sm">
                 <div class="flex items-center gap-1">
                   <span class="text-yellow-400">★</span>
                   <span class="font-bold">${rating}</span>
                   <span class="text-white/70 text-xs">(${reviewCount} reviews)</span>
                 </div>
-              </div>
+              </div>` : ''}
             </div>
           </div>
         </div>
 
         <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
           <!-- Breadcrumbs -->
-          <div class="hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+          <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
             <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
             <span class="text-gray-300">›</span>
             <a href="/${catSlug}" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">${escapeHtmlText(mainCategory)}</a>
             <span class="text-gray-300">›</span>
-            <span class="text-gray-900 truncate max-w-[200px] font-semibold">${escapeHtmlText(listing.name)}</span>
-          </div>
+            <span class="text-gray-900 truncate max-w-[260px] font-semibold" aria-current="page">${escapeHtmlText(listing.name)}</span>
+          </nav>
 
           <!-- 10-Column Layout matching ListingDetail.tsx -->
           <div class="grid grid-cols-1 lg:grid-cols-10 gap-8 mt-6">
@@ -915,7 +952,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
                   <span class="text-[10px] font-bold text-gray-500 uppercase">Website</span>
                 </a>` : ''}
 
-                ${(listing.menuUrl || listing.menuPdfUrl) ? `
+                ${hasVisibleMenu && (listing.menuUrl || listing.menuPdfUrl) ? `
                 <a href="${escapeHtmlAttr((listing.menuPdfUrl || listing.menuUrl)!.startsWith('http') ? (listing.menuPdfUrl || listing.menuUrl)! : `https://${(listing.menuPdfUrl || listing.menuUrl)!}`)}" target="_blank" rel="nofollow noopener noreferrer" class="flex flex-col items-center gap-2 text-decoration-none group">
                   <div class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-[#e90b35]">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -928,9 +965,9 @@ export function renderListingDetailSSRHtml(listing: any): string {
               <div class="border-b border-gray-100">
                 <div class="flex gap-8">
                   <span class="pb-4 font-bold text-sm text-[#e90b35] border-b-2 border-[#e90b35]">Overview</span>
-                  <span class="pb-4 font-bold text-sm text-gray-400">Reviews (${reviewCount})</span>
+                  <span class="pb-4 font-bold text-sm text-gray-400">Reviews</span>
                   ${(listing.photos && listing.photos.length > 1) ? `<span class="pb-4 font-bold text-sm text-gray-400">Photos (${listing.photos.length})</span>` : ''}
-                  ${(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) ? `<span class="pb-4 font-bold text-sm text-gray-400">Menu</span>` : ''}
+                  ${hasVisibleMenu ? `<span class="pb-4 font-bold text-sm text-gray-400">Menu</span>` : ''}
                 </div>
               </div>
 
@@ -942,8 +979,8 @@ export function renderListingDetailSSRHtml(listing: any): string {
                 </div>
               </section>
 
-              <!-- Menu Section (if present) -->
-              ${(listing.menuUrl || listing.menuPdfUrl || (listing.menuItems && listing.menuItems.length > 0)) ? `
+              <!-- Menu Section (if present and premium) -->
+              ${hasVisibleMenu ? `
               <div class="space-y-4 pt-4 border-t border-gray-50">
                 <div class="flex justify-between items-center">
                   <h2 class="text-xl font-bold flex items-center gap-2 m-0 text-gray-900">
@@ -965,11 +1002,13 @@ export function renderListingDetailSSRHtml(listing: any): string {
                 <div class="flex justify-between items-center">
                   <div>
                     <h2 class="text-xl font-bold m-0 text-gray-900">Reviews</h2>
+                    ${reviewCount > 0 && Number(listing.averageRating) > 0 ? `
                     <div class="flex items-center gap-2 mt-1">
                       <span class="text-yellow-400 font-bold text-lg">★</span>
                       <span class="font-bold text-gray-900 text-lg">${rating}</span>
                       <span class="text-gray-400 text-sm">(${reviewCount} reviews)</span>
-                    </div>
+                    </div>` : `
+                    <p class="text-gray-400 text-sm mt-2 m-0">No reviews yet. Be the first to review!</p>`}
                   </div>
                 </div>
               </section>
@@ -983,7 +1022,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
                 <h2 class="text-xl font-bold m-0 text-gray-900">Location</h2>
                 <div class="flex items-start gap-3 text-sm text-gray-600">
                   <span class="text-base text-[#e90b35] shrink-0 mt-0.5">📍</span>
-                  <span>${escapeHtmlText(address)}</span>
+                  <span>${escapeHtmlText(fullVisibleAddress)}</span>
                 </div>
                 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.name + ' ' + address)}" target="_blank" rel="nofollow noopener noreferrer" class="w-full py-3 bg-red-50 text-[#e90b35] font-bold rounded-xl hover:bg-red-100 transition-colors text-sm block text-center text-decoration-none">
                   Get Directions
@@ -1020,7 +1059,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
                   </a>
                 </div>` : ''}
 
-                ${(listing.menuUrl || listing.menuPdfUrl) ? `
+                ${hasVisibleMenu && (listing.menuUrl || listing.menuPdfUrl) ? `
                 <div class="flex items-center gap-4 text-sm text-gray-600 break-all pt-2">
                   <div class="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center text-[#e90b35] shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -1052,7 +1091,7 @@ export function renderListingDetailSSRHtml(listing: any): string {
               </div>` : ''}
 
               <!-- Social Media Card -->
-              ${(listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) ? `
+              ${isPremium && (listing.socialMedia && Object.values(listing.socialMedia).some(val => val)) ? `
               <div class="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
                 <h2 class="text-xl font-bold mb-4 m-0 text-gray-900">Social Media</h2>
                 <div class="flex flex-wrap gap-4">
@@ -1135,12 +1174,12 @@ export function renderNewsDetailSSRHtml(news: any): string {
       </div>
 
       <div class="p-6 space-y-8">
-        <nav aria-label="Breadcrumbs" class="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
           <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
           <span class="text-gray-300">›</span>
           <a href="/news" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">News</a>
           <span class="text-gray-300">›</span>
-          <span class="text-gray-900 truncate max-w-[260px] font-semibold">${escapeHtmlText(news.title)}</span>
+          <span class="text-gray-900 truncate max-w-[260px] font-semibold" aria-current="page">${escapeHtmlText(news.title)}</span>
         </nav>
         ${newsContentWithAdsHtml}
 
@@ -1242,10 +1281,15 @@ export function renderNewsListSSRHtml(articles: any[] = []): string {
 
   return renderSSRLayoutShell(`
     <div class="p-4 md:p-8 space-y-6 md:space-y-8 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+        <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+        <span class="text-gray-300">›</span>
+        <span class="font-semibold text-gray-900" aria-current="page">News</span>
+      </nav>
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-3">
-            <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">Ottawa News</h1>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 m-0">News</h1>
             <a href="https://www.google.com/preferences/source?q=halalottawa.ca" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-gray-800 text-[11px] font-semibold rounded-lg border border-gray-200 shadow-2xs text-decoration-none">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/></svg>
               <span>Preferred Source</span>
@@ -1332,6 +1376,11 @@ export function renderFAQSSRHtml(): string {
   return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+          <span class="text-gray-300">›</span>
+          <span class="font-semibold text-gray-900" aria-current="page">FAQ</span>
+        </nav>
         <div class="text-center space-y-4">
           <div class="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3m.08 4h.01"></path></svg>
@@ -1359,12 +1408,17 @@ export function renderPrivacyPolicySSRHtml(): string {
   return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+          <span class="text-gray-300">›</span>
+          <span class="font-semibold text-gray-900" aria-current="page">Privacy Policy</span>
+        </nav>
         <div class="text-center space-y-4">
           <div class="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
           </div>
           <div class="space-y-2">
-            <h1 class="text-3xl font-bold tracking-tight text-gray-900 m-0">Your Privacy Matters</h1>
+            <h1 class="text-3xl font-bold tracking-tight text-gray-900 m-0">Privacy Policy</h1>
             <p class="text-gray-500 m-0">Last updated: March 25, 2026</p>
           </div>
         </div>
@@ -1423,6 +1477,11 @@ export function renderTermsSSRHtml(): string {
   return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+          <span class="text-gray-300">›</span>
+          <span class="font-semibold text-gray-900" aria-current="page">Terms of Service</span>
+        </nav>
         <div class="text-center space-y-4">
           <div class="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
@@ -1474,6 +1533,11 @@ export function renderQiblaSSRHtml(): string {
   return renderSSRLayoutShell(`
     <div class="bg-white md:max-w-[76rem] xl:max-w-[1336px] md:mx-auto md:w-[calc(100%-2rem)] lg:w-[calc(100%-4rem)] md:mt-8 md:rounded-3xl md:shadow-sm md:overflow-hidden md:border md:border-gray-100 md:mb-12" style="font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
       <div class="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" class="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <a href="/" class="hover:text-[#e90b35] transition-colors text-decoration-none text-gray-500">Home</a>
+          <span class="text-gray-300">›</span>
+          <span class="font-semibold text-gray-900" aria-current="page">Qibla Direction</span>
+        </nav>
         <div class="flex flex-col items-center text-center space-y-8">
           <div class="space-y-4">
             <div class="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">

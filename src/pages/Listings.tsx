@@ -263,6 +263,12 @@ export const Listings: React.FC = () => {
         }) : undefined}
       />
 
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+        <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+        <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
+        <span className="font-semibold text-gray-900" aria-current="page">Listings</span>
+      </nav>
+
       <div className="flex justify-between items-center">
         <h1 className="text-2xl md:text-3xl font-bold">Listings</h1>
         <Link 

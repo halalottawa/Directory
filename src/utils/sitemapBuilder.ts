@@ -198,15 +198,38 @@ function normalizeImageUrl(rawUrl: any): string | null {
   return null;
 }
 
+export const MIN_INDEXABLE_CATEGORY_LISTINGS = 3;
+
+export interface BuildMainSitemapOptions {
+  reviews?: any[];
+  excludedPaths?: Set<string>;
+}
+
 export function buildMainSitemapXml(
   rawListings: any[],
-  rawNews: any[]
+  rawNews: any[],
+  options?: BuildMainSitemapOptions
 ): { xml: string; entries: SitemapUrlEntry[] } {
   const entryMap = new Map<string, SitemapUrlEntry>();
+  const excludedPaths = new Set<string>();
+  if (options?.excludedPaths) {
+    for (const p of options.excludedPaths) {
+      const norm = String(p || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+      excludedPaths.add(norm);
+    }
+  }
 
   const upsertEntry = (candidate: SitemapUrlEntry) => {
     const normalizedLoc = normalizeCanonicalSitemapUrl(candidate.loc);
     if (!normalizedLoc) return;
+
+    try {
+      const u = new URL(normalizedLoc);
+      const normPath = (u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname).toLowerCase();
+      if (excludedPaths.has(normPath)) return;
+    } catch {
+      return;
+    }
 
     const cleanCandidate: SitemapUrlEntry = {
       ...candidate,
@@ -233,13 +256,19 @@ export function buildMainSitemapXml(
     });
   };
 
-  // Filter to approved, valid listings and news
+  // Filter to approved, non-deleted, valid listings and news
   const approvedListings = (rawListings || []).filter(
-    (l) => l && l.isApproved === true && String(l.name || '').trim().length > 0 && String(l.slug || l.id || '').trim().length > 0
+    (l) =>
+      l &&
+      l.isApproved === true &&
+      l.deleted !== true &&
+      l.status !== 'deleted' &&
+      String(l.name || '').trim().length > 0 &&
+      String(l.slug || l.id || '').trim().length > 0
   );
 
   const approvedNews = (rawNews || []).filter((n) => {
-    if (!n || n.isApproved !== true) return false;
+    if (!n || n.isApproved !== true || n.deleted === true || n.status === 'deleted') return false;
     const title = String(n.title || '').trim();
     const content = String(n.content || '').trim();
     const slugOrId = String(n.slug || n.id || '').trim();
@@ -247,8 +276,32 @@ export function buildMainSitemapXml(
     return title.length > 0 && content.length > 0 && slugOrId.length > 0 && pubDate !== null;
   });
 
-  const getListingLastmod = (l: any): Date | null =>
-    getLatestDate([parseValidDate(l.updatedAt), parseValidDate(l.createdAt)]);
+  // Map latest approved review date per listingId / listingSlug so reviews update listing lastmod
+  const latestReviewByListing = new Map<string, Date>();
+  for (const r of options?.reviews || []) {
+    if (!r || r.isApproved !== true || !r.listingId) continue;
+    const revDate = getLatestDate([parseValidDate(r.updatedAt), parseValidDate(r.createdAt)]);
+    if (!revDate) continue;
+    const key = String(r.listingId).trim();
+    const existing = latestReviewByListing.get(key);
+    if (!existing || revDate.getTime() > existing.getTime()) {
+      latestReviewByListing.set(key, revDate);
+    }
+  }
+
+  // Real date the listing's content last changed (description, halal fields, reviews, hours), never the build date
+  const getListingLastmod = (l: any): Date | null => {
+    const reviewDate =
+      latestReviewByListing.get(String(l.id || '').trim()) ||
+      (l.slug ? latestReviewByListing.get(String(l.slug).trim()) : undefined) ||
+      null;
+    return getLatestDate([
+      parseValidDate(l.contentUpdatedAt),
+      reviewDate,
+      parseValidDate(l.updatedAt),
+      parseValidDate(l.createdAt),
+    ]);
+  };
 
   const getNewsLastmod = (n: any): Date | null =>
     getLatestDate([parseValidDate(n.updatedAt), parseValidDate(n.publishDate), parseValidDate(n.createdAt)]);
@@ -264,7 +317,7 @@ export function buildMainSitemapXml(
   });
 
   // 2. Directory Hub (/listings), News Hub & Author Page
-  if (approvedListings.length > 0) {
+  if (approvedListings.length >= MIN_INDEXABLE_CATEGORY_LISTINGS) {
     upsertEntry({
       loc: `${CANONICAL_BASE_URL}/listings`,
       lastmodDate: getLatestDate(allListingDates),
@@ -272,23 +325,27 @@ export function buildMainSitemapXml(
     });
   }
 
-  upsertEntry({
-    loc: `${CANONICAL_BASE_URL}/news`,
-    lastmodDate: getLatestDate(allNewsDates),
-    sortGroup: 1,
-  });
+  if (approvedNews.length > 0) {
+    upsertEntry({
+      loc: `${CANONICAL_BASE_URL}/news`,
+      lastmodDate: getLatestDate(allNewsDates),
+      sortGroup: 1,
+    });
+  }
 
   const authorNewsDates = approvedNews
     .filter((a) => !a.author || String(a.author).toLowerCase().includes('youssef'))
     .map(getNewsLastmod);
 
-  upsertEntry({
-    loc: `${CANONICAL_BASE_URL}/author/youssef-agrebi`,
-    lastmodDate: getLatestDate(authorNewsDates),
-    sortGroup: 1,
-  });
+  if (authorNewsDates.length > 0) {
+    upsertEntry({
+      loc: `${CANONICAL_BASE_URL}/author/youssef-agrebi`,
+      lastmodDate: getLatestDate(authorNewsDates),
+      sortGroup: 1,
+    });
+  }
 
-  // 3. Main Category Hubs (only included when >= 1 approved listing exists)
+  // 3. Main Category Hubs (only included when indexable: >= 3 approved listings)
   for (const [slug, catName] of Object.entries(MAIN_CATEGORIES_MAP)) {
     const catListings = approvedListings.filter((l) => {
       const catArray = Array.isArray(l.category) ? l.category : l.category ? [l.category] : [];
@@ -298,7 +355,7 @@ export function buildMainSitemapXml(
           normalizeCategoryToSlug(String(c)) === slug
       );
     });
-    if (catListings.length > 0) {
+    if (catListings.length >= MIN_INDEXABLE_CATEGORY_LISTINGS) {
       upsertEntry({
         loc: `${CANONICAL_BASE_URL}/${slug}`,
         lastmodDate: getLatestDate(catListings.map(getListingLastmod)),
@@ -316,7 +373,7 @@ export function buildMainSitemapXml(
     });
   }
 
-  // 5. Restaurant Neighbourhood Hubs (only included when >= 1 approved listing exists)
+  // 5. Restaurant Neighbourhood Hubs (only included when indexable: >= 3 approved listings)
   for (const loc of RESTAURANT_LOCATIONS) {
     const locListings = approvedListings.filter((l) => {
       const catArray = Array.isArray(l.category) ? l.category : l.category ? [l.category] : [];
@@ -324,7 +381,7 @@ export function buildMainSitemapXml(
       if (!isRestaurant) return false;
       return getNeighborhoodFromAddress(l.address || '', l.suburb || '') === loc;
     });
-    if (locListings.length > 0) {
+    if (locListings.length >= MIN_INDEXABLE_CATEGORY_LISTINGS) {
       upsertEntry({
         loc: `${CANONICAL_BASE_URL}/restaurants/${loc}`,
         lastmodDate: getLatestDate(locListings.map(getListingLastmod)),
@@ -333,7 +390,7 @@ export function buildMainSitemapXml(
     }
   }
 
-  // 6. Populated Restaurant Subcategory Hubs (only included when >= 1 approved listing exists)
+  // 6. Populated Restaurant Subcategory Hubs (only included when indexable: >= 3 approved listings)
   for (const sub of RESTAURANT_SUBCATEGORIES) {
     const cleanSub = normalizeCompare(sub.replace(/-/g, ' '));
     const subListings = approvedListings.filter((l) => {
@@ -355,7 +412,7 @@ export function buildMainSitemapXml(
         cuisinesArray.some(matchItem)
       );
     });
-    if (subListings.length > 0) {
+    if (subListings.length >= MIN_INDEXABLE_CATEGORY_LISTINGS) {
       upsertEntry({
         loc: `${CANONICAL_BASE_URL}/restaurants/${sub}`,
         lastmodDate: getLatestDate(subListings.map(getListingLastmod)),
@@ -390,7 +447,7 @@ export function buildMainSitemapXml(
     });
   }
 
-  // 8. Canonical News Detail Pages (deduplicated by canonical URL)
+  // 8. Canonical News Detail Pages (older news & all approved articles in main sitemap)
   for (const n of approvedNews) {
     const canonicalSlug = String(n.slug || n.id).trim();
     const rawPhoto =
@@ -442,14 +499,18 @@ export function buildMainSitemapXml(
 
 export function buildNewsSitemapXml(rawNews: any[]): { xml: string; entries: NewsSitemapEntry[] } {
   const entryMap = new Map<string, NewsSitemapEntry>();
+  const twoDaysAgoMs = Date.now() - 48 * 60 * 60 * 1000;
 
   for (const n of rawNews || []) {
-    if (!n || n.isApproved !== true) continue;
+    if (!n || n.isApproved !== true || n.deleted === true || n.status === 'deleted') continue;
     const title = String(n.title || '').trim();
     const content = String(n.content || '').trim();
     const canonicalSlug = String(n.slug || n.id || '').trim();
     const pubDate = parseValidDate(n.publishDate || n.createdAt);
     if (!title || !content || !canonicalSlug || !pubDate) continue;
+
+    // Strictly Google News rule: ONLY articles published in the last 2 days (48 hours)
+    if (pubDate.getTime() < twoDaysAgoMs) continue;
 
     const normalizedLoc = normalizeCanonicalSitemapUrl(`${CANONICAL_BASE_URL}/news/${canonicalSlug}`);
     if (!normalizedLoc) continue;
@@ -467,17 +528,13 @@ export function buildNewsSitemapXml(rawNews: any[]): { xml: string; entries: New
   }
 
   // Deterministic ordering: newest publication_date first, then loc ascending
-  const allQualifying = Array.from(entryMap.values()).sort((a, b) => {
-    const diff = b.pubDate.getTime() - a.pubDate.getTime();
-    if (diff !== 0) return diff;
-    return a.loc.localeCompare(b.loc);
-  });
-
-  // Prefer articles from the last 48 hours if present; otherwise include all qualifying visible news articles (up to 1,000)
-  // so <urlset> never becomes empty and never triggers GSC's "Missing XML tag (url)" error.
-  const twoDaysAgoMs = Date.now() - 48 * 60 * 60 * 1000;
-  const recent48h = allQualifying.filter((item) => item.pubDate.getTime() >= twoDaysAgoMs);
-  const selectedEntries = (recent48h.length > 0 ? recent48h : allQualifying).slice(0, 1000);
+  const selectedEntries = Array.from(entryMap.values())
+    .sort((a, b) => {
+      const diff = b.pubDate.getTime() - a.pubDate.getTime();
+      if (diff !== 0) return diff;
+      return a.loc.localeCompare(b.loc);
+    })
+    .slice(0, 1000);
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;

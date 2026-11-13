@@ -29,8 +29,10 @@ import {
   buildNewsListStructuredData,
   buildAuthorStructuredData,
   buildStaticPageStructuredData,
+  resolveCategoryLabelFromPath,
 } from '../src/utils/structuredData';
 import { RESTAURANT_SUBCATEGORIES } from '../src/utils/sitemapBuilder';
+import { getCategoryPageMeta } from '../src/utils/categoryMeta';
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from '../src/config/images';
 
 const BASE_URL = 'https://www.halalottawa.ca';
@@ -309,63 +311,20 @@ async function prerender() {
   const pagesToPrerender: PageToPrerender[] = [];
 
   // 1. Prepare Static Pages
-  const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
-  const currentYear = currentDate.getFullYear();
-  const monthYearStr = `${currentMonth} ${currentYear}`;
-
   for (const url of staticUrls) {
     let title = "Halal Ottawa - Halal Places in Ottawa";
     let description = "Discover verified Halal restaurants, cafes, mosques, grocery stores, schools, and Muslim organizations in Ottawa. Stay connected with community updates and local news.";
     let ogImage = "https://www.halalottawa.ca/default-og.jpg";
 
-    if (url === "/listings") {
-      title = `Browse Halal Directories in Ottawa - ${monthYearStr}`;
-      description = `Explore our community directory of certified halal local businesses, restaurants, mosques, grocery stores, and Islamic schools in Ottawa for ${monthYearStr}.`;
+    const catMeta = getCategoryPageMeta(url);
+    if (catMeta.isValid) {
+      title = catMeta.title;
+      description = catMeta.description;
       ogImage = "https://www.halalottawa.ca/default-og.jpg";
     } else if (url === "/news") {
       title = "Halal Ottawa News - Ottawa's Muslim Community Hub";
       description = "Stay up to date with the latest stories, local community announcements, mosque updates, and community news from Ottawa's Muslim community.";
       ogImage = "https://www.halalottawa.ca/default-og.jpg";
-    } else if (url === "/restaurants") {
-      title = `Halal Restaurants in Ottawa - ${monthYearStr}`;
-      description = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
-    } else if (url === "/restaurants/orleans") {
-      title = `Halal Restaurants in Orleans - ${monthYearStr}`;
-      description = `Find the best verified halal restaurants and food spots in Orleans, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
-    } else if (url === "/restaurants/kanata") {
-      title = `Halal Restaurants in Kanata - ${monthYearStr}`;
-      description = `Find the best verified halal restaurants and food spots in Kanata, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
-    } else if (url === "/restaurants/barrhaven") {
-      title = `Halal Restaurants in Barrhaven - ${monthYearStr}`;
-      description = `Find the best verified halal restaurants and food spots in Barrhaven, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
-    } else if (url === "/restaurants/downtown") {
-      title = `Halal Restaurants in Downtown Ottawa - ${monthYearStr}`;
-      description = `Find the best verified halal restaurants and food spots in Downtown, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
-    } else if (url.startsWith("/restaurants/")) {
-      const subSlug = url.replace("/restaurants/", "");
-      const cleanSub = decodeURIComponent(subSlug).replace(/-/g, " ");
-      const formattedSub = cleanSub.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-      title = `Halal ${formattedSub} in Ottawa - ${monthYearStr}`;
-      description = `Discover the best verified halal ${formattedSub.toLowerCase()} spots and restaurants in Ottawa for ${monthYearStr}. Search by cuisine, read verified reviews, and get directions.`;
-    } else if (url === "/mosques") {
-      title = `Mosques in Ottawa - ${monthYearStr}`;
-      description = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${monthYearStr}.`;
-    } else if (url === "/grocery") {
-      title = `Halal Grocery in Ottawa - ${monthYearStr}`;
-      description = `Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and ingredients for ${monthYearStr}.`;
-    } else if (url === "/organizations") {
-      title = `Muslim Organizations in Ottawa - ${monthYearStr}`;
-      description = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${monthYearStr}.`;
-    } else if (url === "/clothing") {
-      title = `Islamic Clothing in Ottawa - ${monthYearStr}`;
-      description = `Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${monthYearStr}.`;
-    } else if (url === "/schools") {
-      title = `Islamic Schools in Ottawa - ${monthYearStr}`;
-      description = `Browse accredited directories of Islamic schools, preschools, daycares, and weekend Quran educational programs in Ottawa for ${monthYearStr}.`;
-    } else if (url === "/butchers") {
-      title = `Halal Butchers in Ottawa - ${monthYearStr}`;
-      description = `Find certified halal butcher shops and fresh meat markets in Ottawa providing premium hand-slaughtered zabihah meat for ${monthYearStr}.`;
     } else if (url === "/faq") {
       title = "FAQ | Halal Ottawa";
       description = "Got questions about the Halal Ottawa platform? Check out our compiled list of FAQs.";
@@ -434,18 +393,24 @@ async function prerender() {
       let rawListings: any[] = [];
       let allNewsData: any[] = [];
       let settingsData: any = {};
+      let categoryIntros: Record<string, string> = {};
 
       try {
         const qListingsAll = query(collection(db, 'listings'), where('isApproved', '==', true));
         const qNewsAll = query(collection(db, 'news'), where('isApproved', '==', true));
         const settingsDocRef = doc(db, 'settings', 'general');
+        const categoryIntrosDocRef = doc(db, 'settings', 'categoryIntros');
 
-        const [listingsSnap, newsSnap, settingsSnap] = await Promise.all([
+        const [listingsSnap, newsSnap, settingsSnap, categoryIntrosSnap] = await Promise.all([
           getDocs(qListingsAll),
           getDocs(qNewsAll),
           getDoc(settingsDocRef).catch(() => null),
+          getDoc(categoryIntrosDocRef).catch(() => null),
         ]);
         settingsData = settingsSnap && settingsSnap.exists() ? settingsSnap.data() : {};
+        categoryIntros = categoryIntrosSnap && categoryIntrosSnap.exists() && typeof categoryIntrosSnap.data()?.intros === 'object'
+          ? (categoryIntrosSnap.data()?.intros || {})
+          : {};
         rawListings = listingsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
         allNewsData = newsSnap.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
       } catch (fetchErr) {
@@ -455,6 +420,7 @@ async function prerender() {
         rawListings = getFallbackListings();
         allNewsData = getFallbackNews();
         settingsData = {};
+        categoryIntros = {};
       }
 
       allNewsData = allNewsData.sort(
@@ -523,8 +489,8 @@ async function prerender() {
 
       allNewsData.forEach((data) => {
         const title = `${data.title} | Halal Ottawa`;
-        const description = data.content
-          ? truncateDescription(data.content)
+        const description = (data.excerpt || data.content)
+          ? getExcerpt(data.excerpt || data.content, 160)
           : 'Read latest updates and news regarding the Ottawa halal and Muslim community.';
         const ogImage = getAbsoluteUrl(data.coverImage || '');
         const canonicalSegment = data.slug || data.id;
@@ -617,6 +583,7 @@ async function prerender() {
           catPage.routeType = 'category';
           catPage.initialData = {
             listings: filtered,
+            introText: String(categoryIntros[`/${slug}`] || '').trim(),
             timestamp: Date.now()
           };
         }
@@ -627,6 +594,7 @@ async function prerender() {
         listingsAllPage.routeType = 'category';
         listingsAllPage.initialData = {
           listings: allApprovedListings.sort((a: any, b: any) => parseListingTime(b.createdAt) - parseListingTime(a.createdAt)),
+          introText: String(categoryIntros['/listings'] || '').trim(),
           timestamp: Date.now()
         };
       }
@@ -648,6 +616,7 @@ async function prerender() {
           locPage.routeType = 'location';
           locPage.initialData = {
             listings: filtered,
+            introText: String(categoryIntros[`/restaurants/${loc}`] || '').trim(),
             timestamp: Date.now()
           };
         }
@@ -684,6 +653,7 @@ async function prerender() {
           subPage.routeType = 'category';
           subPage.initialData = {
             listings: filtered,
+            introText: String(categoryIntros[`/restaurants/${sub}`] || '').trim(),
             timestamp: Date.now()
           };
         }
@@ -699,13 +669,14 @@ async function prerender() {
   let renderCount = 0;
   for (const page of pagesToPrerender) {
     try {
-      const isCategoryOrLocationEmpty =
+      const isThinCategoryOrLocation =
         (page.routeType === 'category' || page.routeType === 'location') &&
         Array.isArray(page.initialData?.listings) &&
-        page.initialData.listings.length === 0;
+        page.initialData.listings.length < 3;
 
-      // Do not write 200 OK static files for empty category/subcategory pages (they return 404 via server.ts to prevent Soft 404s)
-      if (isCategoryOrLocationEmpty) {
+      // Do not write static 200 OK files for thin (< 3 listings) category/subcategory/area pages
+      // so server.ts serves them with HTTP 200 + noindex, follow + X-Robots-Tag
+      if (isThinCategoryOrLocation) {
         if (fs.existsSync(page.filePath)) {
           try { fs.unlinkSync(page.filePath); } catch {}
         }
@@ -756,13 +727,13 @@ async function prerender() {
     <link rel="canonical" href="${escapeHtmlAttr(canonicalPageUrl)}" />
       `;
 
-      const isSubcategoryEmpty =
+      const isSubcategoryThin =
         (page.routeType === 'category' || page.routeType === 'location') &&
         Array.isArray(page.initialData?.listings) &&
-        page.initialData.listings.length === 0;
+        page.initialData.listings.length < 3;
 
-      if (isSubcategoryEmpty) {
-        extraTags += `\n    <meta name="robots" content="noindex, nofollow" />`;
+      if (isSubcategoryThin) {
+        extraTags += `\n    <meta name="robots" content="noindex, follow" />`;
       } else if (["/saved", "/login", "/listings/add"].includes(page.urlPath)) {
         extraTags += `\n    <meta name="robots" content="noindex, nofollow" />`;
       } else {
@@ -794,7 +765,7 @@ async function prerender() {
         for (const schema of buildHomeStructuredData(page.description)) {
           extraTags += `\n    <script type="application/ld+json" data-ssr-schema="true">${JSON.stringify(schema)}</script>`;
         }
-      } else if (!["/saved", "/login", "/listings/add"].includes(page.urlPath) && !isSubcategoryEmpty) {
+      } else if (!["/saved", "/login", "/listings/add"].includes(page.urlPath) && !isSubcategoryThin) {
         let schemasToEmit: Record<string, any>[] = [];
         const pathSegments = page.urlPath.split('/').filter(Boolean);
 
@@ -821,32 +792,7 @@ async function prerender() {
             authorName: page.initialData?.name || 'Youssef Agrebi',
           });
         } else if (page.routeType === 'category' || page.routeType === 'location') {
-          const isRestaurantSubcategory =
-            pathSegments.length === 2 && pathSegments[0].toLowerCase() === 'restaurants';
-          let categoryLabel = 'Directory';
-          if (isRestaurantSubcategory) {
-            const locName = pathSegments[1].toLowerCase().replace(/-/g, ' ');
-            categoryLabel = locName
-              .split(' ')
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(' ');
-          } else if (pathSegments.length >= 1) {
-            const labelMap: Record<string, string> = {
-              restaurants: 'Restaurants',
-              mosques: 'Mosques',
-              organizations: 'Organizations',
-              grocery: 'Grocery',
-              clothing: 'Clothing',
-              schools: 'Schools',
-              butchers: 'Butchers',
-            };
-            categoryLabel =
-              labelMap[pathSegments[0].toLowerCase()] ||
-              (page.title.split(' - ')[0] || 'Category')
-                .replace(/Halal /gi, '')
-                .replace(/ in Ottawa.*/gi, '')
-                .trim();
-          }
+          const { categoryLabel, isRestaurantSubcategory } = resolveCategoryLabelFromPath(page.urlPath);
 
           schemasToEmit = buildCategoryStructuredData({
             urlPath: page.urlPath,
@@ -886,32 +832,18 @@ async function prerender() {
       } else if (page.routeType === 'listing' && page.initialData) {
         ssrBodyHtml = renderListingDetailSSRHtml(page.initialData);
       } else if ((page.routeType === 'category' || page.routeType === 'location') && page.initialData?.listings) {
-        const h1 = page.title.split(' - ')[0] || page.title;
-        const pathSegments = page.urlPath.split('/').filter(Boolean);
-        let categoryName = 'Directory';
-        if (pathSegments.length === 1) {
-          const map: Record<string, string> = {
-            listings: 'All Listings',
-            restaurants: 'Restaurants',
-            mosques: 'Mosques',
-            organizations: 'Organizations',
-            grocery: 'Grocery',
-            clothing: 'Clothing',
-            schools: 'Schools',
-            butchers: 'Butchers'
-          };
-          categoryName = map[pathSegments[0].toLowerCase()] || pathSegments[0];
-        } else if (pathSegments.length === 2 && pathSegments[0].toLowerCase() === 'restaurants') {
-          categoryName = pathSegments[1].charAt(0).toUpperCase() + pathSegments[1].slice(1).replace(/-/g, ' ');
-        }
+        const catMeta = getCategoryPageMeta(page.urlPath);
+        const h1 = catMeta.h1;
+        const { categoryLabel: categoryName } = resolveCategoryLabelFromPath(page.urlPath);
 
         ssrBodyHtml = renderCategorySSRHtml({
           title: page.title,
           h1Text: h1,
           description: page.description,
-          formattedCategory: categoryName,
+          formattedCategory: catMeta.isValid ? catMeta.formattedCategory : categoryName,
           urlPath: page.urlPath,
-          listings: page.initialData.listings
+          listings: page.initialData.listings,
+          introText: page.initialData.introText || '',
         });
       } else if ((page.routeType === 'author' || page.urlPath === '/author/youssef-agrebi') && page.initialData) {
         ssrBodyHtml = renderAuthorSSRHtml(page.initialData, page.initialData.articles || []);

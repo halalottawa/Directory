@@ -12,9 +12,11 @@ import { getAbsoluteUrl, getCanonicalUrl } from '../utils/url';
 import { buildAuthorStructuredData } from '../utils/structuredData';
 import { SEO } from '../components/SEO';
 import { GooglePreferredSourceBadge } from '../components/GooglePreferredSourceBadge';
+import { NotFound } from './NotFound';
 
 export const AuthorPage: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
+  const isInvalidAuthor = Boolean(slug && slug.toLowerCase() !== 'youssef-agrebi');
   const [articles, setArticles] = useState<NewsArticle[]>(() => {
     if (typeof window !== 'undefined' && (window as any).__INITIAL_ROUTE_TYPE__ === 'author') {
       const initData = (window as any).__INITIAL_DATA__;
@@ -108,6 +110,16 @@ export const AuthorPage: React.FC = () => {
   const canonicalAuthorUrl = getCanonicalUrl("/author/youssef-agrebi");
   const authorPageTitle = `${authorName} - Editor & Journalist | Halal Ottawa`;
   const authorPageDesc = `Read all community news, investigative articles, and local announcements authored by ${authorName} on Halal Ottawa.`;
+
+  if (isInvalidAuthor) {
+    return (
+      <NotFound
+        statusCode={410}
+        title="Content Permanently Removed"
+        message="This legacy author archive has been permanently removed from Halal Ottawa."
+      />
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500 max-w-7xl xl:max-w-[1400px] mx-auto min-h-screen">

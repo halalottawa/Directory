@@ -35,13 +35,6 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
   }
   if (!url.startsWith('http')) return url;
 
-  // If we are on production canonical domain, bypass backend proxy and return url as-is to avoid cookie-check firewall
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isProd = hostname === 'www.halalottawa.ca' || hostname === 'halalottawa.ca';
-  if (isProd) {
-    return url;
-  }
-
   try {
     const response = await fetch(getApiUrl("/api/upload-url"), {
       method: "POST",
@@ -53,7 +46,7 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
     });
 
     if (response.redirected || response.url.includes('__cookie_check') || response.url.includes('cookie_check')) {
-      console.warn("AI Studio cookie check redirect intercepted upload-url request, using original URL");
+      console.warn("Cookie check redirect intercepted upload-url request, using original URL");
       return url;
     }
 
@@ -65,49 +58,38 @@ export async function uploadFromUrl(url: string, fileName?: string, throwOnError
     const data = await response.json();
     return data.url;
   } catch (error) {
-    console.warn("Failed to upload via proxy, using original url:", error);
-    return url; 
+    if (throwOnError) {
+      throw error;
+    }
+    console.warn("Failed to upload via R2 proxy, using original url:", error);
+    return url;
   }
 }
 
 export async function uploadFile(file: File, path: string, fileName?: string): Promise<string> {
   const safeName = fileName ? fileName.replace(/[^a-z0-9]/gi, '-').toLowerCase() : file.name.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
-  
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-  const isProd = hostname === 'www.halalottawa.ca' || hostname === 'halalottawa.ca';
 
-  // On production, upload directly client-side to Firebase Storage to bypass Cloud Run container entirely
-  if (isProd) {
-    try {
-      const storageRef = ref(storage, `${path}/${Date.now()}-${safeName}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(snapshot.ref);
-      return downloadUrl;
-    } catch (err) {
-      console.error("Direct Firebase Storage upload from prod failed, falling back:", err);
-    }
-  }
-
-  // Fallback / standard development route
+  // Upload through backend /api/upload -> Cloudflare R2 (r2.dev)
   try {
-    const response = await fetch(getApiUrl(`/api/upload?filename=${safeName}`), {
+    const response = await fetch(getApiUrl(`/api/upload?filename=${encodeURIComponent(safeName)}`), {
       method: "POST",
       credentials: "include",
       body: file,
     });
 
     if (response.redirected || response.url.includes('__cookie_check') || response.url.includes('cookie_check')) {
-      throw new Error("AI Studio cookie check intercepted file upload query");
+      throw new Error("Cookie check intercepted file upload query");
     }
 
     if (!response.ok) {
-      throw new Error("Backend responds with failure state");
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Backend upload failed");
     }
 
     const data = await response.json();
     return data.url;
   } catch (backendErr) {
-    console.warn("Backend file upload failed, fallback direct to Firebase Storage", backendErr);
+    console.warn("Backend R2 file upload failed, falling back to Firebase Storage:", backendErr);
     try {
       const storageRef = ref(storage, `${path}/${Date.now()}-${safeName}`);
       const snapshot = await uploadBytes(storageRef, file);

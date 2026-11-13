@@ -96,11 +96,6 @@ function consumeInitialHomeData(): any {
 }
 
 export const Home: React.FC = () => {
-  const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
-  const currentYear = currentDate.getFullYear();
-  const monthYearStr = `${currentMonth} ${currentYear}`;
-
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);

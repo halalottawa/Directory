@@ -15,6 +15,7 @@ import { getApiUrl } from '../utils/platform';
 import { getListingUrl } from '../utils/url';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { notifyContentChanged } from '../utils/revalidate';
+import { getAllEditableCategoryPages, countWords } from '../utils/categoryMeta';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -80,6 +81,13 @@ export const AdminDashboard: React.FC = () => {
   const [isHeroUploading, setIsHeroUploading] = useState(false);
   const [isPushImageUploading, setIsPushImageUploading] = useState(false);
 
+  // Category & Area Intro Text states (empty by default for admin authoring)
+  const editableCategoryPages = React.useMemo(() => getAllEditableCategoryPages(), []);
+  const [categoryIntros, setCategoryIntros] = useState<Record<string, string>>({});
+  const [selectedIntroPath, setSelectedIntroPath] = useState<string>('/restaurants');
+  const [introGroupFilter, setIntroGroupFilter] = useState<'All' | 'Main Categories' | 'Areas & Neighbourhoods' | 'Cuisines' | 'Food Styles'>('All');
+  const [isSavingIntro, setIsSavingIntro] = useState(false);
+
   // Link Shortener states
   const [originalUrl, setOriginalUrl] = useState('');
   const [customSlug, setCustomSlug] = useState('');
@@ -115,6 +123,7 @@ export const AdminDashboard: React.FC = () => {
   // Import from Google Maps states
   const [importPlaceName, setImportPlaceName] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [importDuplicateWarnings, setImportDuplicateWarnings] = useState<string[]>([]);
   const [isBatchUpdating, setIsBatchUpdating] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean,
@@ -154,9 +163,22 @@ export const AdminDashboard: React.FC = () => {
         }
       };
 
+      const safeGetCategoryIntrosDoc = async () => {
+        try {
+          return await getDoc(doc(db, 'settings', 'categoryIntros'));
+        } catch (err: any) {
+          const msg = err?.message || String(err);
+          if (err?.code === 'resource-exhausted' || msg.includes('Quota limit exceeded') || msg.includes('Quota exceeded')) {
+            quotaExceeded = true;
+            return { exists: () => false, data: () => ({}) } as any;
+          }
+          return { exists: () => false, data: () => ({}) } as any;
+        }
+      };
+
       const [
         listingsSnap, eventsSnap, jobsSnap, newsSnap, 
-        reviewsSnap, commentsSnap, usersSnap, planRequestsSnap, settingsSnap, shortLinksSnap, subscribersSnap
+        reviewsSnap, commentsSnap, usersSnap, planRequestsSnap, settingsSnap, categoryIntrosSnap, shortLinksSnap, subscribersSnap
       ] = await Promise.all([
         safeGetDocs('listings'),
         safeGetDocs('events'),
@@ -167,6 +189,7 @@ export const AdminDashboard: React.FC = () => {
         safeGetDocs('users'),
         safeGetDocs('plan_requests'),
         safeGetSettingsDoc(),
+        safeGetCategoryIntrosDoc(),
         safeGetDocs('short_links'),
         safeGetDocs('subscribers').catch(() => ({ docs: [] }) as any)
       ]);
@@ -195,10 +218,11 @@ export const AdminDashboard: React.FC = () => {
 
       if (quotaExceeded) {
         try {
-          const [listingsRes, newsRes, settingsRes] = await Promise.all([
+          const [listingsRes, newsRes, settingsRes, introsRes] = await Promise.all([
             listings.length === 0 ? fetch('/api/listings') : Promise.resolve(null),
             news.length === 0 ? fetch('/api/news') : Promise.resolve(null),
             !settingsSnap.exists() ? fetch('/api/settings') : Promise.resolve(null),
+            !categoryIntrosSnap.exists() ? fetch('/api/category-intros') : Promise.resolve(null),
           ]);
           if (listingsRes && listingsRes.ok) {
             const lData = await listingsRes.json();
@@ -223,6 +247,12 @@ export const AdminDashboard: React.FC = () => {
             if (sData?.faviconUrl) setFaviconUrl(sData.faviconUrl);
             if (sData?.heroImageUrl) setHeroImageUrlState(sData.heroImageUrl);
           }
+          if (introsRes && introsRes.ok) {
+            const iData = await introsRes.json();
+            if (iData?.intros && typeof iData.intros === 'object') {
+              setCategoryIntros(iData.intros);
+            }
+          }
         } catch {
           // Ignore API fallback errors
         }
@@ -234,6 +264,13 @@ export const AdminDashboard: React.FC = () => {
         if (settingsData.coverImageUrl) setCoverImageUrl(settingsData.coverImageUrl);
         if (settingsData.faviconUrl) setFaviconUrl(settingsData.faviconUrl);
         if (settingsData.heroImageUrl) setHeroImageUrlState(settingsData.heroImageUrl);
+      }
+
+      if (categoryIntrosSnap.exists()) {
+        const introsData = categoryIntrosSnap.data()?.intros;
+        if (introsData && typeof introsData === 'object') {
+          setCategoryIntros(introsData);
+        }
       }
 
       setPendingListings(listings.filter((i: Listing) => !i.isApproved));
@@ -362,6 +399,62 @@ export const AdminDashboard: React.FC = () => {
     fetchData();
   }, []);
 
+  const syncListingRatingStats = async (listingId: string) => {
+    if (!listingId) return;
+    try {
+      const revSnap = await getDocs(
+        query(collection(db, 'reviews'), where('listingId', '==', listingId), where('isApproved', '==', true))
+      );
+      const count = revSnap.docs.length;
+      const sum = revSnap.docs.reduce((acc, d) => acc + (Number(d.data()?.rating) || 0), 0);
+      const avg = count > 0 ? Number((sum / count).toFixed(1)) : 0;
+      const nowIso = new Date().toISOString();
+      await updateDoc(doc(db, 'listings', listingId), {
+        reviewCount: count,
+        averageRating: avg,
+        updatedAt: nowIso,
+        contentUpdatedAt: nowIso,
+      });
+      notifyContentChanged('listing:edit', {
+        collection: 'listings',
+        docId: listingId,
+        isApproved: true,
+      });
+    } catch (syncErr) {
+      console.error('Failed to sync listing review stats:', syncErr);
+    }
+  };
+
+  const handleSaveCategoryIntro = async (pathKey: string, textValue: string) => {
+    setIsSavingIntro(true);
+    try {
+      const cleanedText = textValue.trim();
+      const updatedIntros = { ...categoryIntros };
+      if (cleanedText) {
+        updatedIntros[pathKey] = cleanedText;
+      } else {
+        delete updatedIntros[pathKey];
+      }
+      await setDoc(
+        doc(db, 'settings', 'categoryIntros'),
+        { intros: updatedIntros, updatedAt: new Date().toISOString() },
+        { merge: true }
+      );
+      setCategoryIntros(updatedIntros);
+      notifyContentChanged('settings:category_intros', {
+        collection: 'settings',
+        docId: 'categoryIntros',
+        isApproved: true,
+      });
+      toast.success(cleanedText ? `Saved intro text for ${pathKey}` : `Cleared intro text for ${pathKey}`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'settings/categoryIntros');
+      toast.error('Failed to save category intro text');
+    } finally {
+      setIsSavingIntro(false);
+    }
+  };
+
   const handleApprove = async (collectionName: string, id: string) => {
     try {
       if (collectionName === 'plan_requests') {
@@ -383,13 +476,24 @@ export const AdminDashboard: React.FC = () => {
         await updateDoc(doc(db, collectionName, id), { status: 'resolved' });
         toast.success('Request marked as resolved and listing updated');
       } else {
-        await updateDoc(doc(db, collectionName, id), { isApproved: true });
+        const updatePayload: any = { isApproved: true };
+        if (collectionName === 'listings') {
+          const nowIso = new Date().toISOString();
+          updatePayload.updatedAt = nowIso;
+          updatePayload.contentUpdatedAt = nowIso;
+        }
+        await updateDoc(doc(db, collectionName, id), updatePayload);
         if (collectionName === 'listings' || collectionName === 'news') {
           notifyContentChanged(`${collectionName}:approve`, {
             collection: collectionName,
             docId: id,
             isApproved: true,
           });
+        } else if (collectionName === 'reviews') {
+          const targetReview = allReviews.find((r) => r.id === id);
+          if (targetReview?.listingId) {
+            await syncListingRatingStats(targetReview.listingId);
+          }
         }
         toast.success('Item approved successfully');
       }
@@ -430,6 +534,7 @@ export const AdminDashboard: React.FC = () => {
           const wasApprovedPublicItem =
             (collectionName === 'listings' && approvedListings.some(l => l.id === id)) ||
             (collectionName === 'news' && approvedNews.some(n => n.id === id));
+          const deletedReview = collectionName === 'reviews' ? allReviews.find(r => r.id === id) : null;
           await deleteDoc(doc(db, collectionName, id));
           if (wasApprovedPublicItem && (collectionName === 'listings' || collectionName === 'news')) {
             notifyContentChanged(`${collectionName}:delete`, {
@@ -437,6 +542,8 @@ export const AdminDashboard: React.FC = () => {
               docId: id,
               isApproved: true,
             });
+          } else if (deletedReview?.isApproved && deletedReview.listingId) {
+            await syncListingRatingStats(deletedReview.listingId);
           }
           toast.success('Item deleted successfully');
           setSelectedModerationIds(prev => prev.filter(prevId => prevId !== id));
@@ -1204,9 +1311,11 @@ export const AdminDashboard: React.FC = () => {
     }
 
     setIsImporting(true);
+    setImportDuplicateWarnings([]);
     let successCount = 0;
     let failCount = 0;
     let duplicateCount = 0;
+    const blockedWarnings: string[] = [];
     
     const toastId = toast.loading(`Starting import for ${places.length} places...`);
 
@@ -1245,7 +1354,9 @@ export const AdminDashboard: React.FC = () => {
           const querySnapshot = await getDocs(q);
           
           if (!querySnapshot.empty) {
+            const warnText = `Blocked "${data.name}": a listing with that name already exists. Duplicate "-1" slugs are not allowed.`;
             console.log(`Skipping duplicate listing: ${data.name}`);
+            blockedWarnings.push(warnText);
             duplicateCount++;
             continue;
           }
@@ -1273,10 +1384,18 @@ export const AdminDashboard: React.FC = () => {
           }
 
           const { setDoc, doc } = await import('firebase/firestore');
-          const { generateSlug, getUniqueSlug } = await import('../utils/slugify');
-          
+          const { generateSlug, findListingSlugConflict } = await import('../utils/slugify');
+
           const baseSlug = generateSlug(data.name);
-          const uniqueSlug = await getUniqueSlug(db, 'listings', baseSlug);
+          const slugConflict = await findListingSlugConflict(db, baseSlug);
+          if (slugConflict.conflict) {
+            const warnText = `Blocked "${data.name}": a listing already exists ("${slugConflict.existingName || baseSlug}", slug "${baseSlug}"). Duplicate "-1" slugs are not allowed.`;
+            console.warn(warnText);
+            blockedWarnings.push(warnText);
+            duplicateCount++;
+            continue;
+          }
+          const uniqueSlug = baseSlug;
 
           // Standardize categories to match existing valid ones perfectly
           const VALID_CATEGORIES = ['Restaurants', 'Mosques', 'Organizations', 'Grocery', 'Clothing', 'Schools', 'Butchers'];
@@ -1344,10 +1463,20 @@ export const AdminDashboard: React.FC = () => {
         }
       }
 
+      setImportDuplicateWarnings(blockedWarnings);
+
       if (failCount === 0 && duplicateCount === 0) {
         toast.success(`Successfully imported all ${successCount} places!`, { id: toastId });
+      } else if (duplicateCount > 0 && successCount === 0 && failCount === 0) {
+        toast.warning(
+          blockedWarnings[0] || `Blocked ${duplicateCount} duplicate listing(s): a listing with that name already exists.`,
+          { id: toastId, duration: 8000 }
+        );
       } else {
-        toast.success(`Import complete: ${successCount} succeeded, ${duplicateCount} skipped (duplicates), ${failCount} failed.`, { id: toastId });
+        toast.warning(
+          `Import finished: ${successCount} imported, ${duplicateCount} blocked (already exists), ${failCount} failed.`,
+          { id: toastId, duration: 8000 }
+        );
       }
       
       if (successCount > 0) {
@@ -1557,6 +1686,9 @@ export const AdminDashboard: React.FC = () => {
       }
 
       if (updatedFieldsLog.length > 0) {
+        const nowIso = new Date().toISOString();
+        updates.updatedAt = nowIso;
+        updates.contentUpdatedAt = nowIso;
         await updateDoc(doc(db, 'listings', listing.id), updates);
         if (listing.isApproved) {
           notifyContentChanged('listing:edit', {
@@ -1639,6 +1771,9 @@ export const AdminDashboard: React.FC = () => {
                 if (data.website && data.website !== listing.website) updates.website = data.website;
 
                 if (Object.keys(updates).length > 0) {
+                  const nowIso = new Date().toISOString();
+                  updates.updatedAt = nowIso;
+                  updates.contentUpdatedAt = nowIso;
                   await updateDoc(doc(db, 'listings', listing.id), updates);
                 }
               }
@@ -2148,6 +2283,16 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+            {importDuplicateWarnings.length > 0 && (
+              <div role="alert" className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-1">
+                <p className="font-bold">Duplicate listing import blocked:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  {importDuplicateWarnings.map((w, idx) => (
+                    <li key={idx}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
 
@@ -2270,6 +2415,144 @@ export const AdminDashboard: React.FC = () => {
                         <X className="w-4 h-4" />
                       </button>
                     )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Category & Area Intro Texts Section */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] ml-2">
+            Category & Area Intro Texts
+          </h2>
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-50 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Editable Category & Area Introductions</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Write a unique 100–200 word introduction for each category or neighbourhood page. Shown above the listings grid.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {(['All', 'Main Categories', 'Areas & Neighbourhoods', 'Cuisines', 'Food Styles'] as const).map((groupName) => (
+                  <button
+                    key={groupName}
+                    type="button"
+                    onClick={() => setIntroGroupFilter(groupName)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                      introGroupFilter === groupName
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {groupName}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="lg:col-span-1 border border-gray-100 rounded-2xl p-2 max-h-72 overflow-y-auto space-y-1 bg-gray-50/50">
+                {editableCategoryPages
+                  .filter((item) => introGroupFilter === 'All' || item.group === introGroupFilter)
+                  .map((item) => {
+                    const existingText = categoryIntros[item.path] || '';
+                    const words = countWords(existingText);
+                    const isSelected = selectedIntroPath === item.path;
+                    return (
+                      <button
+                        key={item.path}
+                        type="button"
+                        onClick={() => setSelectedIntroPath(item.path)}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs transition-all flex items-center justify-between gap-2 ${
+                          isSelected
+                            ? 'bg-gray-900 text-white font-bold shadow-sm'
+                            : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold">{item.label}</div>
+                          <div className={`text-[10px] truncate ${isSelected ? 'text-gray-300' : 'text-gray-400'}`}>
+                            {item.path}
+                          </div>
+                        </div>
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            words > 0
+                              ? isSelected
+                                ? 'bg-emerald-500 text-white'
+                                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : isSelected
+                              ? 'bg-gray-700 text-gray-300'
+                              : 'bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {words > 0 ? `${words}w` : 'Empty'}
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+
+              <div className="lg:col-span-2 flex flex-col justify-between space-y-3">
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div>
+                      <span className="text-xs font-bold text-gray-900">
+                        {editableCategoryPages.find((p) => p.path === selectedIntroPath)?.label || selectedIntroPath}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-2">{selectedIntroPath}</span>
+                    </div>
+                    <a
+                      href={selectedIntroPath}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-[#e90b35] hover:underline"
+                    >
+                      View Page
+                    </a>
+                  </div>
+                  <textarea
+                    rows={6}
+                    value={categoryIntros[selectedIntroPath] || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCategoryIntros((prev) => ({
+                        ...prev,
+                        [selectedIntroPath]: val,
+                      }));
+                    }}
+                    placeholder="Write a helpful 100–200 word introduction for this category or neighbourhood page..."
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm text-gray-800 outline-none focus:ring-2 focus:ring-gray-200 focus:bg-white transition-all leading-relaxed"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-xs text-gray-500">
+                    <span className="font-bold text-gray-800">{countWords(categoryIntros[selectedIntroPath] || '')} words</span>
+                    <span> · Recommended: 100–200 words (left empty on public page until saved)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(categoryIntros[selectedIntroPath] || '').trim() !== '' && (
+                      <button
+                        type="button"
+                        disabled={isSavingIntro}
+                        onClick={() => handleSaveCategoryIntro(selectedIntroPath, '')}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={isSavingIntro}
+                      onClick={() => handleSaveCategoryIntro(selectedIntroPath, categoryIntros[selectedIntroPath] || '')}
+                      className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-gray-900 hover:bg-gray-800 transition-colors disabled:opacity-50"
+                    >
+                      {isSavingIntro ? 'Saving...' : 'Save Intro Text'}
+                    </button>
                   </div>
                 </div>
               </div>

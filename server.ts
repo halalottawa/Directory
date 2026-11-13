@@ -31,6 +31,7 @@ import {
 import { getExcerpt } from "./src/utils/textUtils";
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
 import { buildMainSitemapXml, buildNewsSitemapXml, RESTAURANT_SUBCATEGORIES } from "./src/utils/sitemapBuilder";
+import { getCategoryPageMeta } from "./src/utils/categoryMeta";
 import { getCanonicalUrl, deduplicateListingsByCanonicalUrl } from "./src/utils/url";
 import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from "./src/utils/firestoreQuotaFallback";
 import {
@@ -41,6 +42,7 @@ import {
   buildNewsListStructuredData,
   buildAuthorStructuredData,
   buildStaticPageStructuredData,
+  resolveCategoryLabelFromPath,
 } from "./src/utils/structuredData";
 
 // Cached Firebase variables across SSR request cycles to minimize Time to First Byte (TTFB)
@@ -49,12 +51,84 @@ let cachedFbApp: any = null;
 let cachedDb: any = null;
 let cachedFirestoreUtils: any = null;
 
+function resolveAppPath(...segments: string[]): string | null {
+  const candidates: string[] = [
+    path.resolve(process.cwd(), ...segments),
+  ];
+  if (typeof __dirname !== "undefined") {
+    candidates.push(path.resolve(__dirname, ...segments));
+    candidates.push(path.resolve(__dirname, "..", ...segments));
+  }
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {}
+  }
+  return null;
+}
+
+interface RedirectsMapConfig {
+  redirects: Map<string, string>;
+  gone: Set<string>;
+}
+
+let cachedRedirectsConfig: RedirectsMapConfig | null = null;
+let cachedRedirectsMtime = -1;
+
+function normalizeRedirectKey(rawPath: string): string {
+  let decoded = String(rawPath || "/");
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {}
+  decoded = decoded.trim().toLowerCase();
+  if (!decoded.startsWith("/")) decoded = "/" + decoded;
+  if (decoded.length > 1) {
+    decoded = decoded.replace(/\/+$/, "") || "/";
+  }
+  return decoded;
+}
+
+function getRedirectsConfig(): RedirectsMapConfig {
+  const filePath = resolveAppPath("redirects.json");
+  if (filePath) {
+    try {
+      const stat = fs.statSync(filePath);
+      if (cachedRedirectsConfig && stat.mtimeMs === cachedRedirectsMtime) {
+        return cachedRedirectsConfig;
+      }
+      const parsed = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      const redirects = new Map<string, string>();
+      if (parsed?.redirects && typeof parsed.redirects === "object") {
+        for (const [k, v] of Object.entries(parsed.redirects)) {
+          if (typeof v === "string" && v.trim()) {
+            redirects.set(normalizeRedirectKey(k), v.trim());
+          }
+        }
+      }
+      const gone = new Set<string>();
+      if (Array.isArray(parsed?.gone)) {
+        for (const item of parsed.gone) {
+          if (typeof item === "string" && item.trim()) {
+            gone.add(normalizeRedirectKey(item));
+          }
+        }
+      }
+      cachedRedirectsConfig = { redirects, gone };
+      cachedRedirectsMtime = stat.mtimeMs;
+      return cachedRedirectsConfig;
+    } catch (err) {
+      console.error("Error loading redirects.json:", err);
+    }
+  }
+  return { redirects: new Map(), gone: new Set() };
+}
+
 async function ensureFirebaseDb() {
   if (cachedDb && cachedFirestoreUtils) {
     return { db: cachedDb, utils: cachedFirestoreUtils };
   }
 
-  const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+  const configPath = resolveAppPath("firebase-applet-config.json") || path.resolve(process.cwd(), "firebase-applet-config.json");
   if (!fs.existsSync(configPath)) {
     return null;
   }
@@ -174,6 +248,10 @@ let cachedListingsPayload: any[] | null = null;
 let cachedListingsExpiry = 0;
 let cachedNewsPayload: any[] | null = null;
 let cachedNewsExpiry = 0;
+let cachedCategoryIntrosPayload: Record<string, string> | null = null;
+let cachedCategoryIntrosExpiry = 0;
+let cachedApprovedReviewsPayload: any[] | null = null;
+let cachedApprovedReviewsExpiry = 0;
 
 function parseFirestoreTimestamp(val: any): number {
   if (!val) return 0;
@@ -346,6 +424,72 @@ async function getCachedNewsData(): Promise<any[]> {
   return fallback;
 }
 
+async function getCachedCategoryIntrosData(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (cachedCategoryIntrosPayload && now < cachedCategoryIntrosExpiry) {
+    return cachedCategoryIntrosPayload;
+  }
+  if (now < firestoreQuotaCooldownUntil) {
+    return cachedCategoryIntrosPayload || {};
+  }
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const docSnap = await utils.getDoc(utils.doc(db, 'settings', 'categoryIntros'));
+      const rawIntros = docSnap.exists() ? docSnap.data()?.intros : null;
+      const sanitized: Record<string, string> = {};
+      if (rawIntros && typeof rawIntros === 'object') {
+        for (const [k, v] of Object.entries(rawIntros)) {
+          if (typeof v === 'string' && v.trim()) {
+            sanitized[k] = v.trim();
+          }
+        }
+      }
+      cachedCategoryIntrosPayload = sanitized;
+      cachedCategoryIntrosExpiry = now + HOME_CACHE_TTL_MS;
+      return sanitized;
+    }
+  } catch (err) {
+    if (isFirestoreQuotaError(err)) {
+      firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+    } else {
+      console.error('Error retrieving settings/categoryIntros:', err);
+    }
+  }
+  return cachedCategoryIntrosPayload || {};
+}
+
+async function getCachedApprovedReviewsData(): Promise<any[]> {
+  const now = Date.now();
+  if (cachedApprovedReviewsPayload && now < cachedApprovedReviewsExpiry) {
+    return cachedApprovedReviewsPayload;
+  }
+  if (now < firestoreQuotaCooldownUntil) {
+    return cachedApprovedReviewsPayload || [];
+  }
+  try {
+    const fb = await ensureFirebaseDb();
+    if (fb) {
+      const { db, utils } = fb;
+      const snap = await utils.getDocs(
+        utils.query(utils.collection(db, 'reviews'), utils.where('isApproved', '==', true))
+      );
+      const items = snap.docs.map((docItem: any) => ({ id: docItem.id, ...docItem.data() }));
+      cachedApprovedReviewsPayload = items;
+      cachedApprovedReviewsExpiry = now + HOME_CACHE_TTL_MS;
+      return items;
+    }
+  } catch (err) {
+    if (isFirestoreQuotaError(err)) {
+      firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+    } else {
+      console.error('Error retrieving approved reviews:', err);
+    }
+  }
+  return cachedApprovedReviewsPayload || [];
+}
+
 const CACHE_INVALIDATION_COOLDOWN_MS = 30 * 1000; // 30 seconds
 let lastCacheInvalidationAt = 0;
 let cacheInvalidationPending = false;
@@ -359,6 +503,10 @@ function clearServerContentCachesNow(): void {
   cachedListingsExpiry = 0;
   cachedNewsPayload = null;
   cachedNewsExpiry = 0;
+  cachedCategoryIntrosPayload = null;
+  cachedCategoryIntrosExpiry = 0;
+  cachedApprovedReviewsPayload = null;
+  cachedApprovedReviewsExpiry = 0;
 }
 
 function invalidateServerContentCaches(): boolean {
@@ -608,9 +756,22 @@ function getAdminDb() {
   return getFirestore(appInstance);
 }
 
-async function startServer() {
+let cachedExpressAppPromise: Promise<express.Express> | null = null;
+
+export async function createApp(): Promise<express.Express> {
+  if (cachedExpressAppPromise) {
+    return cachedExpressAppPromise;
+  }
+  cachedExpressAppPromise = buildExpressApp().catch((err) => {
+    cachedExpressAppPromise = null;
+    throw err;
+  });
+  return cachedExpressAppPromise;
+}
+
+async function buildExpressApp(): Promise<express.Express> {
   // Initialize firebase-admin
-  const serviceAccountPath = path.resolve(process.cwd(), "firebase-service-account.json");
+  const serviceAccountPath = resolveAppPath("firebase-service-account.json") || path.resolve(process.cwd(), "firebase-service-account.json");
   let adminInitialized = false;
   let serviceAccount: any = null;
 
@@ -649,7 +810,7 @@ async function startServer() {
   if (!adminInitialized && admin.apps.length === 0) {
     try {
       let config: any = {};
-      const configPath = path.resolve(process.cwd(), "firebase-applet-config.json");
+      const configPath = resolveAppPath("firebase-applet-config.json") || path.resolve(process.cwd(), "firebase-applet-config.json");
       if (fs.existsSync(configPath)) {
         config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       }
@@ -781,74 +942,197 @@ async function startServer() {
     "/xmlrpc.php",
     "/old-blog",
     "/forums",
+    "/app-ads.txt",
   ]);
 
-  const POPULATED_ROOT_SUBCATEGORY_SLUGS = new Set<string>([
-    "bakery", "pizza", "burgers", "cafes", "seafood", "steakhouse", "shawarma", "poutine",
-    "brunch", "breakfast", "pho", "fried-chicken", "buffet", "tacos",
-    "turkish", "middle-eastern", "moroccan", "lebanese", "syrian", "pakistani",
-    "afghani", "indian", "persian", "chinese", "mediterranean", "thai",
-    "italian", "bangladeshi", "mexican", "ethiopian"
-  ]);
+  function isWordPressGonePath(rawPath: string, queryObj?: Record<string, any>): boolean {
+    const noTrailing = normalizeRedirectKey(rawPath);
 
-  // Canonical apex domain, HTTP->HTTPS, trailing-slash removal, and single-hop legacy route redirects
-  app.use((req, res, next) => {
-    const host = String(req.headers.host || "").toLowerCase();
-    const xForwardedHost = String(req.headers['x-forwarded-host'] || "").toLowerCase();
-    const xForwardedProto = String(req.headers['x-forwarded-proto'] || "").toLowerCase().split(',')[0].trim();
-    const rawPath = req.path || '/';
-    const isApex = host === 'halalottawa.ca' || xForwardedHost === 'halalottawa.ca';
-    const isHttpProd = (host === 'www.halalottawa.ca' || xForwardedHost === 'www.halalottawa.ca') && xForwardedProto === 'http';
-    const targetOrigin = (isApex || isHttpProd || host === 'www.halalottawa.ca' || xForwardedHost === 'www.halalottawa.ca')
-      ? 'https://www.halalottawa.ca'
-      : '';
-
-    let cleanPath = rawPath;
-    if (cleanPath.length > 1 && cleanPath.endsWith('/')) {
-      cleanPath = cleanPath.replace(/\/+$/, '') || '/';
+    // /?p=* WordPress legacy post query permalink
+    if ((noTrailing === "/" || noTrailing === "") && queryObj && queryObj.p !== undefined && String(queryObj.p).trim() !== "") {
+      return true;
     }
 
-    let decodedLower = cleanPath.toLowerCase();
-    try {
-      decodedLower = decodeURIComponent(cleanPath).toLowerCase();
-    } catch {}
+    // Any path ending in /feed or /feed/ or /comments/feed
+    if (
+      noTrailing === "/feed" ||
+      noTrailing.endsWith("/feed") ||
+      noTrailing === "/comments/feed" ||
+      noTrailing.endsWith("/comments/feed")
+    ) {
+      return true;
+    }
 
-    const rawQueryPart = req.url.includes('?') ? '?' + req.url.split('?').slice(1).join('?') : '';
-    const isOnlyPageOne = rawQueryPart === '?page=1';
-    const effectiveQueryPart = isOnlyPageOne ? '' : rawQueryPart;
+    // /listing-tag/*
+    if (noTrailing === "/listing-tag" || noTrailing.startsWith("/listing-tag/")) {
+      return true;
+    }
 
-    // 1. Single-hop 301 redirects for legacy/alias paths (combined with apex/HTTPS/trailing-slash normalization)
-    let mappedRedirectPath: string | null = null;
-    if (decodedLower === '/events' || decodedLower.startsWith('/events/') || decodedLower === '/jobs' || decodedLower.startsWith('/jobs/')) {
-      mappedRedirectPath = '/';
-    } else if (decodedLower === '/qibla') {
-      mappedRedirectPath = '/tools/qibla';
-    } else if (decodedLower === '/signup') {
-      mappedRedirectPath = '/login';
-    } else if (decodedLower === '/author' || decodedLower === '/authors' || decodedLower.startsWith('/authors/')) {
-      mappedRedirectPath = '/author/youssef-agrebi';
-    } else if (decodedLower === '/cafe' || decodedLower === '/cafés' || decodedLower === '/restaurants/cafe' || decodedLower === '/restaurants/cafés') {
-      mappedRedirectPath = '/restaurants/cafes';
-    } else if (decodedLower === '/afghan' || decodedLower === '/restaurants/afghan') {
-      mappedRedirectPath = '/restaurants/afghani';
-    } else if (decodedLower.startsWith('/islamic schools/')) {
-      const slugPart = decodedLower.slice('/islamic schools/'.length).trim();
-      if (slugPart) mappedRedirectPath = `/schools/${slugPart}`;
-    } else {
-      const singleSeg = decodedLower.startsWith('/') ? decodedLower.slice(1) : decodedLower;
-      if (!singleSeg.includes('/') && POPULATED_ROOT_SUBCATEGORY_SLUGS.has(singleSeg)) {
-        mappedRedirectPath = `/restaurants/${singleSeg}`;
+    // /wp-* and /xmlrpc.php
+    if (noTrailing === "/xmlrpc.php" || noTrailing === "/wp" || noTrailing.startsWith("/wp-")) {
+      return true;
+    }
+
+    // /app-ads.txt
+    if (noTrailing === "/app-ads.txt") {
+      return true;
+    }
+
+    // /author/* unless it's a real author page (/author/youssef-agrebi)
+    if (noTrailing.startsWith("/author/")) {
+      const authorSlug = noTrailing.slice("/author/".length);
+      if (authorSlug !== "youssef-agrebi") {
+        return true;
       }
     }
 
+    const { gone } = getRedirectsConfig();
+    if (GONE_PATHS.has(noTrailing) || gone.has(noTrailing)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function build410ResponseHtml(): string {
+    const spaPath = resolveAppPath("dist", "template.spa.html") || resolveAppPath("dist", "index.html") || resolveAppPath("index.html");
+    const bodyHtml = renderNotFoundSSRHtml(
+      410,
+      "Content Permanently Removed",
+      "This legacy page or feed has been permanently removed from Halal Ottawa."
+    );
+    if (spaPath && fs.existsSync(spaPath)) {
+      try {
+        let html = fs.readFileSync(spaPath, "utf-8");
+        html = html.replace(/<title>.*?<\/title>/gi, "<title>Content Permanently Removed (410) | Halal Ottawa</title>");
+        html = html.replace(
+          /<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi,
+          '<meta name="description" content="This page has been permanently removed from Halal Ottawa." />'
+        );
+        html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, "");
+        html = html.replace(
+          "</head>",
+          '  <meta name="robots" content="noindex, nofollow" />\n  </head>'
+        );
+        html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
+        return html;
+      } catch {}
+    }
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><title>410 Gone | Halal Ottawa</title></head><body><div id="root">${bodyHtml}</div></body></html>`;
+  }
+
+  function sanitizeCookieCheckReturnUrl(rawReturnUrl: string): string {
+    let targetPath = "/";
+    if (rawReturnUrl) {
+      try {
+        const decoded = decodeURIComponent(rawReturnUrl);
+        if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
+          const parsed = new URL(decoded);
+          targetPath = parsed.pathname + (parsed.search || "") + (parsed.hash || "");
+        } else {
+          targetPath = decoded;
+        }
+      } catch {
+        targetPath = "/";
+      }
+    }
+    targetPath = targetPath.replace(/https?:\/\/[^\/]+/i, "");
+    if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
+    if (targetPath.includes("__cookie_check")) targetPath = "/";
+    if (targetPath.length > 1 && targetPath.endsWith("/")) {
+      const [p, q] = targetPath.split("?");
+      const cleanP = p.replace(/\/+$/, "") || "/";
+      targetPath = q ? `${cleanP}?${q}` : cleanP;
+    }
+    return targetPath;
+  }
+
+  // Serve /ads.txt unchanged with 200 if present (used by Muslim Ad Network), otherwise 404
+  app.get("/ads.txt", (_req, res) => {
+    const adsPath = resolveAppPath("public", "ads.txt") || resolveAppPath("dist", "ads.txt");
+    if (adsPath && fs.existsSync(adsPath)) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+      return res.status(200).sendFile(adsPath);
+    }
+    return res.status(404).type("text/plain").send("Not Found");
+  });
+
+  // Canonical apex domain, HTTP->HTTPS, 410 Gone WordPress leftovers, and single-hop 301 legacy route redirects
+  app.use((req, res, next) => {
+    const rawPath = req.path || "/";
+    if (
+      rawPath.startsWith("/api/") ||
+      rawPath.startsWith("/assets/") ||
+      rawPath.startsWith("/fonts/") ||
+      rawPath.startsWith("/uploads/") ||
+      rawPath.startsWith("/__/auth/")
+    ) {
+      return next();
+    }
+
+    const host = String(req.headers.host || "").toLowerCase();
+    const xForwardedHost = String(req.headers["x-forwarded-host"] || "").toLowerCase();
+    const xForwardedProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase().split(",")[0].trim();
+    const isApex = host === "halalottawa.ca" || xForwardedHost === "halalottawa.ca";
+    const isHttpProd = (host === "www.halalottawa.ca" || xForwardedHost === "www.halalottawa.ca") && xForwardedProto === "http";
+    const targetOrigin = (isApex || isHttpProd || host === "www.halalottawa.ca" || xForwardedHost === "www.halalottawa.ca")
+      ? "https://www.halalottawa.ca"
+      : "";
+
+    let cleanPath = rawPath;
+    if (cleanPath.length > 1 && cleanPath.endsWith("/")) {
+      cleanPath = cleanPath.replace(/\/+$/, "") || "/";
+    }
+
+    // Never redirect public traffic or crawlers to /__cookie_check.html.
+    // If an old link hits /__cookie_check.html directly, 301 straight to the sanitized destination.
+    if (rawPath.includes("__cookie_check")) {
+      const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
+      const targetPath = sanitizeCookieCheckReturnUrl(returnUrl);
+      return res.redirect(301, `${targetOrigin}${targetPath}`);
+    }
+
+    // Step 3: Return 410 Gone immediately for WordPress leftovers (even when trailing-slashed like /restaurants/purplex/feed/)
+    if (isWordPressGonePath(rawPath, req.query as Record<string, any>)) {
+      res.setHeader("X-Robots-Tag", "noindex, nofollow");
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      return res.status(410).set({ "Content-Type": "text/html; charset=utf-8" }).send(build410ResponseHtml());
+    }
+
+    const decodedLower = normalizeRedirectKey(cleanPath);
+    const rawQueryPart = req.url.includes("?") ? "?" + req.url.split("?").slice(1).join("?") : "";
+    const isOnlyPageOne = rawQueryPart === "?page=1";
+    const effectiveQueryPart = isOnlyPageOne ? "" : rawQueryPart;
+
+    // Step 1/5: Static single-hop 301 redirects for legacy/alias routes (combined with apex/HTTPS/trailing-slash normalization)
+    let mappedRedirectPath: string | null = null;
+    if (decodedLower === "/events" || decodedLower.startsWith("/events/") || decodedLower === "/jobs" || decodedLower.startsWith("/jobs/")) {
+      mappedRedirectPath = "/";
+    } else if (decodedLower === "/qibla") {
+      mappedRedirectPath = "/tools/qibla";
+    } else if (decodedLower === "/signup") {
+      mappedRedirectPath = "/login";
+    } else if (decodedLower === "/dashboard") {
+      mappedRedirectPath = "/admin";
+    } else if (decodedLower === "/author" || decodedLower === "/authors" || decodedLower.startsWith("/authors/")) {
+      mappedRedirectPath = "/author/youssef-agrebi";
+    } else if (decodedLower === "/restaurants/cafe" || decodedLower === "/restaurants/cafés") {
+      mappedRedirectPath = "/restaurants/cafes";
+    } else if (decodedLower === "/restaurants/afghan") {
+      mappedRedirectPath = "/restaurants/afghani";
+    } else if (decodedLower.startsWith("/islamic schools/")) {
+      const slugPart = decodedLower.slice("/islamic schools/".length).trim();
+      if (slugPart) mappedRedirectPath = `/schools/${slugPart}`;
+    }
+
     if (mappedRedirectPath) {
-      const keepQuery = mappedRedirectPath === '/' ? '' : effectiveQueryPart;
+      const keepQuery = mappedRedirectPath === "/" ? "" : effectiveQueryPart;
       return res.redirect(301, `${targetOrigin}${mappedRedirectPath}${keepQuery}`);
     }
 
-    // 2. Canonical apex domain, HTTP->HTTPS, trailing-slash, or ?page=1 single-hop 301 redirect
-    const hasTrailingSlash = rawPath.length > 1 && rawPath.endsWith('/') && !rawPath.startsWith('/api/');
-    if (isApex || isHttpProd || hasTrailingSlash || isOnlyPageOne) {
+    // Enforce canonical apex/HTTPS/page=1 single-hop 301 immediately
+    if (isApex || isHttpProd || isOnlyPageOne) {
       return res.redirect(301, `${targetOrigin}${cleanPath}${effectiveQueryPart}`);
     }
 
@@ -872,7 +1156,6 @@ async function startServer() {
         res.setHeader("Access-Control-Allow-Origin", origin);
         res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
         
-        // Dynamic Access-Control-Allow-Headers accepts any custom request headers
         const reqHeaders = req.headers["access-control-request-headers"];
         if (reqHeaders) {
           res.setHeader("Access-Control-Allow-Headers", reqHeaders);
@@ -885,52 +1168,17 @@ async function startServer() {
       }
     }
     
-    // Handle OPTIONS preflight requests
     if (req.method === "OPTIONS") {
       return res.sendStatus(204);
     }
     next();
   });
 
-  // Global Session and Cookie Management Middleware
-  // Only sets cookies on /__cookie_check.html or when __aistudio_auth_token is present so public HTML responses do not emit Set-Cookie (allowing Vercel CDN to cache HTML with x-vercel-cache: HIT)
-  app.use((req, res, next) => {
-    try {
-      const p = req.path || "";
-      if (p.includes("__cookie_check") || req.query?.__aistudio_auth_token) {
-        const cookieHeader = req.headers.cookie || "";
-        const hasSession = cookieHeader.includes("__session=");
-        const hasCheck = cookieHeader.includes("cookie_check=");
-
-        if (!hasSession || !hasCheck) {
-          res.cookie("__session", "true", {
-            path: "/",
-            httpOnly: false,
-            sameSite: "none",
-            secure: true,
-            partitioned: true,
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-          });
-          res.cookie("cookie_check", "passed", {
-            path: "/",
-            httpOnly: false,
-            sameSite: "none",
-            secure: true,
-            partitioned: true,
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-          });
-        }
-      }
-    } catch (e) {}
-    next();
-  });
-  
   // Custom router to handle automatic favicon.ico and favicon.svg lookup from search bots and browsers
   app.get(["/favicon.ico", "/favicon.svg"], async (req, res) => {
     try {
       const faviconUrl = await getSettingsFaviconUrl();
       if (faviconUrl) {
-        // Redirection with 302 Found has perfect support by Google favicon bot and browsers
         return res.redirect(302, faviconUrl);
       }
     } catch (err) {
@@ -941,22 +1189,19 @@ async function startServer() {
 
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
-  // Set up upload dir
-  let uploadDir = path.join(process.cwd(), "public", "uploads");
+  // Set up upload dir (only used in local dev when R2 is not configured; Vercel uses /tmp & requires R2)
+  let uploadDir = process.env.VERCEL === "1" ? "/tmp/uploads" : path.join(process.cwd(), "public", "uploads");
   try {
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
   } catch (err) {
-    console.warn("Failed to create public/uploads directory, falling back to /tmp/uploads:", err);
     uploadDir = "/tmp/uploads";
     try {
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
-    } catch (e2) {
-      console.error("Failed to create fallback /tmp/uploads directory:", e2);
-    }
+    } catch {}
   }
 
   // Ensure default-og.jpg exists in public directory for social media link previews
@@ -1108,7 +1353,13 @@ async function startServer() {
         return res.json({ url: r2Url });
       }
 
-      // Fallback: local disk upload
+      if (process.env.VERCEL === "1") {
+        return res.status(500).json({
+          error: "Cloudflare R2 credentials (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are required for persistent image uploads on Vercel.",
+        });
+      }
+
+      // Fallback: local disk upload (local development only)
       let procBuffer = buffer;
       if (!isSvg && !isIco) {
         try {
@@ -1128,7 +1379,6 @@ async function startServer() {
       const outputPath = path.join(uploadDir, finalName);
       fs.writeFileSync(outputPath, procBuffer);
 
-      // Return absolute URL pointing to the Cloud Run server for local uploads fallback to work under static hosting
       const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
       const forwardedHost = (req.headers['x-forwarded-host'] as string) || '';
       const host = forwardedHost.includes('halalottawa') 
@@ -1165,7 +1415,6 @@ async function startServer() {
       // Check if it is already our local url or uploaded URL containing /uploads/
       const uploadsIdx = url.indexOf('/uploads/');
       if (uploadsIdx !== -1) {
-        // Only strip if it does not belong to some external host (unless it matches localhost or run.app)
         const isExternal = url.startsWith('http') && 
                            !url.includes('localhost') && 
                            !url.includes('127.0.0.1') && 
@@ -1187,7 +1436,13 @@ async function startServer() {
         return res.json({ url: r2Url });
       }
 
-      // Fallback: local disk upload
+      if (process.env.VERCEL === "1") {
+        return res.status(500).json({
+          error: "Cloudflare R2 credentials (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are required for persistent image uploads on Vercel.",
+        });
+      }
+
+      // Fallback: local disk upload (local development only)
       let procBuffer = buffer;
       try {
         const { default: sharp } = await import("sharp");
@@ -1395,6 +1650,17 @@ async function startServer() {
     }
   });
 
+  app.get("/api/category-intros", async (req, res) => {
+    try {
+      const intros = await getCachedCategoryIntrosData();
+      res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=86400");
+      res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+      res.json({ intros: intros || {}, timestamp: Date.now() });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to load category intros" });
+    }
+  });
+
   app.get("/api/home", async (req, res) => {
     try {
       const data = await getCachedHomeData();
@@ -1468,11 +1734,13 @@ async function startServer() {
       }
 
       const isDeleteAction = reason.endsWith(":delete") || reason.endsWith(":bulk_delete");
-      const affectsApprovedContent = docData
-        ? docData.isApproved === true
-        : isDeleteAction
-        ? user.isAdmin && clientIsApproved !== false
-        : user.isAdmin && clientIsApproved !== false;
+      const affectsApprovedContent =
+        (collectionName === "settings" && user.isAdmin) ||
+        (docData
+          ? docData.isApproved === true
+          : isDeleteAction
+          ? user.isAdmin && clientIsApproved !== false
+          : user.isAdmin && clientIsApproved !== false);
 
       if (!affectsApprovedContent) {
         return res.json({ ok: true, skipped: "unapproved" });
@@ -1566,14 +1834,22 @@ async function startServer() {
 
       function generateSlug(text: string): string {
         if (!text) return "";
+        const map: Record<string, string> = {
+          "ß": "ss", "ẞ": "ss", "æ": "ae", "Æ": "ae", "œ": "oe", "Œ": "oe",
+          "ø": "o", "Ø": "o", "đ": "d", "Đ": "d", "ð": "d", "Ð": "d",
+          "þ": "th", "Þ": "th", "ł": "l", "Ł": "l", "ı": "i", "İ": "i",
+          "ğ": "g", "Ğ": "g", "ş": "s", "Ş": "s", "ç": "c", "Ç": "c", "ñ": "n", "Ñ": "n"
+        };
         return text
           .toString()
-          .normalize("NFD")
+          .replace(/[ßẞæÆœŒøØđĐðÐþÞłŁıİğĞşŞçÇñÑ]/g, (ch) => map[ch] || ch)
+          .normalize("NFKD")
           .replace(/[\u0300-\u036f]/g, "")
           .toLowerCase()
           .trim()
-          .replace(/[^\w\s-]/g, "")
-          .replace(/[\s_-]+/g, "-")
+          .replace(/['’‘ʼ`]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/-+/g, "-")
           .replace(/^-+|-+$/g, "");
       }
 
@@ -2370,12 +2646,22 @@ async function startServer() {
 
   app.get("/sitemap.xml", async (req, res) => {
     try {
-      const [allApprovedListings, allApprovedNews] = await Promise.all([
+      const [allApprovedListings, allApprovedNews, approvedReviews] = await Promise.all([
         getCachedListingsData(),
         getCachedNewsData(),
+        getCachedApprovedReviewsData(),
       ]);
 
-      const { xml } = buildMainSitemapXml(allApprovedListings, allApprovedNews);
+      const redirectCfg = getRedirectsConfig();
+      const excludedPaths = new Set<string>([
+        ...redirectCfg.redirects.keys(),
+        ...redirectCfg.gone,
+      ]);
+
+      const { xml } = buildMainSitemapXml(allApprovedListings, allApprovedNews, {
+        reviews: approvedReviews,
+        excludedPaths,
+      });
       res.header("Content-Type", "application/xml; charset=utf-8");
       res.header("Cache-Control", "public, max-age=1800, s-maxage=1800");
       res.send(xml);
@@ -3425,135 +3711,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   });
 
-  // Dedicated handler for __cookie_check.html to resolve Cloud Run / AI Studio preview proxy redirects & bots
-  app.get("/__cookie_check.html", async (req, res) => {
-    try {
-      const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
-      let targetPath = "/";
-
-      if (returnUrl) {
-        try {
-          const decoded = decodeURIComponent(returnUrl);
-          if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
-            const parsed = new URL(decoded);
-            targetPath = parsed.pathname + (parsed.search || "") + (parsed.hash || "");
-          } else {
-            targetPath = decoded;
-          }
-        } catch (e) {
-          targetPath = "/";
-        }
-      }
-
-      // Strip any upstream domain or run.app prefix to ensure relative root navigation
-      targetPath = targetPath.replace(/https?:\/\/[^\/]+/i, "");
-      if (!targetPath.startsWith("/")) targetPath = "/" + targetPath;
-      if (targetPath.includes("__cookie_check")) targetPath = "/";
-
-      // If a social media crawler (Facebook, Twitter, LinkedIn, WhatsApp, etc.) or search bot hits this endpoint,
-      // serve the fully rendered SSI target HTML directly with 200 OK so preview cards render rich previews!
-      const userAgent = String(req.headers['user-agent'] || '').toLowerCase();
-      const isSocialCrawler = /facebookexternalhit|facebot|twitterbot|linkedinbot|whatsapp|telegrambot|slackbot|discordbot|googlebot|bingbot/i.test(userAgent);
-      if (isSocialCrawler && targetPath && targetPath !== '/') {
-        try {
-          const distPath = path.join(process.cwd(), "dist");
-          const spaPath = path.join(distPath, "template.spa.html");
-          const indexPath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
-          const baseFile = fs.existsSync(indexPath) ? indexPath : path.resolve(process.cwd(), "index.html");
-          if (fs.existsSync(baseFile)) {
-            const template = fs.readFileSync(baseFile, "utf-8");
-            const result = await getInjectedHTML(template, targetPath, req);
-            res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
-            return res.status(200).set({ "Content-Type": "text/html; charset=utf-8" }).send(result.html);
-          }
-        } catch (botErr) {
-          console.error("Error serving crawler in __cookie_check.html:", botErr);
-        }
-      }
-
-      const isSecure = req.secure || String(req.headers["x-forwarded-proto"] || "").toLowerCase().includes("https");
-
-      res.cookie("__session", "true", {
-        path: "/",
-        httpOnly: false,
-        sameSite: isSecure ? "none" : "lax",
-        secure: isSecure,
-        partitioned: isSecure,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-      res.cookie("cookie_check", "passed", {
-        path: "/",
-        httpOnly: false,
-        sameSite: isSecure ? "none" : "lax",
-        secure: isSecure,
-        partitioned: isSecure,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      res.setHeader("X-Robots-Tag", "noindex, nofollow");
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-
-      const canonicalTarget = `https://www.halalottawa.ca${targetPath}`;
-
-      const html = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Verifying Session - Halal Ottawa</title>
-  <link rel="canonical" href="${canonicalTarget}">
-  <meta property="og:url" content="${canonicalTarget}">
-  <meta http-equiv="refresh" content="0; url=${targetPath}">
-  <script>
-    (function() {
-      try {
-        var isHttps = location.protocol === 'https:';
-        var maxAge = '; max-age=2592000';
-        if (isHttps) {
-          document.cookie = '__session=true; path=/; SameSite=None; Secure; Partitioned' + maxAge;
-          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure; Partitioned' + maxAge;
-          document.cookie = '__session=true; path=/; SameSite=None; Secure' + maxAge;
-          document.cookie = 'cookie_check=passed; path=/; SameSite=None; Secure' + maxAge;
-        } else {
-          document.cookie = '__session=true; path=/; SameSite=Lax' + maxAge;
-          document.cookie = 'cookie_check=passed; path=/; SameSite=Lax' + maxAge;
-        }
-      } catch (e) {}
-      var target = ${JSON.stringify(targetPath)};
-      try {
-        var params = new URLSearchParams(window.location.search);
-        var r = params.get('return_url') || params.get('returnUrl');
-        if (r) {
-          if (r.indexOf('http://') === 0 || r.indexOf('https://') === 0) {
-            var u = new URL(r);
-            r = u.pathname + (u.search || '') + (u.hash || '');
-          }
-          r = r.replace(/^https?:\\/\\/[^\\/]+/i, '');
-          if (r.indexOf('/') !== 0) r = '/' + r;
-          if (r.indexOf('__cookie_check') === -1) target = r;
-        }
-      } catch (e) {}
-      window.location.replace(target);
-    })();
-  </script>
-</head>
-<body style="font-family: system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background-color: #fafafa;">
-  <div style="text-align: center; padding: 24px;">
-    <div style="width: 44px; height: 44px; border: 4px solid #fecaca; border-top-color: #e90b35; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px;"></div>
-    <div style="color: #111827; font-weight: 600; font-size: 15px;">Loading Halal Ottawa...</div>
-    <div style="color: #6b7280; font-size: 13px; margin-top: 6px;">Verifying session cookies</div>
-  </div>
-  <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-</body>
-</html>`;
-
-      return res.status(200).send(html);
-    } catch (err) {
-      console.error("Error handling __cookie_check.html:", err);
-      return res.redirect(302, "/");
-    }
+  // Legacy /__cookie_check.html endpoint: never set cookies or loop, 301 directly to sanitized return_url
+  app.get("/__cookie_check.html", (req, res) => {
+    const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
+    const targetPath = sanitizeCookieCheckReturnUrl(returnUrl);
+    return res.redirect(301, targetPath);
   });
 
   // Helper functions for secure character escaping and robust schema URLs in server
@@ -3715,39 +3877,74 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   const normalizeCompare = (val: any): string =>
     String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/&/g, '').replace(/\s+/g, ' ');
 
+  function subcategoryHasListings(rawSubSlug: string, allListings: any[]): boolean {
+    let canonicalSub = normalizeCompare(rawSubSlug).replace(/\s+/g, "-");
+    if (canonicalSub === "cafe") canonicalSub = "cafes";
+    if (canonicalSub === "afghan") canonicalSub = "afghani";
+    const isLoc = ["orleans", "kanata", "barrhaven", "downtown"].includes(canonicalSub);
+    const targetSub = normalizeCompare(canonicalSub.replace(/-/g, " "));
+    return allListings.some((data: any) => {
+      if (!data || data.deleted === true || data.status === "deleted") return false;
+      const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
+      const isRestaurant = listingCategories.some((cat: any) => {
+        const norm = normalizeCompare(cat);
+        return norm === "restaurants" || norm === "bakery" || norm === "cafe" || norm === "dessert";
+      });
+      if (!isRestaurant) return false;
+      if (isLoc) {
+        return getNeighborhoodFromAddress(data.address || "", data.suburb || "") === canonicalSub;
+      }
+      const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
+      const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
+      const matchItem = (val: any) => {
+        const norm = normalizeCompare(val);
+        return norm === targetSub || norm === canonicalSub || (targetSub === "sandwiches" && norm === "sandwiches subs") || (targetSub === "smoothies" && norm === "juice smoothies");
+      };
+      return listingCategories.some(matchItem) || listingTypes.some(matchItem) || listingCuisines.some(matchItem);
+    });
+  }
+
+  async function resolveRedirectMapTarget(
+    rawPath: string
+  ): Promise<{ redirectUrl?: string; isGone?: boolean } | null> {
+    const { redirects, gone } = getRedirectsConfig();
+    const key = normalizeRedirectKey(rawPath);
+    if (gone.has(key) || GONE_PATHS.has(key)) {
+      return { isGone: true };
+    }
+    const target = redirects.get(key);
+    if (!target) return null;
+
+    // Step 4: For top-level cuisine redirects pointing to /restaurants/{cuisine},
+    // return 301 if that category page has listings, otherwise 410 Gone.
+    if (key.split("/").filter(Boolean).length === 1 && target.startsWith("/restaurants/")) {
+      const sub = target.slice("/restaurants/".length);
+      const allListings = await getCachedListingsData();
+      if (subcategoryHasListings(sub, allListings)) {
+        return { redirectUrl: target };
+      }
+      return { isGone: true };
+    }
+
+    return { redirectUrl: target };
+  }
+
   async function getInjectedHTML(template: string, urlPath: string, req?: express.Request): Promise<{ html: string; isNotFound: boolean; statusCode?: 200 | 404 | 410; redirectUrl?: string; robotsHeader?: string }> {
     let html = template;
     
-    // Resolve cleanUrlPath by inspecting urlPath and req query parameter return_url
     let cleanUrlPath = urlPath || '/';
-    const returnUrlParam = (req && req.query && typeof req.query.return_url === 'string') 
-      ? req.query.return_url 
-      : (cleanUrlPath.includes('return_url=') ? cleanUrlPath.split('return_url=')[1]?.split('&')[0] : null);
-
-    if (returnUrlParam) {
-      try {
-        const decoded = decodeURIComponent(returnUrlParam);
-        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-          const parsed = new URL(decoded);
-          cleanUrlPath = parsed.pathname;
-        } else {
-          cleanUrlPath = decoded.split('?')[0];
-        }
-      } catch (e) {
-        console.warn("Could not decode return_urlParam in getInjectedHTML:", e);
-      }
-    }
-
-    if (cleanUrlPath.includes('__cookie_check.html')) {
-      cleanUrlPath = cleanUrlPath.split('__cookie_check.html')[0] || '/';
-    }
-    
     cleanUrlPath = cleanUrlPath.replace(/https?:\/\/[^\/]+/i, '');
     if (!cleanUrlPath.startsWith('/')) cleanUrlPath = '/' + cleanUrlPath;
     const rawCleanUrlPath = cleanUrlPath;
-    if (cleanUrlPath.length > 1 && cleanUrlPath.endsWith('/')) {
-      cleanUrlPath = cleanUrlPath.slice(0, -1);
+    const hadTrailingSlash = rawCleanUrlPath.length > 1 && rawCleanUrlPath.endsWith('/');
+    if (hadTrailingSlash) {
+      cleanUrlPath = cleanUrlPath.replace(/\/+$/, '') || '/';
     }
+
+    let decodedCleanPath = cleanUrlPath;
+    try {
+      decodedCleanPath = decodeURIComponent(cleanUrlPath);
+    } catch {}
 
     // Basic SEO injection for specific routes
     const defaultHeroImage = await getHeroImageUrl();
@@ -3758,12 +3955,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     let initialData: any = null;
     let routeType: string = '';
-    const pathParts = cleanUrlPath.split('/').filter(Boolean);
+    const pathParts = decodedCleanPath.split('/').filter(Boolean);
     let isNotFound = false;
-    let isGone = GONE_PATHS.has(cleanUrlPath.toLowerCase());
+    let isGone = isWordPressGonePath(rawCleanUrlPath, req?.query as Record<string, any>);
 
     // Redirect legacy events and jobs routes to homepage since they have been removed
-    if (pathParts.length > 0 && (pathParts[0].toLowerCase() === 'events' || pathParts[0].toLowerCase() === 'jobs')) {
+    if (!isGone && pathParts.length > 0 && (pathParts[0].toLowerCase() === 'events' || pathParts[0].toLowerCase() === 'jobs')) {
       return { html: '', isNotFound: false, redirectUrl: '/' };
     }
 
@@ -3782,7 +3979,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const isSingleSegmentValid = (segment: string): boolean => {
       const s = segment.toLowerCase();
       const knownStatic = new Set([
-        "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "login", "register", "signup", "qibla", "author", "authors"
+        "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved", "settings", "admin", "dashboard", "login", "register", "signup", "qibla", "author", "authors"
       ]);
       if (knownStatic.has(s)) return true;
       
@@ -3790,7 +3987,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         'restaurants', 'mosques', 'organizations', 'grocery', 'clothing', 'schools', 'butchers'
       ]);
       
-      return knownCategories.has(s) || POPULATED_ROOT_SUBCATEGORY_SLUGS.has(s) || s === 'cafe' || s === 'cafés' || s === 'afghan';
+      return knownCategories.has(s);
     };
 
     const isStaticTwoSegmentValid = (part1: string, part2: string): boolean => {
@@ -3809,16 +4006,31 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     if (isGone) {
       isNotFound = true;
     } else if (pathParts.length === 1 && !isSingleSegmentValid(pathParts[0])) {
+      // Check redirect map for legacy top-level paths (e.g. /persian, /korean, /middle eastern)
+      const mapResolution = await resolveRedirectMapTarget(decodedCleanPath);
+      if (mapResolution?.redirectUrl) {
+        return { html: '', isNotFound: false, redirectUrl: mapResolution.redirectUrl };
+      }
+      if (mapResolution?.isGone) {
+        isGone = true;
+      }
       isNotFound = true;
     } else if (pathParts.length > 3) {
+      const mapResolution = await resolveRedirectMapTarget(decodedCleanPath);
+      if (mapResolution?.redirectUrl) {
+        return { html: '', isNotFound: false, redirectUrl: mapResolution.redirectUrl };
+      }
+      if (mapResolution?.isGone) {
+        isGone = true;
+      }
       isNotFound = true;
     }
 
     // Use unified ensureFirebaseDb helper to retrieve Firestore connection
     const fb = await ensureFirebaseDb();
-    if (fb) {
+    if (!isGone && !isNotFound && fb) {
       const db = fb.db;
-      const { collection, getDocs, doc, getDoc, query, where, limit, orderBy } = fb.utils;
+      const { collection, getDocs, doc, getDoc, query, where } = fb.utils;
       
       // Home Page Pre-fetch (parallel Firestore queries + 60-second server memory cache)
       if (pathParts.length === 0) {
@@ -3843,43 +4055,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           'clothing': 'Clothing',
           'schools': 'Schools',
           'butchers': 'Butchers'
-        };
-        const cuisineMap: Record<string, string> = {
-          'turkish': 'Turkish',
-          'middle-eastern': 'Middle Eastern',
-          'moroccan': 'Moroccan',
-          'lebanese': 'Lebanese',
-          'syrian': 'Syrian',
-          'pakistani': 'Pakistani',
-          'afghani': 'Afghani',
-          'indian': 'Indian',
-          'persian': 'Persian',
-          'chinese': 'Chinese',
-          'mediterranean': 'Mediterranean',
-          'thai': 'Thai',
-          'korean': 'Korean',
-          'italian': 'Italian',
-          'bangladeshi': 'Bangladeshi',
-          'mexican': 'Mexican',
-          'ethiopian': 'Ethiopian'
-        };
-        const typeMap: Record<string, string> = {
-          'bakery': 'Bakery',
-          'pizza': 'Pizza',
-          'burgers': 'Burgers',
-          'cafes': 'Cafés',
-          'cafés': 'Cafés',
-          'seafood': 'Seafood',
-          'steakhouse': 'Steakhouse',
-          'shawarma': 'Shawarma',
-          'poutine': 'Poutine',
-          'brunch': 'Brunch',
-          'breakfast': 'Breakfast',
-          'pho': 'Pho',
-          'ramen': 'Ramen',
-          'fried-chicken': 'Fried Chicken',
-          'buffet': 'Buffet',
-          'tacos': 'Tacos'
         };
         
         if (p0 === 'news') {
@@ -3920,6 +4095,8 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           return { html: '', isNotFound: false, redirectUrl: '/tools/qibla' };
         } else if (p0 === 'author' || p0 === 'authors') {
           return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
+        } else if (p0 === 'dashboard') {
+          return { html: '', isNotFound: false, redirectUrl: '/admin' };
         } else if (p0 === 'saved') {
           title = "Saved Places & Articles | Halal Ottawa";
           description = "View your bookmarked halal restaurants, mosques, groceries, and articles on Halal Ottawa.";
@@ -3936,35 +4113,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           initialData = { page: 'login' };
         } else if (categoryMap[p0]) {
           routeType = 'category';
-          const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-          const currentYear = new Date().getFullYear();
-
-          if (p0 === 'restaurants') {
-            title = `Halal Restaurants in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Discover the best verified halal restaurants and food spots in Ottawa for ${currentMonth} ${currentYear}. Search by cuisine, read reviews, and get directions.`;
-          } else if (p0 === 'mosques') {
-            title = `Mosques in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${currentMonth} ${currentYear}.`;
-          } else if (p0 === 'grocery') {
-            title = `Halal Grocery Stores in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Find halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products for ${currentMonth} ${currentYear}.`;
-          } else if (p0 === 'organizations') {
-            title = `Muslim Organizations in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${currentMonth} ${currentYear}.`;
-          } else if (p0 === 'schools') {
-            title = `Islamic Schools in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Browse Islamic schools, preschools, daycares, and weekend Quran programs in Ottawa for ${currentMonth} ${currentYear}.`;
-          } else if (p0 === 'butchers') {
-            title = `Halal Butchers in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Find certified halal butcher shops and fresh meat markets in Ottawa providing hand-slaughtered zabihah meat for ${currentMonth} ${currentYear}.`;
-          } else if (p0 === 'clothing') {
-            title = `Islamic Clothing Stores in Ottawa - ${currentMonth} ${currentYear}`;
-            description = `Explore Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${currentMonth} ${currentYear}.`;
-          }
+          const catMeta = getCategoryPageMeta(`/${p0}`);
+          title = catMeta.title;
+          description = catMeta.description;
 
           try {
             const targetCat = categoryMap[p0];
-            const allListings = await getCachedListingsData();
+            const [allListings, categoryIntros] = await Promise.all([
+              getCachedListingsData(),
+              getCachedCategoryIntrosData(),
+            ]);
             const filteredListings = allListings.filter((data: any) => {
               if (!data.category) return false;
               const catArray = Array.isArray(data.category) ? data.category : [data.category];
@@ -3975,32 +4133,28 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
             initialData = {
               listings: filteredListings,
+              introText: (categoryIntros[catMeta.canonicalPath] || '').trim(),
               timestamp: Date.now()
             };
-            if (filteredListings.length === 0) {
-              isNotFound = true;
-            }
           } catch (e) {
             if (!isFirestoreQuotaError(e)) {
               console.error(`Error pre-fetching category listings for ${p0}`, e);
             }
           }
-        } else if (POPULATED_ROOT_SUBCATEGORY_SLUGS.has(p0) || p0 === 'cafe' || p0 === 'cafés' || p0 === 'afghan') {
-          let decodedSeg = pathParts[0];
-          try { decodedSeg = decodeURIComponent(pathParts[0]); } catch {}
-          let canonicalSubSlug = normalizeCompare(decodedSeg).replace(/\s+/g, '-');
-          if (canonicalSubSlug === 'cafe') canonicalSubSlug = 'cafes';
-          if (canonicalSubSlug === 'afghan') canonicalSubSlug = 'afghani';
-          return { html: '', isNotFound: false, redirectUrl: `/restaurants/${canonicalSubSlug}` };
         } else if (p0 === 'listings') {
-          title = "Browse Halal Directories in Ottawa - Restaurants, Mosques & Places";
-          description = "Explore our community directory of certified halal local businesses, restaurants, mosques, and islamic schools in Ottawa.";
+          const catMeta = getCategoryPageMeta('/listings');
+          title = catMeta.title;
+          description = catMeta.description;
           ogImage = defaultHeroImage;
           routeType = 'category';
           try {
-            const sortedListings = await getCachedListingsData();
+            const [sortedListings, categoryIntros] = await Promise.all([
+              getCachedListingsData(),
+              getCachedCategoryIntrosData(),
+            ]);
             initialData = {
               listings: sortedListings,
+              introText: (categoryIntros['/listings'] || '').trim(),
               timestamp: Date.now()
             };
           } catch (e) {
@@ -4010,7 +4164,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           }
         }
       }
-      // Dynamic Route Data Pre-fetch and 404 enforcement
+      // Dynamic Route Data Pre-fetch and strict 2a -> 2b -> 2c -> 2d -> 2e lookup order
       else if (pathParts.length === 2) {
         const p0 = pathParts[0].toLowerCase();
         const p1 = pathParts[1];
@@ -4023,28 +4177,21 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             let canonicalSubSlug = normalizeCompare(decodedP1).replace(/\s+/g, '-');
             if (canonicalSubSlug === 'cafe') canonicalSubSlug = 'cafes';
             if (canonicalSubSlug === 'afghan') canonicalSubSlug = 'afghani';
-            if (p1 !== canonicalSubSlug) {
+            if (p1 !== canonicalSubSlug || hadTrailingSlash) {
               return { html: '', isNotFound: false, redirectUrl: `/restaurants/${canonicalSubSlug}` };
             }
 
-            const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-            const currentYear = new Date().getFullYear();
-            const locName = canonicalSubSlug.replace(/-/g, ' ');
-            const formattedSub = locName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            
-            if (['orleans', 'kanata', 'barrhaven', 'downtown'].includes(canonicalSubSlug)) {
-              title = `Halal Restaurants in ${formattedSub}, Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
-              description = `Find the best verified halal restaurants and food spots in ${formattedSub}, Ottawa. Search by cuisine or food type, read verified reviews, and get directions.`;
-              routeType = 'location';
-            } else {
-              title = `Halal ${formattedSub} Restaurants in Ottawa - ${currentMonth} ${currentYear} | Halal Ottawa`;
-              description = `Discover the best verified halal ${formattedSub} restaurants and food spots in Ottawa for ${currentMonth} ${currentYear}. Search by cuisine, read reviews, and get directions.`;
-              routeType = 'category';
-            }
+            const catMeta = getCategoryPageMeta(`/restaurants/${canonicalSubSlug}`);
+            title = catMeta.title;
+            description = catMeta.description;
+            routeType = catMeta.isLocationCategory ? 'location' : 'category';
 
             try {
-              const isLoc = ['orleans', 'kanata', 'barrhaven', 'downtown'].includes(canonicalSubSlug);
-              const allListings = await getCachedListingsData();
+              const isLoc = catMeta.isLocationCategory;
+              const [allListings, categoryIntros] = await Promise.all([
+                getCachedListingsData(),
+                getCachedCategoryIntrosData(),
+              ]);
               const filteredListings = allListings.filter((data: any) => {
                 const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
                 const isRestaurant = listingCategories.some((cat: any) => {
@@ -4070,11 +4217,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
               initialData = {
                 listings: filteredListings,
+                introText: (categoryIntros[catMeta.canonicalPath] || '').trim(),
                 timestamp: Date.now()
               };
-              if (filteredListings.length === 0) {
-                isNotFound = true;
-              }
             } catch (e) {
               if (!isFirestoreQuotaError(e)) {
                 console.error(`Error pre-fetching location/subcategory listings for ${p0}/${p1}`, e);
@@ -4145,35 +4290,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                     data = candidates[0] || null;
                   }
                 }
-
-                if (!data) {
-                  // Resolve up to 3 hops in slug_redirects with loop prevention and existence check
-                  const visitedSlugs = new Set<string>([p1.toLowerCase()]);
-                  let currentSlug = p1.toLowerCase();
-                  let resolvedSlug: string | null = null;
-                  for (let hop = 0; hop < 3; hop++) {
-                    const redirectRef = doc(db, 'slug_redirects', `news_${currentSlug}`);
-                    const redirectSnap = await getDoc(redirectRef);
-                    if (!redirectSnap.exists()) break;
-                    const redirectData = redirectSnap.data();
-                    const nextSlug = String(redirectData?.newSlug || '').trim();
-                    if (!nextSlug || visitedSlugs.has(nextSlug.toLowerCase())) break;
-                    visitedSlugs.add(nextSlug.toLowerCase());
-                    resolvedSlug = nextSlug;
-                    currentSlug = nextSlug.toLowerCase();
-                  }
-                  if (resolvedSlug) {
-                    const targetNews = cachedNews.find(
-                      (n: any) => n.id === resolvedSlug || String(n.slug || '').toLowerCase() === resolvedSlug.toLowerCase()
-                    );
-                    if (targetNews && targetNews.deleted !== true && targetNews.status !== 'deleted') {
-                      return { html: '', isNotFound: false, redirectUrl: `/news/${targetNews.slug || targetNews.id}` };
-                    } else {
-                      isGone = true;
-                      isNotFound = true;
-                    }
-                  }
-                }
               } catch (innerErr) {
                 if (isFirestoreQuotaError(innerErr)) {
                   firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
@@ -4186,6 +4302,50 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               isGone = true;
             }
 
+            if (!data && !isGone) {
+              const mapResolution = await resolveRedirectMapTarget(decodedCleanPath);
+              if (mapResolution?.redirectUrl) {
+                return { html: '', isNotFound: false, redirectUrl: mapResolution.redirectUrl };
+              }
+              if (mapResolution?.isGone) {
+                isGone = true;
+              }
+            }
+
+            if (!data && !isGone && Date.now() >= firestoreQuotaCooldownUntil) {
+              try {
+                const visitedSlugs = new Set<string>([p1.toLowerCase()]);
+                let currentSlug = p1.toLowerCase();
+                let resolvedSlug: string | null = null;
+                for (let hop = 0; hop < 3; hop++) {
+                  const redirectRef = doc(db, 'slug_redirects', `news_${currentSlug}`);
+                  const redirectSnap = await getDoc(redirectRef);
+                  if (!redirectSnap.exists()) break;
+                  const redirectData = redirectSnap.data();
+                  const nextSlug = String(redirectData?.newSlug || '').trim();
+                  if (!nextSlug || visitedSlugs.has(nextSlug.toLowerCase())) break;
+                  visitedSlugs.add(nextSlug.toLowerCase());
+                  resolvedSlug = nextSlug;
+                  currentSlug = nextSlug.toLowerCase();
+                }
+                if (resolvedSlug) {
+                  const targetNews = cachedNews.find(
+                    (n: any) => n.id === resolvedSlug || String(n.slug || '').toLowerCase() === resolvedSlug.toLowerCase()
+                  );
+                  if (targetNews && targetNews.deleted !== true && targetNews.status !== 'deleted') {
+                    return { html: '', isNotFound: false, redirectUrl: `/news/${targetNews.slug || targetNews.id}` };
+                  } else {
+                    isGone = true;
+                    isNotFound = true;
+                  }
+                }
+              } catch (innerErr) {
+                if (isFirestoreQuotaError(innerErr)) {
+                  firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+                }
+              }
+            }
+
             if (!data) {
               isNotFound = true;
             } else {
@@ -4194,7 +4354,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                 return { html: '', isNotFound: false, redirectUrl: expectedNewsPath };
               }
               title = `${data.title} | Halal Ottawa`;
-              description = data.content?.substring(0, 160) || description;
+              description = getExcerpt(data.excerpt || data.content || '', 160) || description;
               if (data.coverImage && data.coverImage.trim() !== '') {
                 ogImage = getAbsoluteUrl(data.coverImage.trim());
               } else {
@@ -4213,7 +4373,10 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
           return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
         } else if (p0 === 'author') {
           if (p1.toLowerCase() !== 'youssef-agrebi') {
+            isGone = true;
             isNotFound = true;
+          } else if (hadTrailingSlash || p1 !== 'youssef-agrebi') {
+            return { html: '', isNotFound: false, redirectUrl: '/author/youssef-agrebi' };
           } else {
             title = "Youssef Agrebi - Editor & Journalist | Halal Ottawa";
             description = "Read all verified Ottawa Muslim community announcements, news, and investigative reports published by Youssef Agrebi on Halal Ottawa.";
@@ -4234,6 +4397,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
           }
         } else if (p0 === 'listings' || isSingleSegmentValid(p0) || pathParts.length === 2) {
+          // Step 2a & 2c: Check exact listing match and cross-category slug match first
           try {
             const cachedListings = await getCachedListingsData();
             let data: any =
@@ -4261,37 +4425,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                     data = candidates[0] || null;
                   }
                 }
-
-                if (!data) {
-                  // Resolve up to 3 hops in slug_redirects with loop prevention and existence check
-                  const visitedSlugs = new Set<string>([p1.toLowerCase()]);
-                  let currentSlug = p1.toLowerCase();
-                  let resolvedSlug: string | null = null;
-                  for (let hop = 0; hop < 3; hop++) {
-                    const redirectRef = doc(db, 'slug_redirects', `listings_${currentSlug}`);
-                    const redirectSnap = await getDoc(redirectRef);
-                    if (!redirectSnap.exists()) break;
-                    const redirectData = redirectSnap.data();
-                    const nextSlug = String(redirectData?.newSlug || '').trim();
-                    if (!nextSlug || visitedSlugs.has(nextSlug.toLowerCase())) break;
-                    visitedSlugs.add(nextSlug.toLowerCase());
-                    resolvedSlug = nextSlug;
-                    currentSlug = nextSlug.toLowerCase();
-                  }
-                  if (resolvedSlug) {
-                    const targetListing = cachedListings.find(
-                      (l: any) => l.id === resolvedSlug || String(l.slug || '').toLowerCase() === resolvedSlug.toLowerCase()
-                    );
-                    if (targetListing && targetListing.deleted !== true && targetListing.status !== 'deleted') {
-                      const cat = Array.isArray(targetListing.category) ? targetListing.category[0] : targetListing.category;
-                      const catSlug = cat ? normalizeCategoryToSlug(String(cat)) : 'restaurants';
-                      return { html: '', isNotFound: false, redirectUrl: `/${catSlug}/${targetListing.slug || targetListing.id}` };
-                    } else {
-                      isGone = true;
-                      isNotFound = true;
-                    }
-                  }
-                }
               } catch (innerErr) {
                 if (isFirestoreQuotaError(innerErr)) {
                   firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
@@ -4304,6 +4437,53 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               isGone = true;
             }
 
+            // Step 2d: Check redirects.json map (and Firestore slug_redirects) before returning 404
+            if (!data && !isGone) {
+              const mapResolution = await resolveRedirectMapTarget(decodedCleanPath);
+              if (mapResolution?.redirectUrl) {
+                return { html: '', isNotFound: false, redirectUrl: mapResolution.redirectUrl };
+              }
+              if (mapResolution?.isGone) {
+                isGone = true;
+              }
+            }
+
+            if (!data && !isGone && Date.now() >= firestoreQuotaCooldownUntil) {
+              try {
+                const visitedSlugs = new Set<string>([p1.toLowerCase()]);
+                let currentSlug = p1.toLowerCase();
+                let resolvedSlug: string | null = null;
+                for (let hop = 0; hop < 3; hop++) {
+                  const redirectRef = doc(db, 'slug_redirects', `listings_${currentSlug}`);
+                  const redirectSnap = await getDoc(redirectRef);
+                  if (!redirectSnap.exists()) break;
+                  const redirectData = redirectSnap.data();
+                  const nextSlug = String(redirectData?.newSlug || '').trim();
+                  if (!nextSlug || visitedSlugs.has(nextSlug.toLowerCase())) break;
+                  visitedSlugs.add(nextSlug.toLowerCase());
+                  resolvedSlug = nextSlug;
+                  currentSlug = nextSlug.toLowerCase();
+                }
+                if (resolvedSlug) {
+                  const targetListing = cachedListings.find(
+                    (l: any) => l.id === resolvedSlug || String(l.slug || '').toLowerCase() === resolvedSlug.toLowerCase()
+                  );
+                  if (targetListing && targetListing.deleted !== true && targetListing.status !== 'deleted') {
+                    const cat = Array.isArray(targetListing.category) ? targetListing.category[0] : targetListing.category;
+                    const catSlug = cat ? normalizeCategoryToSlug(String(cat)) : 'restaurants';
+                    return { html: '', isNotFound: false, redirectUrl: `/${catSlug}/${targetListing.slug || targetListing.id}` };
+                  } else {
+                    isGone = true;
+                    isNotFound = true;
+                  }
+                }
+              } catch (innerErr) {
+                if (isFirestoreQuotaError(innerErr)) {
+                  firestoreQuotaCooldownUntil = Date.now() + 5 * 60 * 1000;
+                }
+              }
+            }
+
             if (!data) {
               isNotFound = true;
             } else {
@@ -4313,10 +4493,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               const canonicalCatSlug = normalizeCategoryToSlug(cat);
               const canonicalItemSlug = data.slug || data.id;
               const expectedCanonicalPath = `/${canonicalCatSlug}/${canonicalItemSlug}`;
+              // Step 2b & 2c: Trailing slash or different category -> single-hop 301 to canonical URL
               if (rawCleanUrlPath !== expectedCanonicalPath) {
                 return { html: '', isNotFound: false, redirectUrl: expectedCanonicalPath };
               }
 
+              // Step 2a: Exact match -> 200
               title = `${data.name} | Halal Ottawa`;
               description = data.description?.substring(0, 160) || description;
               const photoCandidate = (Array.isArray(data.photos) ? data.photos.find((p: any) => typeof p === 'string' && p.trim() !== '') : null) || data.photo || data.coverImage || data.image || '';
@@ -4357,9 +4539,23 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             }
           }
         } else {
+          const mapResolution = await resolveRedirectMapTarget(decodedCleanPath);
+          if (mapResolution?.redirectUrl) {
+            return { html: '', isNotFound: false, redirectUrl: mapResolution.redirectUrl };
+          }
+          if (mapResolution?.isGone) {
+            isGone = true;
+          }
           isNotFound = true;
         }
       }
+    }
+
+    // Step 2b: Trailing-slash version (/x/) on non-410 URLs -> 301 to the version without the slash
+    if (hadTrailingSlash && !isGone && pathParts[0]?.toLowerCase() !== 'go') {
+      const querySuffix = req?.url?.includes('?') ? '?' + req.url.split('?').slice(1).join('?') : '';
+      const cleanQuerySuffix = querySuffix === '?page=1' ? '' : querySuffix;
+      return { html: '', isNotFound: false, redirectUrl: `${cleanUrlPath}${cleanQuerySuffix}` };
     }
 
     // Strip existing OG, Twitter, canonical, JSON-LD schemas, preloads and previous initial data scripts to prevent duplicates
@@ -4384,9 +4580,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     
     // Compute canonical path and URL through shared canonical helper
     let canonicalPath = cleanUrlPath;
-    if (canonicalPath.includes('__cookie_check.html')) {
-      canonicalPath = canonicalPath.split('__cookie_check.html')[0] || '/';
-    }
     if (canonicalPath.length > 1 && canonicalPath.endsWith('/')) {
       canonicalPath = canonicalPath.slice(0, -1);
     }
@@ -4416,7 +4609,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       String(req.query.page || '') === '1'
     );
 
-    if (!isNotFound && !returnUrlParam && !(urlPath || '').includes('__cookie_check') && pathParts[0]?.toLowerCase() !== 'go') {
+    if (!isNotFound && pathParts[0]?.toLowerCase() !== 'go') {
       if (rawCleanUrlPath !== canonicalPath || isOnlyPageOneQuery) {
         let querySuffix = '';
         if (req?.query && !isOnlyPageOneQuery) {
@@ -4485,8 +4678,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         )
       );
 
+      const isThinCategoryOrLocation =
+        (routeType === 'category' || routeType === 'location') &&
+        Array.isArray(initialData?.listings) &&
+        initialData.listings.length < 3;
+
       // Inject dynamic, accurate Schema.org JSON-LD for public canonical pages via shared builders
-      if (!isNotFound && !hasFilterOrSessionQuery && (pathParts.length === 1 || pathParts.length === 2) && !['saved', 'login', 'add_listing'].includes(routeType)) {
+      if (!isNotFound && !hasFilterOrSessionQuery && !isThinCategoryOrLocation && (pathParts.length === 1 || pathParts.length === 2) && !['saved', 'login', 'add_listing'].includes(routeType)) {
         let schemasToEmit: Record<string, any>[] = [];
 
         if (routeType === 'listing' && initialData) {
@@ -4506,33 +4704,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
             authorName: initialData?.name || 'Youssef Agrebi',
           });
         } else if (routeType === 'category' || routeType === 'location') {
-          const isRestaurantSubcategory =
-            pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants';
-          let categoryLabel = 'Listings';
-          if (isRestaurantSubcategory) {
-            const locName = pathParts[1].toLowerCase().replace(/-/g, ' ');
-            categoryLabel = locName
-              .split(' ')
-              .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-              .join(' ');
-          } else {
-            const labelMap: Record<string, string> = {
-              listings: 'Listings',
-              restaurants: 'Restaurants',
-              mosques: 'Mosques',
-              organizations: 'Organizations',
-              grocery: 'Grocery',
-              clothing: 'Clothing',
-              schools: 'Schools',
-              butchers: 'Butchers',
-            };
-            categoryLabel =
-              labelMap[pathParts[0].toLowerCase()] ||
-              (title.split(' - ')[0] || 'Category')
-                .replace(/Halal /gi, '')
-                .replace(/ in Ottawa.*/gi, '')
-                .trim();
-          }
+          const { categoryLabel, isRestaurantSubcategory } = resolveCategoryLabelFromPath(canonicalPath);
 
           schemasToEmit = buildCategoryStructuredData({
             urlPath: canonicalPath,
@@ -4571,13 +4743,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const statusCode: 404 | 410 = isGone ? 410 : 404;
         const customHeading = isGone
           ? 'Content Permanently Removed'
-          : (routeType === 'category' || routeType === 'location')
-          ? 'No Verified Listings in This Category Yet'
           : 'Page Not Found';
         const customMsg = isGone
           ? 'This listing or page has been permanently removed from Halal Ottawa.'
-          : (routeType === 'category' || routeType === 'location')
-          ? "We don't have any verified halal listings in this category yet. Explore our active Ottawa directories below."
           : "Sorry, we couldn't find the page you're looking for. Explore our verified Ottawa directories below.";
         ssrBodyHtml = renderNotFoundSSRHtml(statusCode, customHeading, customMsg);
       } else if (routeType === 'home' && initialData) {
@@ -4585,31 +4753,21 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       } else if (routeType === 'listing' && initialData) {
         ssrBodyHtml = renderListingDetailSSRHtml(initialData);
       } else if ((routeType === 'category' || routeType === 'location') && initialData?.listings) {
-        const h1 = title.split(' - ')[0] || title;
-        let categoryName = 'Directory';
-        if (pathParts.length === 1) {
-          const map: Record<string, string> = {
-            listings: 'All Listings',
-            restaurants: 'Restaurants',
-            mosques: 'Mosques',
-            organizations: 'Organizations',
-            grocery: 'Grocery',
-            clothing: 'Clothing',
-            schools: 'Schools',
-            butchers: 'Butchers'
-          };
-          categoryName = map[pathParts[0].toLowerCase()] || (pathParts[0].charAt(0).toUpperCase() + pathParts[0].slice(1).replace(/-/g, ' '));
-        } else if (pathParts.length === 2 && pathParts[0].toLowerCase() === 'restaurants') {
-          categoryName = pathParts[1].charAt(0).toUpperCase() + pathParts[1].slice(1).replace(/-/g, ' ');
-        }
+        const catMeta = getCategoryPageMeta(canonicalPath);
+        const h1 = catMeta.h1;
+        const { categoryLabel: categoryName } = resolveCategoryLabelFromPath(canonicalPath);
+        const rawPageParam = Number(req?.query?.page || 1);
+        const currentPage = Number.isFinite(rawPageParam) && rawPageParam > 1 ? Math.floor(rawPageParam) : 1;
 
         ssrBodyHtml = renderCategorySSRHtml({
           title,
           h1Text: h1,
           description,
-          formattedCategory: categoryName,
-          urlPath,
-          listings: initialData.listings
+          formattedCategory: catMeta.isValid ? catMeta.formattedCategory : categoryName,
+          urlPath: canonicalPath,
+          listings: initialData.listings,
+          introText: initialData.introText || '',
+          currentPage,
         });
       } else if (routeType === 'news_list' && initialData) {
         ssrBodyHtml = renderNewsListSSRHtml(initialData.news);
@@ -4649,11 +4807,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
 
       html = html.replace('</head>', `${extraTags}\n  </head>`);
 
-      const isCollectionEmpty =
-        (routeType === 'category' || routeType === 'location') &&
-        Array.isArray(initialData?.listings) &&
-        initialData.listings.length === 0;
-
       const isUnapprovedContent =
         (routeType === 'listing' || routeType === 'news') &&
         initialData &&
@@ -4665,9 +4818,9 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         (pathParts.length === 3 && pathParts[1]?.toLowerCase() === 'edit');
 
       let robotsDirective = 'index, follow';
-      if (isNotFound || isGone || isCollectionEmpty || isPrivateOrActionRoute || isUnapprovedContent) {
+      if (isNotFound || isGone || isPrivateOrActionRoute || isUnapprovedContent) {
         robotsDirective = 'noindex, nofollow';
-      } else if (hasFilterOrSessionQuery) {
+      } else if (isThinCategoryOrLocation || hasFilterOrSessionQuery) {
         robotsDirective = 'noindex, follow';
       }
 
@@ -4729,12 +4882,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     }
   }
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  // Vite middleware for local development only (never in production or Vercel serverless)
+  if (process.env.NODE_ENV !== "production" && process.env.VERCEL !== "1") {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
-      appType: "custom", // Use custom mode to allow our wildcard handler to inject SSI tags before sending to client
+      appType: "custom",
     });
 
     app.get("/@vite/client", async (_req, res, next) => {
@@ -4768,16 +4921,16 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     app.use(vite.middlewares);
 
     app.get("*", async (req, res, next) => {
-      // Ignore API routes, HMR sockets, and filenames with dot properties
-      if (req.path.startsWith("/api") || req.path.includes(".")) {
+      if (req.path.startsWith("/api")) {
+        return next();
+      }
+      // Allow Vite/static files with extensions unless it's an unknown HTML/legacy path
+      if (req.path.includes(".") && !req.path.endsWith(".html") && !req.path.endsWith(".php")) {
         return next();
       }
       try {
         const rawTemplate = fs.readFileSync(path.resolve(process.cwd(), "index.html"), "utf-8");
-        // Apply Vite HTML transformations (e.g. inject hot reload module client)
         const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
-        
-        // Execute server-side meta injection (SSI)
         const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
           res.redirect(301, result.redirectUrl);
@@ -4792,27 +4945,34 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     });
 
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath, {
-      index: false,
-      redirect: false,
-      maxAge: "30d",
-      setHeaders: (res, filePath) => {
-        if (filePath.includes("/assets/")) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        } else if (/\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js)$/i.test(filePath)) {
-          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-        } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
-          res.setHeader("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=86400");
-          res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+    const distPath = resolveAppPath("dist") || path.join(process.cwd(), "dist");
+    if (fs.existsSync(distPath)) {
+      app.use(express.static(distPath, {
+        index: false,
+        redirect: false,
+        maxAge: "30d",
+        setHeaders: (res, filePath) => {
+          if (filePath.includes("/assets/")) {
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          } else if (/\.(ico|png|jpg|jpeg|webp|svg|gif|woff|woff2|ttf|css|js)$/i.test(filePath)) {
+            res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+          } else if (filePath.endsWith(".html") || filePath.endsWith(".xml") || filePath.endsWith(".txt")) {
+            res.setHeader("Cache-Control", "public, max-age=0, s-maxage=300, stale-while-revalidate=86400");
+            res.setHeader("Vercel-CDN-Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
+          }
         }
-      }
-    }));
-    
+      }));
+    }
+
     app.get("*", async (req, res) => {
+      if (req.path.startsWith("/api/")) {
+        return res.status(404).json({ error: "API route not found" });
+      }
       try {
-        const spaPath = path.join(distPath, "template.spa.html");
-        const indexPath = fs.existsSync(spaPath) ? spaPath : path.join(distPath, "index.html");
+        const spaPath = resolveAppPath("dist", "template.spa.html") || path.join(distPath, "template.spa.html");
+        const indexPath = fs.existsSync(spaPath)
+          ? spaPath
+          : (resolveAppPath("dist", "index.html") || path.join(distPath, "index.html"));
         const template = fs.readFileSync(indexPath, "utf-8");
         const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
@@ -4823,16 +4983,28 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         res.status(result.statusCode || (result.isNotFound ? 404 : 200)).set({ "Content-Type": "text/html" }).send(result.html);
       } catch (err) {
         console.error("Error serving index.html:", err);
-        res.sendFile(path.join(distPath, "index.html"));
+        const fallbackIndex = resolveAppPath("dist", "index.html") || path.join(distPath, "index.html");
+        if (fs.existsSync(fallbackIndex)) {
+          res.sendFile(fallbackIndex);
+        } else {
+          res.status(500).send("Internal Server Error");
+        }
       }
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-startServer().catch((err) => {
-  console.error("Error starting server:", err);
-});
+if (process.env.VERCEL !== "1" && process.env.DISABLE_LISTEN !== "1") {
+  createApp()
+    .then((app) => {
+      const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+      app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Error starting server:", err);
+    });
+}

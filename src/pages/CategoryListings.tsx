@@ -12,6 +12,7 @@ import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
 import { isAppWrapper } from '../utils/platform';
 import { getNeighborhoodFromAddress } from '../utils/geo';
+import { getCategoryPageMeta } from '../utils/categoryMeta';
 
 const ListingDetail = React.lazy(() => import('./ListingDetail').then(m => ({ default: m.ListingDetail })));
 
@@ -127,71 +128,14 @@ export const CategoryListings: React.FC = () => {
     ? cleanCategorySlug.charAt(0).toUpperCase() + cleanCategorySlug.slice(1).toLowerCase()
     : '';
     
-  const isMainCategory = CATEGORIES.map(c => normalizeCompare(c)).includes(normalizeCompare(rawFormattedCategory));
-  const matchedType = LISTING_TYPES.find(t => {
-    const normT = normalizeCompare(t);
-    const normCat = normalizeCompare(rawFormattedCategory);
-    return normT === normCat || (normCat === 'sandwiches' && normT === 'sandwiches subs') || (normCat === 'smoothies' && normT === 'juice smoothies');
-  });
-  const matchedCuisine = CUISINES.find(c => normalizeCompare(c) === normalizeCompare(rawFormattedCategory));
-  const matchedLocation = ['Orleans', 'Kanata', 'Barrhaven', 'Downtown'].find(l => normalizeCompare(l) === normalizeCompare(rawFormattedCategory));
-  const isLocationCategory = !!matchedLocation;
-
-  // Validate if it's a real category, listing type, cuisine, or location
-  // Subcategories are only valid off /restaurants/ path, not root / path
-  const isUnderRestaurants = pathname.startsWith('/restaurants') || pathname.startsWith('/restaurants/');
-  const isValidCategory = isUnderRestaurants 
-    ? (normalizeCompare(rawFormattedCategory) === 'restaurants' || !!matchedType || !!matchedCuisine || isLocationCategory) 
-    : isMainCategory;
-
-  const formattedCategory = isMainCategory 
-    ? (CATEGORIES.find(c => normalizeCompare(c) === normalizeCompare(rawFormattedCategory)) || rawFormattedCategory)
-    : (matchedType || matchedCuisine || matchedLocation || rawFormattedCategory);
-    
-  // Calculate current month and year for SEO titles
-  const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
-  const currentYear = currentDate.getFullYear();
-  const monthYearStr = `${currentMonth} ${currentYear}`;
-
-  const h1Text = isLocationCategory ? (
-    formattedCategory.toLowerCase() === 'downtown' 
-      ? 'Halal Restaurants in Downtown Ottawa' 
-      : `Halal Restaurants in ${formattedCategory}`
-  ) :
-   formattedCategory === 'Restaurants' ? 'Halal Restaurants in Ottawa' :
-   formattedCategory === 'Mosques' ? 'Mosques in Ottawa' :
-   formattedCategory === 'Grocery' ? 'Halal Grocery in Ottawa' :
-   formattedCategory === 'Clothing' ? 'Islamic Clothing in Ottawa' :
-   formattedCategory === 'Schools' ? 'Islamic Schools in Ottawa' :
-   formattedCategory === 'Butchers' ? 'Halal Butchers in Ottawa' :
-   formattedCategory === 'Organizations' ? 'Muslim Organizations in Ottawa' :
-   matchedType ? `Halal ${formattedCategory} in Ottawa` :
-   matchedCuisine ? `Halal ${formattedCategory} Restaurants in Ottawa` :
-   `Halal ${formattedCategory} in Ottawa`;
-
-  const pageTitle = `${h1Text} - ${monthYearStr}`;
-  let seoDescription = `Explore the best halal ${formattedCategory} in Ottawa for ${monthYearStr}. Find top-rated places, read reviews, and discover local spots in the Ottawa Muslim community directory.`;
-
-  if (isLocationCategory) {
-    seoDescription = `Find the best verified halal restaurants and food spots in ${formattedCategory}, Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get directions.`;
-  } else if (formattedCategory === 'Restaurants') {
-    seoDescription = `Discover the best verified halal restaurants and food spots in Ottawa for ${monthYearStr}. Search by cuisine or food style, read verified reviews, and get maps directions.`;
-  } else if (formattedCategory === 'Grocery') {
-    seoDescription = `Find the best halal grocery stores, supermarkets, and specialty food shops in Ottawa offering certified halal products and ingredients for ${monthYearStr}.`;
-  } else if (formattedCategory === 'Clothing') {
-    seoDescription = `Explore trusted Islamic clothing stores and boutiques in Ottawa offering modest wear, hijabs, abayas, and thobes for ${monthYearStr}.`;
-  } else if (formattedCategory === 'Schools') {
-    seoDescription = `Browse accredited directories of Islamic schools, preschools, daycares, and weekend Quran educational programs in Ottawa for ${monthYearStr}.`;
-  } else if (formattedCategory === 'Butchers') {
-    seoDescription = `Find certified halal butcher shops and fresh meat markets in Ottawa providing premium hand-slaughtered zabihah meat for ${monthYearStr}.`;
-  } else if (formattedCategory === 'Organizations') {
-    seoDescription = `Connect with trusted Islamic organizations, community support networks, and local charities in Ottawa for ${monthYearStr}.`;
-  } else if (formattedCategory === 'Mosques') {
-    seoDescription = `Locate local mosques, musallahs, and Islamic prayer spaces around Ottawa. Find prayer times and Friday khutbah details for ${monthYearStr}.`;
-  } else if (!isMainCategory && isValidCategory) {
-    seoDescription = `Discover top-rated, certified halal ${formattedCategory} options in Ottawa for ${monthYearStr}. Find verified business locations, operating hours, phone info, and user reviews.`;
-  }
+  const meta = getCategoryPageMeta(pathname);
+  const isValidCategory = meta.isValid;
+  const isUnderRestaurants = meta.isUnderRestaurants;
+  const isLocationCategory = meta.isLocationCategory;
+  const formattedCategory = meta.formattedCategory;
+  const h1Text = meta.h1;
+  const pageTitle = meta.title;
+  const seoDescription = meta.description;
 
   const [hasValidSSRData] = useState(() => {
     return (
@@ -202,6 +146,13 @@ export const CategoryListings: React.FC = () => {
   });
 
   const initialSSRGuardRef = useRef<boolean>(hasValidSSRData);
+
+  const [introText, setIntroText] = useState<string>(() => {
+    if (hasValidSSRData && typeof (window as any).__INITIAL_DATA__?.introText === 'string') {
+      return (window as any).__INITIAL_DATA__.introText;
+    }
+    return '';
+  });
 
   const [rawListings, setRawListings] = useState<Listing[]>(() => {
     if (hasValidSSRData) {
@@ -246,10 +197,20 @@ export const CategoryListings: React.FC = () => {
   useEffect(() => {
     if (!isValidCategory) return;
 
+    let active = true;
+    fetch('/api/category-intros')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!active || !d?.intros) return;
+        const nextIntro = typeof d.intros[meta.canonicalPath] === 'string' ? d.intros[meta.canonicalPath] : '';
+        setIntroText(nextIntro);
+      })
+      .catch(() => {});
+
     // Guard: skip redundant Firestore fetch if valid SSR-provided data exists for this route and user is not logged in
     if (initialSSRGuardRef.current && !user) {
       initialSSRGuardRef.current = false;
-      return;
+      return () => { active = false; };
     }
     initialSSRGuardRef.current = false;
 
@@ -527,24 +488,24 @@ export const CategoryListings: React.FC = () => {
   const currentLocationKey = isLocationCategory ? formattedCategory.toLowerCase() : null;
   const currentGuide = currentLocationKey ? locationGuides[currentLocationKey] : null;
 
-  const canonicalCategoryPageUrl = getCanonicalUrl(pathname);
+  const canonicalCategoryPageUrl = getCanonicalUrl(meta.canonicalPath || pathname);
   const hasFilterOrSessionQuery =
     Boolean(searchQuery.trim()) ||
     currentPage > 1 ||
     Array.from(searchParams.keys()).some((k) =>
       ['search', 'q', 'category', 'suburb', 'location', 'cuisine', 'type', 'sort', 'page', 'filter', 'return_url'].includes(k.toLowerCase())
     );
-  const isEmptyCategoryPage = filteredListings.length === 0;
-  const shouldNoindexCategoryPage = isEmptyCategoryPage || hasFilterOrSessionQuery;
-  const isRestaurantSub = isUnderRestaurants && pathname !== '/restaurants';
+  const isThinCategoryPage = filteredListings.length < 3;
+  const shouldNoindexCategoryPage = isThinCategoryPage || hasFilterOrSessionQuery;
+  const isRestaurantSub = isUnderRestaurants && meta.canonicalPath !== '/restaurants';
 
   const structuredDataList = !shouldNoindexCategoryPage ? buildCategoryStructuredData({
-    urlPath: pathname,
+    urlPath: meta.canonicalPath || pathname,
     title: pageTitle,
     description: seoDescription,
     categoryLabel: formattedCategory,
     isRestaurantSubcategory: isRestaurantSub,
-    listings: filteredListings
+    listings: currentListings
   }) : undefined;
 
   return (
@@ -555,12 +516,12 @@ export const CategoryListings: React.FC = () => {
         canonicalUrl={canonicalCategoryPageUrl} 
         disableSuffix={true}
         noindex={shouldNoindexCategoryPage}
-        robots={isEmptyCategoryPage ? 'noindex, nofollow' : shouldNoindexCategoryPage ? 'noindex, follow' : 'index, follow'}
+        robots={shouldNoindexCategoryPage ? 'noindex, follow' : 'index, follow'}
         structuredData={structuredDataList}
       />
 
       {/* Breadcrumb Bar */}
-      <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
         <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
         {isRestaurantSub && (
           <>
@@ -569,7 +530,7 @@ export const CategoryListings: React.FC = () => {
           </>
         )}
         <ChevronLeft className="w-3.5 h-3.5 rotate-180 text-gray-400" />
-        <span className="font-semibold text-gray-900">{formattedCategory}</span>
+        <span className="font-semibold text-gray-900" aria-current="page">{formattedCategory}</span>
       </nav>
 
       <div className="flex justify-between items-center">
@@ -648,6 +609,13 @@ export const CategoryListings: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Editable Intro Text (shown above listings when populated in Admin) */}
+      {introText && introText.trim().length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-6 shadow-sm space-y-3 text-sm md:text-base text-gray-700 leading-relaxed whitespace-pre-line">
+          {introText.trim()}
+        </div>
+      )}
 
       {/* Listings Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-6">

@@ -8,7 +8,7 @@ import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 import { Listing, ListingCategory, ListingType, CuisineType } from '../types';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ConfirmationModal } from '../components/ConfirmationModal';
-import { generateSlug } from '../utils/slugify';
+import { generateSlug, findListingSlugConflict } from '../utils/slugify';
 import { getListingUrl } from '../utils/url';
 import { SEO } from '../components/SEO';
 import { toast } from 'sonner';
@@ -299,6 +299,15 @@ export const EditListing: React.FC = () => {
         ? generateSlug(formData.slug) 
         : generateSlug(formData.name);
 
+      const conflictCheck = await findListingSlugConflict(db, newSlug, id);
+      if (conflictCheck.conflict) {
+        toast.error(
+          `Another listing ("${conflictCheck.existingName || newSlug}") already uses the slug "${newSlug}". Choose a different name or merge the duplicate instead.`
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
       const processedPhotos = await Promise.all(
         formData.photos.filter(p => p.trim() !== '').map(async (photoUrl, idx) => {
           if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
@@ -309,6 +318,7 @@ export const EditListing: React.FC = () => {
         })
       );
         
+      const nowIso = new Date().toISOString();
       await updateDoc(docRef, {
         ...formData,
         suburb: finalSuburb,
@@ -316,7 +326,8 @@ export const EditListing: React.FC = () => {
         cuisine: formData.category.includes('Restaurants') ? formData.cuisine : [],
         slug: newSlug,
         photos: processedPhotos,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowIso,
+        contentUpdatedAt: nowIso,
       });
       if (isApproved) {
         notifyContentChanged('listing:edit', {

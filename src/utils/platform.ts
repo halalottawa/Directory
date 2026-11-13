@@ -117,15 +117,10 @@ export function getApiBaseUrl(): string {
   // If we are on our production domain, use relative paths to route to the Node custom server directly
   if (
     hostname === "www.halalottawa.ca" || 
-    hostname === "halalottawa.ca"
+    hostname === "halalottawa.ca" ||
+    hostname.endsWith(".vercel.app")
   ) {
     return '';
-  }
-
-  // Static website hosting (Vercel) does not run our Node/Express server.
-  // We point directly to our custom production domain backend for API queries.
-  if (hostname.endsWith(".vercel.app")) {
-    return 'https://www.halalottawa.ca';
   }
 
   const isLocalWebview = 

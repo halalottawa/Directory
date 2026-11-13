@@ -1,7 +1,7 @@
 import { getApiUrl } from './platform';
 
 export interface RevalidateOptions {
-  collection?: 'listings' | 'news';
+  collection?: 'listings' | 'news' | 'settings';
   docId?: string;
   isApproved?: boolean;
 }

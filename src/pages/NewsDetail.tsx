@@ -10,6 +10,7 @@ import { SaveButton } from '../components/SaveButton';
 import { formatDate } from '../utils/dateFormatter';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { getAbsoluteUrl, getCanonicalUrl } from '../utils/url';
+import { getExcerpt } from '../utils/textUtils';
 import { buildNewsArticleStructuredData } from '../utils/structuredData';
 import { SEO } from '../components/SEO';
 import { NotFound } from './NotFound';
@@ -280,7 +281,7 @@ export const NewsDetail: React.FC = () => {
   if (!article) return <NotFound />;
 
   const canonicalArticleUrl = getCanonicalUrl(`/news/${article.slug || article.id}`);
-  const articleSeoDesc = article.content.length > 150 ? article.content.substring(0, 150) + '...' : article.content;
+  const articleSeoDesc = getExcerpt(article.excerpt || article.content || '', 160) || article.title;
 
   return (
     <>
@@ -342,12 +343,12 @@ export const NewsDetail: React.FC = () => {
       </div>
 
       <div className="p-6 space-y-8">
-        <nav aria-label="Breadcrumbs" className="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500 font-medium overflow-x-auto whitespace-nowrap">
           <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
           <span className="text-gray-300">›</span>
           <Link to="/news" className="hover:text-[#e90b35] transition-colors">News</Link>
           <span className="text-gray-300">›</span>
-          <span className="text-gray-900 truncate max-w-[260px] font-semibold">{article.title}</span>
+          <span className="text-gray-900 truncate max-w-[260px] font-semibold" aria-current="page">{article.title}</span>
         </nav>
         {(() => {
           const paragraphs = article.content ? article.content.split(/\r?\n\s*\r?\n/) : [];

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { Compass, MapPin, Navigation2, Crosshair, AlertCircle } from 'lucide-react';
 import { SEO } from '../components/SEO';
 import { getCanonicalUrl } from '../utils/url';
@@ -130,6 +131,12 @@ export const QiblaDirection: React.FC = () => {
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+          <span className="text-gray-300">›</span>
+          <span className="font-semibold text-gray-900" aria-current="page">Qibla Direction</span>
+        </nav>
+
         <div className="flex flex-col items-center text-center space-y-8">
         <div className="space-y-4">
           <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">

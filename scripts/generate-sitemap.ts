@@ -24,12 +24,14 @@ async function generateSitemap() {
 
   let allApprovedListings: any[] = [];
   let allApprovedNews: any[] = [];
+  let allApprovedReviews: any[] = [];
 
   if (db) {
     try {
-      const [listingsSnap, newsSnap] = await Promise.all([
+      const [listingsSnap, newsSnap, reviewsSnap] = await Promise.all([
         getDocs(query(collection(db, 'listings'), where('isApproved', '==', true))),
         getDocs(query(collection(db, 'news'), where('isApproved', '==', true))),
+        getDocs(query(collection(db, 'reviews'), where('isApproved', '==', true))),
       ]);
 
       listingsSnap.forEach((docSnap) => {
@@ -40,7 +42,11 @@ async function generateSitemap() {
         allApprovedNews.push({ id: docSnap.id, ...docSnap.data() });
       });
 
-      console.log(`Fetched ${allApprovedListings.length} approved listings and ${allApprovedNews.length} approved news articles from Firestore.`);
+      reviewsSnap.forEach((docSnap) => {
+        allApprovedReviews.push({ id: docSnap.id, ...docSnap.data() });
+      });
+
+      console.log(`Fetched ${allApprovedListings.length} approved listings, ${allApprovedNews.length} approved news articles, and ${allApprovedReviews.length} approved reviews from Firestore.`);
     } catch (e) {
       if (!isFirestoreQuotaError(e)) {
         console.error("Error fetching dynamic URLs from Firestore:", e);
@@ -53,8 +59,33 @@ async function generateSitemap() {
     allApprovedNews = getFallbackNews();
   }
 
+  const excludedPaths = new Set<string>();
+  try {
+    const redirectsPath = path.resolve(process.cwd(), 'redirects.json');
+    if (fs.existsSync(redirectsPath)) {
+      const parsed = JSON.parse(fs.readFileSync(redirectsPath, 'utf-8'));
+      if (parsed?.redirects && typeof parsed.redirects === 'object') {
+        for (const k of Object.keys(parsed.redirects)) {
+          const norm = String(k || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          excludedPaths.add(norm);
+        }
+      }
+      if (Array.isArray(parsed?.gone)) {
+        for (const g of parsed.gone) {
+          const norm = String(g || '').trim().toLowerCase().replace(/\/+$/, '') || '/';
+          excludedPaths.add(norm);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Could not read redirects.json during sitemap generation:", err);
+  }
+
   // 1. Build Main Sitemap (sitemap.xml)
-  const { xml: mainXml, entries: mainEntries } = buildMainSitemapXml(allApprovedListings, allApprovedNews);
+  const { xml: mainXml, entries: mainEntries } = buildMainSitemapXml(allApprovedListings, allApprovedNews, {
+    reviews: allApprovedReviews,
+    excludedPaths,
+  });
   const outputPath = path.resolve(process.cwd(), 'public', 'sitemap.xml');
   fs.writeFileSync(outputPath, mainXml, 'utf-8');
   console.log(`Main sitemap (${mainEntries.length} unique URLs) written to ${outputPath}`);

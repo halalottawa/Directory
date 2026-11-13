@@ -595,9 +595,12 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 newAvg = Number((newTotal / newCount).toFixed(1));
               }
               
+              const nowIso = new Date().toISOString();
               await updateDoc(doc(db, 'listings', listing.id), {
                 reviewCount: newCount,
-                averageRating: newAvg
+                averageRating: newAvg,
+                updatedAt: nowIso,
+                contentUpdatedAt: nowIso,
               });
               
               setListing({
@@ -643,23 +646,21 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
   const renderBreadcrumbs = (position: 'top' | 'content') => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;
     
-    let displayCategory: string = mainCategory;
-    if (mainCategory === 'Restaurants') displayCategory = 'Halal Restaurants';
-    if (mainCategory === 'Schools') displayCategory = 'Islamic Schools';
-    if (mainCategory === 'Grocery') displayCategory = 'Halal Grocery';
-    
     return (
-      <div className={`hidden md:flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap scrollbar-hide ${position === 'top' ? 'py-4 px-6 border-b border-gray-100 bg-gray-50/50' : ''}`}>
+      <nav
+        aria-label="Breadcrumb"
+        className={`flex items-center gap-2 text-[13px] text-gray-500 font-medium overflow-x-auto whitespace-nowrap scrollbar-hide ${position === 'top' ? 'py-4 px-6 border-b border-gray-100 bg-gray-50/50' : ''}`}
+      >
         <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
         {mainCategory && (
           <>
             <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-            <Link to={`/${normalizeCategoryToSlug(mainCategory)}`} className="hover:text-[#e90b35] transition-colors">{displayCategory}</Link>
+            <Link to={`/${normalizeCategoryToSlug(mainCategory)}`} className="hover:text-[#e90b35] transition-colors">{mainCategory}</Link>
           </>
         )}
         <ChevronRight className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-        <span className="text-gray-900 truncate max-w-[200px]">{listing.name}</span>
-      </div>
+        <span className="text-gray-900 truncate max-w-[260px]" aria-current="page">{listing.name}</span>
+      </nav>
     );
   };
 
@@ -679,7 +680,8 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
         ogImage={listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined}
         structuredData={buildListingStructuredData(listing, {
           description: listingSeoDescription,
-          ogImage: listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined
+          ogImage: listing.photos && listing.photos.length > 0 ? getAbsoluteUrl(listing.photos[0]) : undefined,
+          visibleReviews: reviews,
         })}
       />
 
@@ -740,14 +742,14 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 const otherCategories = categories.slice(1);
                 
                 const subcategories: string[] = [];
+                subcategories.push(...types);
                 if (categories.includes('Restaurants')) {
-                  subcategories.push(...types);
                   subcategories.push(...cuisine);
                 }
                 subcategories.push(...otherCategories);
                 
                 const uniqueSubcategories = Array.from(new Set(subcategories)).filter(Boolean);
-                const displaySubcategories = uniqueSubcategories.slice(0, 2);
+                const displaySubcategories = uniqueSubcategories;
 
                 return (
                   <>
@@ -787,13 +789,15 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold leading-tight">{listing.name}</h1>
             </div>
-            <div className="flex items-center gap-4 mt-2 text-sm">
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-bold">{listing.averageRating}</span>
-                <span className="text-white/70">({listing.reviewCount} reviews)</span>
+            {Number(listing.reviewCount) > 0 && Number(listing.averageRating) > 0 && (
+              <div className="flex items-center gap-4 mt-2 text-sm">
+                <div className="flex items-center gap-1">
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  <span className="font-bold">{listing.averageRating}</span>
+                  <span className="text-white/70">({listing.reviewCount} reviews)</span>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           
           <SaveButton id={listing.id} type="listing" variant="glass" />
@@ -809,7 +813,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
           <button 
             onClick={() => handleInfoClick(
               'Address', 
-              formatAddressWithoutProvinceAndPostalCode(listing.address), 
+              `${listing.address}${listing.suburb && !listing.address.toLowerCase().includes(listing.suburb.toLowerCase()) ? ` (${listing.suburb})` : ''}`, 
               <MapPin className="w-6 h-6" />,
               'Open in Google Maps',
               openInMaps
@@ -1305,7 +1309,12 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
                 </div>
                 <div className="flex items-start gap-3 text-sm text-gray-600">
                   <MapPin className="w-5 h-5 text-[#e90b35] shrink-0 mt-0.5" />
-                  <span>{formatAddressWithoutProvinceAndPostalCode(listing.address)}</span>
+                  <span>
+                    {listing.address}
+                    {listing.suburb && !listing.address.toLowerCase().includes(listing.suburb.toLowerCase())
+                      ? ` (${listing.suburb})`
+                      : ''}
+                  </span>
                 </div>
                 <button 
                   onClick={openInMaps}

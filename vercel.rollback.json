@@ -1,0 +1,36 @@
+{
+  "_comment": "Backup of previous vercel.json configuration (which proxied through AI Studio preview proxy ais-pre-...run.app). Kept here because strict JSON in vercel.json does not support // comments.",
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/uploads/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" }
+      ]
+    }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/api/$1" },
+    { "source": "/uploads/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/uploads/$1" },
+    { "source": "/(.*)", "destination": "https://ais-pre-o3grau7ukgun6nvnjrynhh-118138859761.us-east5.run.app/$1" }
+  ]
+}

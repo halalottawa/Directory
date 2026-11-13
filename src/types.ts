@@ -52,6 +52,8 @@ export interface Listing {
   isApproved: boolean;
   submittedBy: string;
   createdAt: string;
+  updatedAt?: string;
+  contentUpdatedAt?: string;
   views?: number;
   // Plan/Monetization logic
   plan?: 'basic' | 'premium';
@@ -120,6 +122,7 @@ export interface NewsArticle {
   isApproved: boolean;
   submittedBy: string;
   createdAt: string;
+  updatedAt?: string;
   views?: number;
   commentCount?: number;
 }

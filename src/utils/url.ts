@@ -13,15 +13,17 @@ export const normalizeCategoryToSlug = (cat: string): string => {
   return c.trim().replace(/\s+/g, '-').replace(/[^a-z0-9\-]+/g, '');
 };
 
+import { transliterateAccents } from './slugify';
+
 export const normalizeSubcategorySlug = (sub: string): string => {
   if (!sub) return '';
-  return String(sub)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+  return transliterateAccents(String(sub))
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-]+/g, '');
+    .replace(/['’‘ʼ`]/g, '')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
 };
 
 export const getListingUrl = (listing: Listing | any): string => {

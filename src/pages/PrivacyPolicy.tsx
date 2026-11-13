@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronLeft, Shield, Lock, Eye, FileText, Mail, MapPin, Globe, Cookie } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SEO } from '../components/SEO';
 import { getCanonicalUrl } from '../utils/url';
 import { buildStaticPageStructuredData } from '../utils/structuredData';
@@ -23,12 +23,18 @@ export const PrivacyPolicy: React.FC = () => {
       />
 
       <div className="pt-8 pb-12 px-6 md:px-12 max-w-3xl mx-auto space-y-10">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <Link to="/" className="hover:text-[#e90b35] transition-colors">Home</Link>
+          <span className="text-gray-300">›</span>
+          <span className="font-semibold text-gray-900" aria-current="page">Privacy Policy</span>
+        </nav>
+
         <div className="text-center space-y-4">
           <div className="w-16 h-16 bg-red-50 rounded-3xl flex items-center justify-center text-[#e90b35] mx-auto">
             <Shield className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">Your Privacy Matters</h2>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Privacy Policy</h1>
             <p className="text-gray-500">Last updated: March 25, 2026</p>
           </div>
         </div>
