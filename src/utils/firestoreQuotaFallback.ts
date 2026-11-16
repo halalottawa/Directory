@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { RESTAURANT_SUBCATEGORIES } from './sitemapBuilder';
+import { isListingClosedOrDeleted } from './url';
 
 export function isFirestoreQuotaError(err: unknown): boolean {
   if (!err) return false;
@@ -166,6 +167,9 @@ function parseSitemapsForFallback(): { listings: any[]; news: any[] } {
         const categoryName = CATEGORY_SLUG_TO_NAME[catSlug];
         if (!categoryName) continue;
         if (catSlug === 'restaurants' && RESTAURANT_SUBCATEGORY_SLUGS.has(itemSlug.toLowerCase())) {
+          continue;
+        }
+        if (isListingClosedOrDeleted({ id: itemSlug, slug: itemSlug })) {
           continue;
         }
 

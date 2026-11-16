@@ -20,7 +20,7 @@ import {
   renderNotFoundSSRHtml
 } from '../src/utils/ssrTemplates';
 import { getExcerpt } from '../src/utils/textUtils';
-import { getCanonicalUrl } from '../src/utils/url';
+import { getCanonicalUrl, isListingClosedOrDeleted } from '../src/utils/url';
 import {
   buildHomeStructuredData,
   buildCategoryStructuredData,
@@ -423,6 +423,8 @@ async function prerender() {
         categoryIntros = {};
       }
 
+      rawListings = rawListings.filter((d: any) => !isListingClosedOrDeleted(d));
+      allNewsData = allNewsData.filter((n: any) => n && n.deleted !== true && n.status !== 'deleted');
       allNewsData = allNewsData.sort(
         (a, b) => parseTime(b.publishDate || b.createdAt) - parseTime(a.publishDate || a.createdAt)
       );
@@ -665,18 +667,36 @@ async function prerender() {
     }
   }
 
+  const excludedPrerenderPaths = new Set<string>();
+  try {
+    const redirectsPath = path.resolve(process.cwd(), 'redirects.json');
+    if (fs.existsSync(redirectsPath)) {
+      const parsed = JSON.parse(fs.readFileSync(redirectsPath, 'utf-8'));
+      if (parsed?.redirects && typeof parsed.redirects === 'object') {
+        for (const k of Object.keys(parsed.redirects)) {
+          excludedPrerenderPaths.add(String(k || '').trim().toLowerCase().replace(/\/+$/, '') || '/');
+        }
+      }
+      if (Array.isArray(parsed?.gone)) {
+        for (const g of parsed.gone) {
+          excludedPrerenderPaths.add(String(g || '').trim().toLowerCase().replace(/\/+$/, '') || '/');
+        }
+      }
+    }
+  } catch {}
+
   // 3. Render HTML and Write to Filesystem
   let renderCount = 0;
   for (const page of pagesToPrerender) {
     try {
+      const normalizedUrlPath = String(page.urlPath || '/').trim().toLowerCase().replace(/\/+$/, '') || '/';
       const isThinCategoryOrLocation =
         (page.routeType === 'category' || page.routeType === 'location') &&
         Array.isArray(page.initialData?.listings) &&
         page.initialData.listings.length < 3;
 
-      // Do not write static 200 OK files for thin (< 3 listings) category/subcategory/area pages
-      // so server.ts serves them with HTTP 200 + noindex, follow + X-Robots-Tag
-      if (isThinCategoryOrLocation) {
+      // Do not write static 200 OK files for thin (< 3 listings) or redirected/gone pages
+      if (isThinCategoryOrLocation || excludedPrerenderPaths.has(normalizedUrlPath)) {
         if (fs.existsSync(page.filePath)) {
           try { fs.unlinkSync(page.filePath); } catch {}
         }

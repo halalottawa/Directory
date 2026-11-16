@@ -1,14 +1,5 @@
 User-agent: *
-Allow: /
-
-# Disallow non-HTML backend API endpoints
 Disallow: /api/
 
-# Note: Private/auth/action routes (/admin, /login, /register, /saved, /profile, /settings,
-# /listings/add, /listings/edit/*, /news/add, /news/edit/*) and parameterized search/filter URLs
-# are intentionally NOT blocked in robots.txt so crawlers can read their authoritative
-# X-Robots-Tag / <meta name="robots" content="noindex, ..."> and canonical/redirect responses.
-
-# Sitemap
 Sitemap: https://www.halalottawa.ca/sitemap.xml
 Sitemap: https://www.halalottawa.ca/sitemap-news.xml

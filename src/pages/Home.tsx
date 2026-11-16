@@ -6,7 +6,7 @@ import { Listing, NewsArticle } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, DEMO_NEWS } from '../constants';
 import { formatDate } from '../utils/dateFormatter';
-import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug, isListingClosedOrDeleted } from '../utils/url';
 import { buildHomeStructuredData } from '../utils/structuredData';
 import { useAuth } from '../context/AuthContext';
 import { isAppWrapper } from '../utils/platform';
@@ -162,11 +162,13 @@ export const Home: React.FC = () => {
           return isNaN(d.getTime()) ? 0 : d.getTime();
         };
 
-        const listingsData: Listing[] = Array.isArray(data.listings) ? data.listings : [];
+        const listingsData: Listing[] = (Array.isArray(data.listings) ? data.listings : []).filter(
+          (l: any) => !isListingClosedOrDeleted(l)
+        );
         const sortedListings = listingsData
           .sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt))
           .slice(0, 8);
-        setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));
+        setFeaturedListings(sortedListings.length > 0 ? sortedListings : [...DEMO_LISTINGS].filter((l) => !isListingClosedOrDeleted(l)).sort((a, b) => parseTime(b.createdAt) - parseTime(a.createdAt)).slice(0, 8));
 
         const newsData: NewsArticle[] = (Array.isArray(data.news) ? data.news : []).map((d: any) => ({
           id: d.id,

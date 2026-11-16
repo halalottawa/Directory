@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { CATEGORIES, LISTING_TYPES, CUISINES } from '../constants';
 
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
-import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug, normalizeSubcategorySlug, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, normalizeCategoryToSlug, normalizeSubcategorySlug, formatAddressWithoutProvinceAndPostalCode, isListingClosedOrDeleted } from '../utils/url';
 import { buildListingStructuredData } from '../utils/structuredData';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { ConfirmationModal } from '../components/ConfirmationModal';
@@ -415,7 +415,7 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
         const uniqueListings = Array.from(
           new Map(
             allListings
-              .filter((l) => l.id !== listing.id && l.slug !== slug)
+              .filter((l) => l.id !== listing.id && l.slug !== slug && !isListingClosedOrDeleted(l))
               .map((item) => [item.id, item])
           ).values()
         );
@@ -642,6 +642,15 @@ export const ListingDetail: React.FC<ListingDetailProps> = ({ overrideSlug }) =>
     </div>
   );
   if (!listing) return <NotFound />;
+  if (isListingClosedOrDeleted(listing)) {
+    return (
+      <NotFound
+        statusCode={410}
+        title="Content Permanently Removed"
+        message="This listing has been permanently removed from Halal Ottawa."
+      />
+    );
+  }
 
   const renderBreadcrumbs = (position: 'top' | 'content') => {
     const mainCategory = Array.isArray(listing.category) ? listing.category[0] : listing.category;

@@ -3,7 +3,7 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://www.halalottawa.ca/</loc>
-    <lastmod>2026-10-08</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/author/youssef-agrebi</loc>
@@ -25,6 +25,10 @@
     <lastmod>2026-10-03</lastmod>
   </url>
   <url>
+    <loc>https://www.halalottawa.ca/listings</loc>
+    <lastmod>2026-10-29</lastmod>
+  </url>
+  <url>
     <loc>https://www.halalottawa.ca/mosques</loc>
     <lastmod>2026-06-06</lastmod>
   </url>
@@ -41,7 +45,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants</loc>
-    <lastmod>2026-10-08</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/schools</loc>
@@ -59,11 +63,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/bakery</loc>
-    <lastmod>2026-10-03</lastmod>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/bangladeshi</loc>
-    <lastmod>2026-05-23</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/barrhaven</loc>
@@ -71,11 +71,11 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/breakfast</loc>
-    <lastmod>2026-08-31</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/brunch</loc>
-    <lastmod>2026-06-15</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/buffet</loc>
@@ -87,19 +87,15 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/cafes</loc>
-    <lastmod>2026-06-22</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/chinese</loc>
-    <lastmod>2026-06-07</lastmod>
+    <lastmod>2026-05-24</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/downtown</loc>
     <lastmod>2026-10-08</lastmod>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/ethiopian</loc>
-    <lastmod>2026-06-06</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/fried-chicken</loc>
@@ -123,7 +119,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/mediterranean</loc>
-    <lastmod>2026-10-08</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/mexican</loc>
@@ -131,7 +127,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/middle-eastern</loc>
-    <lastmod>2026-10-08</lastmod>
+    <lastmod>2026-10-29</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/moroccan</loc>
@@ -148,10 +144,6 @@
   <url>
     <loc>https://www.halalottawa.ca/restaurants/persian</loc>
     <lastmod>2026-10-03</lastmod>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/pho</loc>
-    <lastmod>2026-06-06</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/pizza</loc>
@@ -180,10 +172,6 @@
   <url>
     <loc>https://www.halalottawa.ca/restaurants/tacos</loc>
     <lastmod>2026-06-25</lastmod>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/thai</loc>
-    <lastmod>2026-05-23</lastmod>
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/turkish</loc>
@@ -854,14 +842,6 @@
     </image:image>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/restaurants/chahaya-malaysia</loc>
-    <lastmod>2026-06-07</lastmod>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/chahaya-malaysia.webp</image:loc>
-      <image:title>Chahaya Malaysia</image:title>
-    </image:image>
-  </url>
-  <url>
     <loc>https://www.halalottawa.ca/restaurants/chainsmoker-urban-halal-bbq-kanata</loc>
     <lastmod>2026-08-19</lastmod>
     <image:image>
@@ -871,7 +851,7 @@
   </url>
   <url>
     <loc>https://www.halalottawa.ca/restaurants/cheese-and-olives</loc>
-    <lastmod>2026-06-06</lastmod>
+    <lastmod>2026-10-29</lastmod>
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/cheese-and-olives-photo.webp</image:loc>
       <image:title>Cheese and Olives</image:title>
@@ -1126,27 +1106,11 @@
     </image:image>
   </url>
   <url>
-    <loc>https://www.halalottawa.ca/restaurants/la-bonoise</loc>
-    <lastmod>2026-06-09</lastmod>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/la-bnoise.webp</image:loc>
-      <image:title>La Bônoise</image:title>
-    </image:image>
-  </url>
-  <url>
     <loc>https://www.halalottawa.ca/restaurants/la-zone-23</loc>
     <lastmod>2026-06-25</lastmod>
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/la-zone-23.webp</image:loc>
       <image:title>La Zone 23</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/laheeb-elite</loc>
-    <lastmod>2026-06-08</lastmod>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/laheeb-elite-photo.webp</image:loc>
-      <image:title>Laheeb Elite</image:title>
     </image:image>
   </url>
   <url>
@@ -1667,14 +1631,6 @@
     <image:image>
       <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/sultan-ahmet-turkish-cuisine.webp</image:loc>
       <image:title>Sultan Ahmet Turkish Cuisine</image:title>
-    </image:image>
-  </url>
-  <url>
-    <loc>https://www.halalottawa.ca/restaurants/sultan-suleyman-turkish-cuisine</loc>
-    <lastmod>2026-05-24</lastmod>
-    <image:image>
-      <image:loc>https://pub-344de773fe4147898d363b9fffa2e2e4.r2.dev/uploads/3hrllw7okfvy5zxngsi6-photos-0.webp</image:loc>
-      <image:title>Sultan Suleyman Turkish Cuisine</image:title>
     </image:image>
   </url>
   <url>

@@ -1,5 +1,5 @@
 import { getNeighborhoodFromAddress } from './geo';
-import { normalizeCategoryToSlug } from './url';
+import { normalizeCategoryToSlug, isListingClosedOrDeleted } from './url';
 
 export const CANONICAL_BASE_URL = 'https://www.halalottawa.ca';
 
@@ -261,8 +261,7 @@ export function buildMainSitemapXml(
     (l) =>
       l &&
       l.isApproved === true &&
-      l.deleted !== true &&
-      l.status !== 'deleted' &&
+      !isListingClosedOrDeleted(l) &&
       String(l.name || '').trim().length > 0 &&
       String(l.slug || l.id || '').trim().length > 0
   );

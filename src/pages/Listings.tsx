@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
-import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, deduplicateListingsByCanonicalUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, deduplicateListingsByCanonicalUrl, formatAddressWithoutProvinceAndPostalCode, isListingClosedOrDeleted } from '../utils/url';
 import { buildCategoryStructuredData } from '../utils/structuredData';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
@@ -163,7 +163,7 @@ export const Listings: React.FC = () => {
 
   const filteredListings = React.useMemo(() => {
     // Merge with demo data and deduplicate by canonical URL
-    const allListings = deduplicateListingsByCanonicalUrl([...rawListings, ...DEMO_LISTINGS]);
+    const allListings = deduplicateListingsByCanonicalUrl([...rawListings, ...DEMO_LISTINGS].filter(l => !isListingClosedOrDeleted(l)));
     
     const parseTime = (val: any): number => {
       if (!val) return 0;

@@ -55,6 +55,8 @@ export interface Listing {
   updatedAt?: string;
   contentUpdatedAt?: string;
   views?: number;
+  status?: 'active' | 'permanently_closed' | 'closed' | 'deleted';
+  deleted?: boolean;
   // Plan/Monetization logic
   plan?: 'basic' | 'premium';
   autoRenewPremium?: boolean;

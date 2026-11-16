@@ -22,6 +22,10 @@
       "continue": true
     },
     {
+      "src": "^/robots\\.txt$",
+      "dest": "/api/index"
+    },
+    {
       "src": "^/$",
       "has": [{ "type": "query", "key": "p" }],
       "dest": "/api/index"
@@ -35,7 +39,35 @@
       "dest": "/api/index"
     },
     {
+      "src": "^/events(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/jobs(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/category(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/region(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/job-category(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
       "src": "^/listing-tag(?:/.*)?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(?:post-a-listing|listings-dashboard|contact)/?$",
+      "dest": "/api/index"
+    },
+    {
+      "src": "^/(?:login|register)/?$",
       "dest": "/api/index"
     },
     {
@@ -61,7 +93,7 @@
       "dest": "/api/index"
     },
     {
-      "src": "^/restaurants/(.*)$",
+      "src": "^/(?:restaurants|mosques|organizations|grocery|clothing|schools|butchers|news)/(.*)$",
       "headers": { "x-vercel-enable-rewrite-caching": "1" },
       "dest": "/api/index"
     },

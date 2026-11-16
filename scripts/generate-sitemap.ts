@@ -4,6 +4,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs, query, where, setLogLevel } from 'firebase/firestore';
 import { buildMainSitemapXml, buildNewsSitemapXml } from '../src/utils/sitemapBuilder';
 import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from '../src/utils/firestoreQuotaFallback';
+import { isListingClosedOrDeleted, PERMANENTLY_CLOSED_LISTING_SLUGS } from '../src/utils/url';
 
 async function generateSitemap() {
   console.log("Generating sitemaps...");
@@ -59,7 +60,12 @@ async function generateSitemap() {
     allApprovedNews = getFallbackNews();
   }
 
-  const excludedPaths = new Set<string>();
+  allApprovedListings = allApprovedListings.filter((l) => !isListingClosedOrDeleted(l));
+  allApprovedNews = allApprovedNews.filter((n) => n && n.deleted !== true && n.status !== 'deleted');
+
+  const excludedPaths = new Set<string>(
+    Array.from(PERMANENTLY_CLOSED_LISTING_SLUGS).map((s) => `/restaurants/${s}`)
+  );
   try {
     const redirectsPath = path.resolve(process.cwd(), 'redirects.json');
     if (fs.existsSync(redirectsPath)) {

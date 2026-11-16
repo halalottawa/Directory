@@ -17,6 +17,7 @@ import { SEO } from '../components/SEO';
 import { getPreciseLocation } from '../utils/geo';
 import { isAppWrapper } from '../utils/platform';
 import { safeLocalStorage } from '../utils/safeStorage';
+import { getCanonicalUrl } from '../utils/url';
 
 export const Login: React.FC = () => {
   const [isRegister, setIsRegister] = useState(false);
@@ -196,7 +197,9 @@ export const Login: React.FC = () => {
       <SEO 
         title={isRegister ? 'Register' : 'Login'} 
         description={isRegister ? 'Create an account on Halal Ottawa.' : 'Log in to your Halal Ottawa account.'} 
+        canonicalUrl={getCanonicalUrl(isRegister ? '/register' : '/login')}
         noindex={true}
+        robots="noindex, follow"
       />
 
       {!isApp && (

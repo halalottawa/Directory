@@ -32,7 +32,7 @@ import { getExcerpt } from "./src/utils/textUtils";
 import { getImageUrl, getImageSrcSet, GLOBAL_HERO_IMAGE_PATH, HERO_IMAGE_WIDTHS, HERO_IMAGE_SIZES } from "./src/config/images";
 import { buildMainSitemapXml, buildNewsSitemapXml, RESTAURANT_SUBCATEGORIES } from "./src/utils/sitemapBuilder";
 import { getCategoryPageMeta } from "./src/utils/categoryMeta";
-import { getCanonicalUrl, deduplicateListingsByCanonicalUrl } from "./src/utils/url";
+import { getCanonicalUrl, deduplicateListingsByCanonicalUrl, isListingClosedOrDeleted, PERMANENTLY_CLOSED_LISTING_IDS, PERMANENTLY_CLOSED_LISTING_SLUGS } from "./src/utils/url";
 import { isFirestoreQuotaError, getFallbackListings, getFallbackNews } from "./src/utils/firestoreQuotaFallback";
 import {
   buildHomeStructuredData,
@@ -325,7 +325,9 @@ async function getCachedListingsData(): Promise<any[]> {
     return cachedListingsPayload;
   }
   if (now < firestoreQuotaCooldownUntil) {
-    const fallback = deduplicateListingsByCanonicalUrl(getFallbackListings()).sort(
+    const fallback = deduplicateListingsByCanonicalUrl(
+      getFallbackListings().filter((item: any) => !isListingClosedOrDeleted(item))
+    ).sort(
       (a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)
     );
     cachedListingsPayload = fallback;
@@ -340,7 +342,9 @@ async function getCachedListingsData(): Promise<any[]> {
         utils.query(utils.collection(db, 'listings'), utils.where('isApproved', '==', true))
       );
       const items = deduplicateListingsByCanonicalUrl(
-        snap.docs.map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+        snap.docs
+          .map((docItem: any) => ({ id: docItem.id, ...docItem.data() }))
+          .filter((item: any) => !isListingClosedOrDeleted(item))
       ).sort((a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt));
       cachedListingsPayload = items;
       cachedListingsExpiry = now + HOME_CACHE_TTL_MS;
@@ -353,7 +357,9 @@ async function getCachedListingsData(): Promise<any[]> {
       console.error('Error retrieving listings:', err);
     }
   }
-  const fallback = deduplicateListingsByCanonicalUrl(getFallbackListings()).sort(
+  const fallback = deduplicateListingsByCanonicalUrl(
+    getFallbackListings().filter((item: any) => !isListingClosedOrDeleted(item))
+  ).sort(
     (a: any, b: any) => parseFirestoreTimestamp(b.createdAt) - parseFirestoreTimestamp(a.createdAt)
   );
   cachedListingsPayload = fallback;
@@ -943,10 +949,37 @@ async function buildExpressApp(): Promise<express.Express> {
     "/old-blog",
     "/forums",
     "/app-ads.txt",
+    "/events",
+    "/jobs",
+    "/post-a-listing",
+    "/listings-dashboard",
+    "/contact",
+  ]);
+
+  const GONE_PREFIXES = [
+    "/events/",
+    "/jobs/",
+    "/category/",
+    "/region/",
+    "/job-category/",
+    "/listing-tag/",
+  ];
+
+  const GONE_EXACT_PREFIX_ROOTS = new Set([
+    "/events",
+    "/jobs",
+    "/category",
+    "/region",
+    "/job-category",
+    "/listing-tag",
+    "/post-a-listing",
+    "/listings-dashboard",
+    "/contact",
   ]);
 
   function isWordPressGonePath(rawPath: string, queryObj?: Record<string, any>): boolean {
     const noTrailing = normalizeRedirectKey(rawPath);
+    const rawLowerNoTrailing = String(rawPath || "/").trim().toLowerCase().replace(/\/+$/, "") || "/";
 
     // /?p=* WordPress legacy post query permalink
     if ((noTrailing === "/" || noTrailing === "") && queryObj && queryObj.p !== undefined && String(queryObj.p).trim() !== "") {
@@ -963,8 +996,14 @@ async function buildExpressApp(): Promise<express.Express> {
       return true;
     }
 
-    // /listing-tag/*
-    if (noTrailing === "/listing-tag" || noTrailing.startsWith("/listing-tag/")) {
+    // /events, /events/*, /jobs, /jobs/*, /category/*, /region/*, /job-category/*, /listing-tag/*, /post-a-listing, /listings-dashboard, /contact
+    if (GONE_EXACT_PREFIX_ROOTS.has(noTrailing) || GONE_PREFIXES.some((prefix) => noTrailing.startsWith(prefix))) {
+      return true;
+    }
+
+    // Permanently closed listings under any category or /listings prefix
+    const parts = noTrailing.split("/").filter(Boolean);
+    if (parts.length === 2 && (PERMANENTLY_CLOSED_LISTING_SLUGS.has(parts[1]) || PERMANENTLY_CLOSED_LISTING_IDS.has(parts[1]))) {
       return true;
     }
 
@@ -987,7 +1026,12 @@ async function buildExpressApp(): Promise<express.Express> {
     }
 
     const { gone } = getRedirectsConfig();
-    if (GONE_PATHS.has(noTrailing) || gone.has(noTrailing)) {
+    if (
+      GONE_PATHS.has(noTrailing) ||
+      gone.has(noTrailing) ||
+      GONE_PATHS.has(rawLowerNoTrailing) ||
+      gone.has(rawLowerNoTrailing)
+    ) {
       return true;
     }
 
@@ -1009,7 +1053,8 @@ async function buildExpressApp(): Promise<express.Express> {
           /<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/gi,
           '<meta name="description" content="This page has been permanently removed from Halal Ottawa." />'
         );
-        html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, "");
+        html = html.replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi, "");
+        html = html.replace(/<meta\b[^>]*name=["']robots["'][^>]*>/gi, "");
         html = html.replace(
           "</head>",
           '  <meta name="robots" content="noindex, nofollow" />\n  </head>'
@@ -1058,85 +1103,170 @@ async function buildExpressApp(): Promise<express.Express> {
     return res.status(404).type("text/plain").send("Not Found");
   });
 
-  // Canonical apex domain, HTTP->HTTPS, 410 Gone WordPress leftovers, and single-hop 301 legacy route redirects
-  app.use((req, res, next) => {
-    const rawPath = req.path || "/";
-    if (
-      rawPath.startsWith("/api/") ||
-      rawPath.startsWith("/assets/") ||
-      rawPath.startsWith("/fonts/") ||
-      rawPath.startsWith("/uploads/") ||
-      rawPath.startsWith("/__/auth/")
-    ) {
-      return next();
+  // Serve /robots.txt explicitly so both dev and Vercel serverless /api/index return exact directives
+  app.get("/robots.txt", (_req, res) => {
+    const robotsPath = resolveAppPath("public", "robots.txt") || resolveAppPath("dist", "robots.txt");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    if (robotsPath && fs.existsSync(robotsPath)) {
+      return res.status(200).sendFile(robotsPath);
     }
+    return res.status(200).send("User-agent: *\nDisallow: /api/\n\nSitemap: https://www.halalottawa.ca/sitemap.xml\nSitemap: https://www.halalottawa.ca/sitemap-news.xml\n");
+  });
 
-    const host = String(req.headers.host || "").toLowerCase();
-    const xForwardedHost = String(req.headers["x-forwarded-host"] || "").toLowerCase();
-    const xForwardedProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase().split(",")[0].trim();
-    const isApex = host === "halalottawa.ca" || xForwardedHost === "halalottawa.ca";
-    const isHttpProd = (host === "www.halalottawa.ca" || xForwardedHost === "www.halalottawa.ca") && xForwardedProto === "http";
-    const targetOrigin = (isApex || isHttpProd || host === "www.halalottawa.ca" || xForwardedHost === "www.halalottawa.ca")
-      ? "https://www.halalottawa.ca"
-      : "";
+  // Canonical apex domain, HTTP->HTTPS, tracking param stripping, 410 Gone, and single-hop 301 legacy redirects
+  app.use(async (req, res, next) => {
+    try {
+      const rawPath = req.path || "/";
+      if (
+        rawPath.startsWith("/api/") ||
+        rawPath.startsWith("/assets/") ||
+        rawPath.startsWith("/fonts/") ||
+        rawPath.startsWith("/uploads/") ||
+        rawPath.startsWith("/__/auth/")
+      ) {
+        return next();
+      }
 
-    let cleanPath = rawPath;
-    if (cleanPath.length > 1 && cleanPath.endsWith("/")) {
-      cleanPath = cleanPath.replace(/\/+$/, "") || "/";
+      const rawHost = String(req.headers.host || "").toLowerCase().split(":")[0];
+      const rawFwdHost = String(req.headers["x-forwarded-host"] || "").toLowerCase().split(":")[0];
+      const effectiveHost = rawFwdHost || rawHost;
+      const xForwardedProto = String(req.headers["x-forwarded-proto"] || "").toLowerCase().split(",")[0].trim();
+      const isApex = effectiveHost === "halalottawa.ca";
+      const isHttpProd = effectiveHost === "www.halalottawa.ca" && xForwardedProto === "http";
+      const isProdDomain = effectiveHost === "www.halalottawa.ca" || effectiveHost === "halalottawa.ca";
+      const isLocalHost = effectiveHost === "localhost" || effectiveHost === "127.0.0.1";
+      const targetOrigin = (isProdDomain || (process.env.VERCEL === "1" && !isLocalHost))
+        ? "https://www.halalottawa.ca"
+        : "";
+
+      // Never redirect public traffic or crawlers to /__cookie_check.html.
+      if (rawPath.includes("__cookie_check")) {
+        const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
+        const targetPath = sanitizeCookieCheckReturnUrl(returnUrl);
+        return res.redirect(301, `${targetOrigin}${targetPath}`);
+      }
+
+      // Single-hop 410 Gone BEFORE any http/apex/trailing-slash redirect
+      if (isWordPressGonePath(rawPath, req.query as Record<string, any>)) {
+        res.setHeader("X-Robots-Tag", "noindex, nofollow");
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        return res.status(410).set({ "Content-Type": "text/html; charset=utf-8" }).send(build410ResponseHtml());
+      }
+
+      // Strip tracking query params (utm_*, from) and ?page=1 cleanly
+      const rawQueryIdx = req.url.indexOf("?");
+      const rawQueryStr = rawQueryIdx >= 0 ? req.url.slice(rawQueryIdx + 1) : "";
+      const searchParams = new URLSearchParams(rawQueryStr);
+      let queryChanged = false;
+      for (const key of Array.from(searchParams.keys())) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith("utm_") || lowerKey === "from") {
+          searchParams.delete(key);
+          queryChanged = true;
+        }
+      }
+      if (searchParams.get("page") === "1") {
+        searchParams.delete("page");
+        queryChanged = true;
+      }
+      const cleanQs = searchParams.toString();
+      const effectiveQueryPart = cleanQs ? `?${cleanQs}` : "";
+
+      const hadTrailingSlash = rawPath.length > 1 && rawPath.endsWith("/");
+      const cleanPath = hadTrailingSlash ? (rawPath.replace(/\/+$/, "") || "/") : rawPath;
+      const decodedLower = normalizeRedirectKey(cleanPath);
+
+      const resolveStaticAlias = (p: string): string | null => {
+        if (p === "/qibla") return "/tools/qibla";
+        if (p === "/signup") return "/login";
+        if (p === "/dashboard") return "/admin";
+        if (p === "/author" || p === "/authors" || p.startsWith("/authors/")) return "/author/youssef-agrebi";
+        if (p === "/restaurants/cafe" || p === "/restaurants/cafés") return "/restaurants/cafes";
+        if (p === "/restaurants/afghan") return "/restaurants/afghani";
+        if (p.startsWith("/islamic schools/")) {
+          const slugPart = p.slice("/islamic schools/".length).trim();
+          if (slugPart) return `/schools/${slugPart}`;
+        }
+        return null;
+      };
+
+      let mappedRedirectPath: string | null = resolveStaticAlias(decodedLower);
+
+      if (!mappedRedirectPath) {
+        const mapResolution = await resolveRedirectMapTarget(decodedLower);
+        if (mapResolution?.isGone) {
+          res.setHeader("X-Robots-Tag", "noindex, nofollow");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.status(410).set({ "Content-Type": "text/html; charset=utf-8" }).send(build410ResponseHtml());
+        }
+        if (mapResolution?.redirectUrl) {
+          mappedRedirectPath = mapResolution.redirectUrl;
+        }
+      }
+
+      // Normalize canonical case/accents for known single-segment routes & /restaurants/<subcat>,
+      // and collapse moved/cross-category /<cat>/<slug> URLs into ONE 301 hop
+      let normalizedPath: string | null = null;
+      if (!mappedRedirectPath) {
+        const parts = decodedLower.split("/").filter(Boolean);
+        const KNOWN_SINGLE = new Set([
+          "listings", "news", "privacy-policy", "terms", "faq", "profile", "saved",
+          "settings", "admin", "login", "register", "restaurants", "mosques",
+          "organizations", "grocery", "clothing", "schools", "butchers"
+        ]);
+        const LISTING_CAT_PREFIXES = new Set([
+          "listings", "restaurants", "mosques", "organizations",
+          "grocery", "clothing", "schools", "butchers"
+        ]);
+        if (parts.length === 1 && KNOWN_SINGLE.has(parts[0]) && cleanPath !== `/${parts[0]}`) {
+          normalizedPath = `/${parts[0]}`;
+        } else if (parts.length === 2 && parts[0] === "restaurants") {
+          const subNorm = normalizeCompare(parts[1]).replace(/\s+/g, "-");
+          const canonicalSub = subNorm === "cafe" ? "cafes" : subNorm === "afghan" ? "afghani" : subNorm;
+          const isKnownSub =
+            ["orleans", "kanata", "barrhaven", "downtown"].includes(canonicalSub) ||
+            RESTAURANT_SUBCATEGORIES.includes(canonicalSub as any);
+          if (isKnownSub && cleanPath !== `/restaurants/${canonicalSub}`) {
+            normalizedPath = `/restaurants/${canonicalSub}`;
+          }
+        }
+        if (!normalizedPath && parts.length === 2 && LISTING_CAT_PREFIXES.has(parts[0])) {
+          const isRestSub = parts[0] === "restaurants" && RESTAURANT_SUBCATEGORY_CHECK_SET.has(normalizeCompare(parts[1]).replace(/\s+/g, "-"));
+          if (!isRestSub && !(parts[0] === "listings" && parts[1] === "add")) {
+            const cachedListings = await getCachedListingsData();
+            const match = cachedListings.find(
+              (l: any) =>
+                String(l.id || "").toLowerCase() === parts[1] ||
+                String(l.slug || "").toLowerCase() === parts[1]
+            );
+            if (match && !isListingClosedOrDeleted(match)) {
+              const cat = Array.isArray(match.category) && match.category.length > 0
+                ? match.category[0]
+                : typeof match.category === "string" ? match.category : "listings";
+              const canonicalCatSlug = normalizeCategoryToSlug(cat);
+              const canonicalItemSlug = match.slug || match.id;
+              const expectedCanonicalPath = `/${canonicalCatSlug}/${canonicalItemSlug}`;
+              if (cleanPath !== expectedCanonicalPath) {
+                normalizedPath = expectedCanonicalPath;
+              }
+            }
+          }
+        }
+      }
+
+      const finalPath = mappedRedirectPath || normalizedPath || cleanPath;
+      const pathChanged = Boolean(mappedRedirectPath || normalizedPath || hadTrailingSlash);
+
+      if (pathChanged || isApex || isHttpProd || queryChanged) {
+        const keepQuery = finalPath === "/" ? "" : effectiveQueryPart;
+        return res.redirect(301, `${targetOrigin}${finalPath}${keepQuery}`);
+      }
+
+      next();
+    } catch (err) {
+      next(err);
     }
-
-    // Never redirect public traffic or crawlers to /__cookie_check.html.
-    // If an old link hits /__cookie_check.html directly, 301 straight to the sanitized destination.
-    if (rawPath.includes("__cookie_check")) {
-      const returnUrl = (req.query.return_url as string) || (req.query.returnUrl as string) || "/";
-      const targetPath = sanitizeCookieCheckReturnUrl(returnUrl);
-      return res.redirect(301, `${targetOrigin}${targetPath}`);
-    }
-
-    // Step 3: Return 410 Gone immediately for WordPress leftovers (even when trailing-slashed like /restaurants/purplex/feed/)
-    if (isWordPressGonePath(rawPath, req.query as Record<string, any>)) {
-      res.setHeader("X-Robots-Tag", "noindex, nofollow");
-      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-      return res.status(410).set({ "Content-Type": "text/html; charset=utf-8" }).send(build410ResponseHtml());
-    }
-
-    const decodedLower = normalizeRedirectKey(cleanPath);
-    const rawQueryPart = req.url.includes("?") ? "?" + req.url.split("?").slice(1).join("?") : "";
-    const isOnlyPageOne = rawQueryPart === "?page=1";
-    const effectiveQueryPart = isOnlyPageOne ? "" : rawQueryPart;
-
-    // Step 1/5: Static single-hop 301 redirects for legacy/alias routes (combined with apex/HTTPS/trailing-slash normalization)
-    let mappedRedirectPath: string | null = null;
-    if (decodedLower === "/events" || decodedLower.startsWith("/events/") || decodedLower === "/jobs" || decodedLower.startsWith("/jobs/")) {
-      mappedRedirectPath = "/";
-    } else if (decodedLower === "/qibla") {
-      mappedRedirectPath = "/tools/qibla";
-    } else if (decodedLower === "/signup") {
-      mappedRedirectPath = "/login";
-    } else if (decodedLower === "/dashboard") {
-      mappedRedirectPath = "/admin";
-    } else if (decodedLower === "/author" || decodedLower === "/authors" || decodedLower.startsWith("/authors/")) {
-      mappedRedirectPath = "/author/youssef-agrebi";
-    } else if (decodedLower === "/restaurants/cafe" || decodedLower === "/restaurants/cafés") {
-      mappedRedirectPath = "/restaurants/cafes";
-    } else if (decodedLower === "/restaurants/afghan") {
-      mappedRedirectPath = "/restaurants/afghani";
-    } else if (decodedLower.startsWith("/islamic schools/")) {
-      const slugPart = decodedLower.slice("/islamic schools/".length).trim();
-      if (slugPart) mappedRedirectPath = `/schools/${slugPart}`;
-    }
-
-    if (mappedRedirectPath) {
-      const keepQuery = mappedRedirectPath === "/" ? "" : effectiveQueryPart;
-      return res.redirect(301, `${targetOrigin}${mappedRedirectPath}${keepQuery}`);
-    }
-
-    // Enforce canonical apex/HTTPS/page=1 single-hop 301 immediately
-    if (isApex || isHttpProd || isOnlyPageOne) {
-      return res.redirect(301, `${targetOrigin}${cleanPath}${effectiveQueryPart}`);
-    }
-
-    next();
   });
 
   // Enable dynamic and highly secure CORS for client cross-origin API requests (e.g. from Vercel static frontends, mobile view setups, etc.)
@@ -2656,6 +2786,7 @@ async function buildExpressApp(): Promise<express.Express> {
       const excludedPaths = new Set<string>([
         ...redirectCfg.redirects.keys(),
         ...redirectCfg.gone,
+        ...Array.from(PERMANENTLY_CLOSED_LISTING_SLUGS).map((s) => `/restaurants/${s}`),
       ]);
 
       const { xml } = buildMainSitemapXml(allApprovedListings, allApprovedNews, {
@@ -3877,22 +4008,32 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
   const normalizeCompare = (val: any): string =>
     String(val || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/&/g, '').replace(/\s+/g, ' ');
 
-  function subcategoryHasListings(rawSubSlug: string, allListings: any[]): boolean {
+  const RESTAURANT_SUBCATEGORY_CHECK_SET = new Set<string>([
+    "orleans", "kanata", "barrhaven", "downtown",
+    ...RESTAURANT_SUBCATEGORIES.map((s) => String(s).toLowerCase()),
+    "cafe", "afghan",
+  ]);
+
+  function countSubcategoryListings(rawSubSlug: string, allListings: any[]): number {
     let canonicalSub = normalizeCompare(rawSubSlug).replace(/\s+/g, "-");
     if (canonicalSub === "cafe") canonicalSub = "cafes";
     if (canonicalSub === "afghan") canonicalSub = "afghani";
     const isLoc = ["orleans", "kanata", "barrhaven", "downtown"].includes(canonicalSub);
     const targetSub = normalizeCompare(canonicalSub.replace(/-/g, " "));
-    return allListings.some((data: any) => {
-      if (!data || data.deleted === true || data.status === "deleted") return false;
+    let count = 0;
+    for (const data of allListings) {
+      if (!data || isListingClosedOrDeleted(data)) continue;
       const listingCategories = Array.isArray(data.category) ? data.category : (data.category ? [data.category] : []);
       const isRestaurant = listingCategories.some((cat: any) => {
         const norm = normalizeCompare(cat);
         return norm === "restaurants" || norm === "bakery" || norm === "cafe" || norm === "dessert";
       });
-      if (!isRestaurant) return false;
+      if (!isRestaurant) continue;
       if (isLoc) {
-        return getNeighborhoodFromAddress(data.address || "", data.suburb || "") === canonicalSub;
+        if (getNeighborhoodFromAddress(data.address || "", data.suburb || "") === canonicalSub) {
+          count++;
+        }
+        continue;
       }
       const listingTypes = Array.isArray(data.types) ? data.types : (data.types ? [data.types] : []);
       const listingCuisines = Array.isArray(data.cuisine) ? data.cuisine : (data.cuisine ? [data.cuisine] : []);
@@ -3900,8 +4041,11 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const norm = normalizeCompare(val);
         return norm === targetSub || norm === canonicalSub || (targetSub === "sandwiches" && norm === "sandwiches subs") || (targetSub === "smoothies" && norm === "juice smoothies");
       };
-      return listingCategories.some(matchItem) || listingTypes.some(matchItem) || listingCuisines.some(matchItem);
-    });
+      if (listingCategories.some(matchItem) || listingTypes.some(matchItem) || listingCuisines.some(matchItem)) {
+        count++;
+      }
+    }
+    return count;
   }
 
   async function resolveRedirectMapTarget(
@@ -3912,18 +4056,40 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     if (gone.has(key) || GONE_PATHS.has(key)) {
       return { isGone: true };
     }
-    const target = redirects.get(key);
+    let target = redirects.get(key);
     if (!target) return null;
 
-    // Step 4: For top-level cuisine redirects pointing to /restaurants/{cuisine},
-    // return 301 if that category page has listings, otherwise 410 Gone.
-    if (key.split("/").filter(Boolean).length === 1 && target.startsWith("/restaurants/")) {
-      const sub = target.slice("/restaurants/".length);
-      const allListings = await getCachedListingsData();
-      if (subcategoryHasListings(sub, allListings)) {
+    // Resolve any transitive hops inside redirects.json so only ONE 301 hop is emitted
+    const visited = new Set<string>([key]);
+    for (let i = 0; i < 3; i++) {
+      const targetKey = normalizeRedirectKey(target);
+      if (gone.has(targetKey) || GONE_PATHS.has(targetKey)) {
+        return { isGone: true };
+      }
+      const nextTarget = redirects.get(targetKey);
+      if (!nextTarget || visited.has(targetKey)) break;
+      visited.add(targetKey);
+      target = nextTarget;
+    }
+
+    // Rule 1 Exception: If a redirect target is a restaurant cuisine/area category page,
+    // 0 listings -> 410 Gone; 1-2 listings (noindexed) -> 301 to /restaurants; 3+ -> 301 to target.
+    if (target.startsWith("/restaurants/")) {
+      const sub = target.slice("/restaurants/".length).toLowerCase();
+      if (PERMANENTLY_CLOSED_LISTING_SLUGS.has(sub)) {
+        return { isGone: true };
+      }
+      if (RESTAURANT_SUBCATEGORY_CHECK_SET.has(sub)) {
+        const allListings = await getCachedListingsData();
+        const count = countSubcategoryListings(sub, allListings);
+        if (count === 0) {
+          return { isGone: true };
+        }
+        if (count < 3) {
+          return { redirectUrl: "/restaurants" };
+        }
         return { redirectUrl: target };
       }
-      return { isGone: true };
     }
 
     return { redirectUrl: target };
@@ -3958,11 +4124,6 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
     const pathParts = decodedCleanPath.split('/').filter(Boolean);
     let isNotFound = false;
     let isGone = isWordPressGonePath(rawCleanUrlPath, req?.query as Record<string, any>);
-
-    // Redirect legacy events and jobs routes to homepage since they have been removed
-    if (!isGone && pathParts.length > 0 && (pathParts[0].toLowerCase() === 'events' || pathParts[0].toLowerCase() === 'jobs')) {
-      return { html: '', isNotFound: false, redirectUrl: '/' };
-    }
 
     const ALL_SUBCATEGORIES_SET = new Set<string>(
       RESTAURANT_SUBCATEGORIES.flatMap(sub => [sub.toLowerCase(), normalizeCompare(sub.replace(/-/g, ' '))])
@@ -4432,7 +4593,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
               }
             }
 
-            if (data && (data.deleted === true || data.status === 'deleted')) {
+            if (data && isListingClosedOrDeleted(data)) {
               data = null;
               isGone = true;
             }
@@ -4468,7 +4629,7 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
                   const targetListing = cachedListings.find(
                     (l: any) => l.id === resolvedSlug || String(l.slug || '').toLowerCase() === resolvedSlug.toLowerCase()
                   );
-                  if (targetListing && targetListing.deleted !== true && targetListing.status !== 'deleted') {
+                  if (targetListing && !isListingClosedOrDeleted(targetListing)) {
                     const cat = Array.isArray(targetListing.category) ? targetListing.category[0] : targetListing.category;
                     const catSlug = cat ? normalizeCategoryToSlug(String(cat)) : 'restaurants';
                     return { html: '', isNotFound: false, redirectUrl: `/${catSlug}/${targetListing.slug || targetListing.id}` };
@@ -4558,11 +4719,12 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
       return { html: '', isNotFound: false, redirectUrl: `${cleanUrlPath}${cleanQuerySuffix}` };
     }
 
-    // Strip existing OG, Twitter, canonical, JSON-LD schemas, preloads and previous initial data scripts to prevent duplicates
-    html = html.replace(/<meta\s+property=["']og:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
-    html = html.replace(/<meta\s+name=["']twitter:[^"']+["']\s+content=["'][^"']*["']\s*\/?>/gi, '');
-    html = html.replace(/<link\s+rel=["']canonical["']\s+href=["'][^"']*["']\s*\/?>/gi, '');
-    html = html.replace(/<link\s+rel=["']preload["'][^>]*as=["']image["'][^>]*\/?>/gi, '');
+    // Strip existing OG, Twitter, canonical, robots, JSON-LD schemas, preloads and previous initial data scripts to prevent duplicates
+    html = html.replace(/<meta\b[^>]*property=["']og:[^"']+["'][^>]*>/gi, '');
+    html = html.replace(/<meta\b[^>]*name=["']twitter:[^"']+["'][^>]*>/gi, '');
+    html = html.replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi, '');
+    html = html.replace(/<meta\b[^>]*name=["']robots["'][^>]*>/gi, '');
+    html = html.replace(/<link\b[^>]*rel=["']preload["'][^>]*as=["']image["'][^>]*>/gi, '');
     html = html.replace(/<script\b[^>]*>window\.__INITIAL_ROUTE_TYPE__[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<script\s+type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<div\s+id=["']root["']>[\s\S]*?<\/div>/i, '<div id="root"></div>');
@@ -4812,15 +4974,17 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         initialData &&
         initialData.isApproved === false;
 
+      const isAuthFollowRoute = ['/login', '/register'].includes(cleanUrlPath.toLowerCase());
+
       const isPrivateOrActionRoute =
-        ['/saved', '/login', '/register', '/signup', '/listings/add', '/news/add', '/profile', '/profile/edit', '/admin', '/settings'].includes(cleanUrlPath.toLowerCase()) ||
+        ['/saved', '/signup', '/listings/add', '/news/add', '/profile', '/profile/edit', '/admin', '/settings'].includes(cleanUrlPath.toLowerCase()) ||
         pathParts[0]?.toLowerCase() === 'go' ||
         (pathParts.length === 3 && pathParts[1]?.toLowerCase() === 'edit');
 
       let robotsDirective = 'index, follow';
       if (isNotFound || isGone || isPrivateOrActionRoute || isUnapprovedContent) {
         robotsDirective = 'noindex, nofollow';
-      } else if (isThinCategoryOrLocation || hasFilterOrSessionQuery) {
+      } else if (isAuthFollowRoute || isThinCategoryOrLocation || hasFilterOrSessionQuery) {
         robotsDirective = 'noindex, follow';
       }
 
@@ -4933,7 +5097,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const template = await vite.transformIndexHtml(req.originalUrl, rawTemplate);
         const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
-          res.redirect(301, result.redirectUrl);
+          const reqHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase().split(":")[0];
+          const isLocal = reqHost === "localhost" || reqHost === "127.0.0.1";
+          const redirOrigin = (reqHost === "www.halalottawa.ca" || reqHost === "halalottawa.ca" || (process.env.VERCEL === "1" && !isLocal))
+            ? "https://www.halalottawa.ca"
+            : "";
+          const dest = result.redirectUrl.startsWith("/") ? `${redirOrigin}${result.redirectUrl}` : result.redirectUrl;
+          res.redirect(301, dest);
           return;
         }
         applyHtmlCacheHeaders(res, req.path, result.isNotFound, result.robotsHeader);
@@ -4976,7 +5146,13 @@ Return ONLY the rewritten description text, with no markdown formatting or extra
         const template = fs.readFileSync(indexPath, "utf-8");
         const result = await getInjectedHTML(template, req.path, req);
         if (result.redirectUrl) {
-          res.redirect(301, result.redirectUrl);
+          const reqHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").toLowerCase().split(":")[0];
+          const isLocal = reqHost === "localhost" || reqHost === "127.0.0.1";
+          const redirOrigin = (reqHost === "www.halalottawa.ca" || reqHost === "halalottawa.ca" || (process.env.VERCEL === "1" && !isLocal))
+            ? "https://www.halalottawa.ca"
+            : "";
+          const dest = result.redirectUrl.startsWith("/") ? `${redirOrigin}${result.redirectUrl}` : result.redirectUrl;
+          res.redirect(301, dest);
           return;
         }
         applyHtmlCacheHeaders(res, req.path, result.isNotFound, result.robotsHeader);

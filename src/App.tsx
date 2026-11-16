@@ -384,10 +384,17 @@ const AppContent: React.FC = () => {
         <Route path="/author" element={<Navigate to="/author/youssef-agrebi" replace />} />
         <Route path="/authors/:slug" element={<Navigate to="/author/youssef-agrebi" replace />} />
         <Route path="/authors" element={<Navigate to="/author/youssef-agrebi" replace />} />
-        <Route path="/events" element={<Navigate to="/" replace />} />
-        <Route path="/events/*" element={<Navigate to="/" replace />} />
-        <Route path="/jobs" element={<Navigate to="/" replace />} />
-        <Route path="/jobs/*" element={<Navigate to="/" replace />} />
+        <Route path="/events" element={<NotFound statusCode={410} title="Content Permanently Removed" message="Events have been permanently removed from Halal Ottawa." />} />
+        <Route path="/events/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="Events have been permanently removed from Halal Ottawa." />} />
+        <Route path="/jobs" element={<NotFound statusCode={410} title="Content Permanently Removed" message="Jobs have been permanently removed from Halal Ottawa." />} />
+        <Route path="/jobs/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="Jobs have been permanently removed from Halal Ottawa." />} />
+        <Route path="/category/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy archive has been permanently removed from Halal Ottawa." />} />
+        <Route path="/region/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy archive has been permanently removed from Halal Ottawa." />} />
+        <Route path="/job-category/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy archive has been permanently removed from Halal Ottawa." />} />
+        <Route path="/listing-tag/*" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy archive has been permanently removed from Halal Ottawa." />} />
+        <Route path="/post-a-listing" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy page has been permanently removed from Halal Ottawa." />} />
+        <Route path="/listings-dashboard" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy page has been permanently removed from Halal Ottawa." />} />
+        <Route path="/contact" element={<NotFound statusCode={410} title="Content Permanently Removed" message="This legacy page has been permanently removed from Halal Ottawa." />} />
         <Route path="/:category/:slug" element={<ListingDetail />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />

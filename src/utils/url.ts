@@ -67,6 +67,33 @@ export const deduplicateListingsByCanonicalUrl = <T extends Record<string, any>>
   return Array.from(map.values());
 };
 
+export const PERMANENTLY_CLOSED_LISTING_IDS = new Set([
+  '3HrLlW7OkFVY5ZXNgSi6', // Sultan Suleyman Turkish Cuisine
+  '3TSM6GhH2SHod5ZmAkWM', // Laheeb Elite
+  'Udji4YcO2xEUPTyMUwia', // Chahaya Malaysia
+  'Z0U44MGIL5NnxChQZwqS', // La Bônoise
+]);
+
+export const PERMANENTLY_CLOSED_LISTING_SLUGS = new Set([
+  'sultan-suleyman-turkish-cuisine',
+  'laheeb-elite',
+  'chahaya-malaysia',
+  'la-bonoise',
+  'la-bnoise',
+]);
+
+export function isListingClosedOrDeleted(item: any): boolean {
+  if (!item) return false;
+  if (item.deleted === true) return true;
+  const status = String(item.status || '').toLowerCase().trim();
+  if (status === 'deleted' || status === 'closed' || status === 'permanently_closed') return true;
+  const id = String(item.id || '').trim();
+  const slug = String(item.slug || '').toLowerCase().trim();
+  if (id && PERMANENTLY_CLOSED_LISTING_IDS.has(id)) return true;
+  if (slug && PERMANENTLY_CLOSED_LISTING_SLUGS.has(slug)) return true;
+  return false;
+}
+
 export const CANONICAL_ORIGIN = 'https://www.halalottawa.ca';
 
 export const getCanonicalUrl = (pathOrUrl: string = '/'): string => {

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Listing } from '../types';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CATEGORIES, DEMO_LISTINGS, LISTING_TYPES, CUISINES } from '../constants';
-import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, deduplicateListingsByCanonicalUrl, formatAddressWithoutProvinceAndPostalCode } from '../utils/url';
+import { getListingUrl, getAbsoluteUrl, getCanonicalUrl, deduplicateListingsByCanonicalUrl, formatAddressWithoutProvinceAndPostalCode, isListingClosedOrDeleted } from '../utils/url';
 import { buildCategoryStructuredData } from '../utils/structuredData';
 import { getOptimizedImageUrl } from '../utils/imageUtils';
 import { SEO } from '../components/SEO';
@@ -294,7 +294,7 @@ export const CategoryListings: React.FC = () => {
         return cats.some(cat => normalizeCompare(cat) === targetNorm) || 
                types.some(t => normalizeCompare(t) === targetNorm) ||
                cuisines.some(c => normalizeCompare(c) === targetNorm);
-    })]);
+    })].filter(l => !isListingClosedOrDeleted(l)));
     
     const parseTime = (val: any): number => {
       if (!val) return 0;
@@ -320,7 +320,7 @@ export const CategoryListings: React.FC = () => {
   }, [rawListings, searchQuery, formattedCategory, isLocationCategory]);
 
   const filterCounts = useMemo(() => {
-    const combined = [...rawListings, ...DEMO_LISTINGS];
+    const combined = [...rawListings, ...DEMO_LISTINGS].filter(l => !isListingClosedOrDeleted(l));
     const nCounts: Record<string, number> = {
       'orleans': 0,
       'kanata': 0,
